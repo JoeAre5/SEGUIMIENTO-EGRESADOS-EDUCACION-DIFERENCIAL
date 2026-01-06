@@ -12,6 +12,7 @@ import {
   ResultadoEND,
   Usuario,
 } from '@prisma/client';
+
 import * as constants from './seed-constants';
 import * as util from 'util';
 import * as argon from 'argon2';
@@ -19,28 +20,32 @@ import * as argon from 'argon2';
 const prisma = new PrismaClient();
 
 async function main() {
+  // =============================
   // PLANES
-
+  // =============================
   const planesInsertados: Plan[] = await prisma.plan.createManyAndReturn({
     data: constants.PLANES,
+    skipDuplicates: true,
   });
-
   moreLog(planesInsertados);
 
+  // =============================
   // ESTUDIANTES
-
+  // =============================
   const estudiantesInsertados: Estudiante[] =
     await prisma.estudiante.createManyAndReturn({
       data: constants.generarEstudiantes(
         400,
         planesInsertados.map((p) => p.idPlan),
       ),
+      skipDuplicates: true,
     });
 
   moreLog(estudiantesInsertados);
 
+  // =============================
   // LINEAS ASIGNATURAS
-
+  // =============================
   console.time('LINEA_ASIGNATURA SEEDING');
   console.info('El seeding de las lineas de asignaturas está comenzando');
 
@@ -58,6 +63,7 @@ async function main() {
 
   const lineasAsignaturas = await prisma.lineaAsignatura.createManyAndReturn({
     data: lineasQueries,
+    skipDuplicates: true,
   });
 
   moreLog(lineasAsignaturas);
@@ -65,15 +71,15 @@ async function main() {
   console.timeEnd('LINEA_ASIGNATURA SEEDING');
   console.info('El seeding de lineas de asignaturas termino');
 
+  // =============================
   // ASIGNATURAS
-
-  const asignaturasQueries = [];
+  // =============================
+  const asignaturasQueries: any[] = [];
   for (const plan of planesInsertados) {
     for (const asignatura of constants.ASIGNATURAS) {
-      asignatura.idPlan = plan.idPlan;
-
       asignaturasQueries.push({
         ...asignatura,
+        idPlan: plan.idPlan,
       });
     }
   }
@@ -81,12 +87,14 @@ async function main() {
   const asignaturasInsertadas: Asignatura[] =
     await prisma.asignatura.createManyAndReturn({
       data: asignaturasQueries,
+      skipDuplicates: true,
     });
 
   moreLog(asignaturasInsertadas);
 
+  // =============================
   // CURSACIONES
-
+  // =============================
   console.info('Comienzo seeding cursaciones');
   console.time('CURSACIONES SEEDING');
 
@@ -97,47 +105,29 @@ async function main() {
   const estudiantes = await prisma.estudiante.findMany();
 
   for (const plan of planes) {
-    const asignaturasPorPlan = asignaturas.filter((asignatura) => {
-      if (asignatura.idPlan == plan.idPlan) return asignatura;
-    });
+    const asignaturasPorPlan = asignaturas.filter((a) => a.idPlan === plan.idPlan);
 
-    for (const estudiante of estudiantesInsertados.filter(
-      (e) => e.idPlan == plan.idPlan,
-    )) {
-      // Porcentaje de asignaturas del plan cursadas
-      const nroAsignaturasCursadas: number = calcularNroAsignaturasCursadas(
+    for (const estudiante of estudiantes.filter((e) => e.idPlan === plan.idPlan)) {
+      const nroAsignaturasCursadas = calcularNroAsignaturasCursadas(
         estudiante.agnioIngreso,
         asignaturasPorPlan.length,
       );
-      // Total de asignaturas de los planes cursadas
-      // const nroAsignaturasCursadas: number = asignaturasPorPlan.length;
 
-      let cursacionId = 0;
-      for (const asignaturaCursada of asignaturasPorPlan.slice(
-        0,
-        nroAsignaturasCursadas,
-      )) {
+      let cursacionId = 1;
+
+      for (const asignaturaCursada of asignaturasPorPlan.slice(0, nroAsignaturasCursadas)) {
         const nroIntentos =
           1 + Math.random() > 0.7 ? (Math.random() > 0.9 ? 2 : 1) : 0;
-        // 30% chance de repetir el ramo, 3% chance de repetirlo dos veces
 
-        for (
-          let intentoActual = 1;
-          intentoActual <= nroIntentos;
-          intentoActual++
-        ) {
+        for (let intentoActual = 1; intentoActual <= nroIntentos; intentoActual++) {
           const nota =
-            nroIntentos == intentoActual
+            nroIntentos === intentoActual
               ? roundTo(Math.random() * 3 + 4, 2)
               : roundTo(Math.random() * 3 + 1, 2);
 
           cursacionesQueries.push({
             idCursacion: cursacionId,
-            agnio:
-              estudiante.agnioIngreso +
-              Math.floor(cursacionId / 12) +
-              intentoActual -
-              1,
+            agnio: estudiante.agnioIngreso + Math.floor(cursacionId / 12) + intentoActual - 1,
             notaFinal: nota,
             grupo: Math.random() > 0.5 ? 'A' : 'B',
             numIntento: intentoActual,
@@ -156,6 +146,7 @@ async function main() {
 
   const cursacionesInsertadas = await prisma.cursacion.createManyAndReturn({
     data: cursacionesQueries,
+    skipDuplicates: true,
     include: {
       Asignatura: true,
       Estudiante: true,
@@ -166,20 +157,24 @@ async function main() {
 
   console.timeEnd('CURSACIONES SEEDING');
 
-  // ENDS
-
+  // =============================
+  // END
+  // =============================
   console.time('END SEEDING');
 
   const endsInsertadas = await prisma.eND.createManyAndReturn({
     data: constants.ENDS,
+    skipDuplicates: true,
   });
 
   moreLog(endsInsertadas);
 
+  // =============================
   // RESULTADOS END
-
+  // =============================
   const ENDS = await prisma.eND.findMany();
   const resultadosENDQueries: ResultadoEND[] = [];
+
   for (const end of ENDS) {
     for (const estudiante of estudiantes) {
       const resultado_estudiante: constants.FORMATO_RESPUESTA = {
@@ -201,21 +196,11 @@ async function main() {
           },
         },
         preguntas_abiertas: {
-          pa1: {
-            nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA),
-          },
-          pa2: {
-            nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA),
-          },
-          pa3: {
-            nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA),
-          },
-          pa4: {
-            nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA),
-          },
-          pa5: {
-            nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA),
-          },
+          pa1: { nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA) },
+          pa2: { nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA) },
+          pa3: { nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA) },
+          pa4: { nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA) },
+          pa5: { nivel_alcanzado: constants.getRandomEnumValue(constants.Nivel_PA) },
         },
       };
 
@@ -227,77 +212,85 @@ async function main() {
     }
   }
 
-  const resultados: ResultadoEND[] =
-    await prisma.resultadoEND.createManyAndReturn({
-      data: resultadosENDQueries,
-    });
+  await prisma.resultadoEND.createMany({
+    data: resultadosENDQueries,
+    skipDuplicates: true,
+  });
 
+  const resultados = await prisma.resultadoEND.findMany();
   moreLog(resultados);
 
   console.timeEnd('END SEEDING');
 
-  // PRACTICAS
-
+  // =============================
+  // PRACTICAS (ARREGLADO COMPLETO)
+  // =============================
   console.info('Se comienza el seeding de Prácticas');
   console.time('PRACTICA SEEDING');
 
-  const modalidades = await prisma.modalidad.createManyAndReturn({
+  await prisma.modalidad.createMany({
     data: constants.MODALIDADES,
+    skipDuplicates: true,
   });
 
+  const modalidades = await prisma.modalidad.findMany();
   moreLog(modalidades);
 
-  const conveniosInsertados = await prisma.convenio.createManyAndReturn({
+  await prisma.convenio.createMany({
     data: constants.CONVENIOS,
+    skipDuplicates: true,
   });
 
+  const conveniosInsertados = await prisma.convenio.findMany();
   moreLog(conveniosInsertados);
 
-  const practicasTomadasQueries: PracticaTomada[] = [];
+  const cursacionesPracticas = await prisma.cursacion.findMany({
+    include: { Asignatura: true },
+  });
+
+  const cursacionesSoloPracticas = cursacionesPracticas.filter(
+    (c) => c.Asignatura.caracter === 'PRACTICA',
+  );
+
+  const practicasTomadasQueries: any[] = [];
+
   const date0 = new Date(2016, 1, 1);
   const date1 = new Date('2020-01-01');
-  const date2 = new Date(2024, 12, 31);
+  const date2 = new Date(2024, 11, 31);
 
-  const cursacionesPracticas = cursacionesInsertadas.filter((cursacion) => {
-    if (cursacion.Asignatura.caracter === 'PRACTICA') return cursacion;
-  });
-  for (const cursacionPractica of cursacionesPracticas) {
+  for (const c of cursacionesSoloPracticas) {
     const fechaInicio =
-      cursacionPractica.notaFinal < 4.0
-        ? randomDate(date0, date1)
-        : randomDate(date1, date2);
+      c.notaFinal < 4.0 ? randomDate(date0, date1) : randomDate(date1, date2);
 
     practicasTomadasQueries.push({
-      fechaInicio: fechaInicio,
-      fechaTermino: undefined,
+      fechaInicio,
       resultadoDiagnostico: {},
-      resultado: cursacionPractica.notaFinal > 4.0 ? 'APROBADO' : 'DESAPROBADO',
-      idEstudiante: cursacionPractica.Estudiante.idEstudiante,
-      idPlan: cursacionPractica.Asignatura.idPlan,
-      idAsignatura: cursacionPractica.Asignatura.idAsignatura,
-      idCursacion: cursacionPractica.idCursacion,
+      resultado: c.notaFinal >= 4.0 ? 'APROBADO' : 'DESAPROBADO',
+      idPlan: c.idPlan,
+      idAsignatura: c.idAsignatura,
+      idEstudiante: c.idEstudiante,
+      idCursacion: c.idCursacion,
     });
-
-    // console.log(
-    //   `nota: ${cursacionPractica.notaFinal} ${cursacionPractica.notaFinal > 4.0 ? 'APROBADO' : 'DESAPROBADO'} ${fechaInicio}`,
-    // );
   }
 
-  const practicastomadas = await prisma.practicaTomada.createManyAndReturn({
+  await prisma.practicaTomada.createMany({
     data: practicasTomadasQueries,
+    skipDuplicates: true,
   });
 
-  moreLog(practicastomadas);
+  const practicasTomadas = await prisma.practicaTomada.findMany();
+  moreLog(practicasTomadas);
 
-  const PTConveniosQueries: PTConvenio[] = [];
+  // PTCONVENIO
+  console.time('PTCONVENIO SEEDING');
 
-  const practicasTomadas: PracticaTomada[] =
-    await prisma.practicaTomada.findMany();
-  const convenios: Convenio[] = await prisma.convenio.findMany();
+  const convenios = await prisma.convenio.findMany();
+  const PTConveniosQueries: any[] = [];
 
-  for (const practicaTomada of practicasTomadas) {
+  for (const practica of practicasTomadas) {
     const nroConvenios = Math.ceil(Math.random() * 2);
-    const conveniosSeleccionados: UniqueStack<Convenio> = new UniqueStack();
+    const conveniosSeleccionados: UniqueStack<any> = new UniqueStack();
+
     while (conveniosSeleccionados.length() < nroConvenios) {
       conveniosSeleccionados.push(constants.getRandomElement(convenios));
     }
@@ -305,47 +298,62 @@ async function main() {
     for (const convenio of conveniosSeleccionados) {
       PTConveniosQueries.push({
         nivel: constants.getRandomEnumValue(NIVEL),
-        idPlan: practicaTomada.idPlan,
-        idAsignatura: practicaTomada.idAsignatura,
-        idEstudiante: practicaTomada.idEstudiante,
-        idCursacion: practicaTomada.idCursacion,
+
+        idPlan: practica.idPlan,
+        idAsignatura: practica.idAsignatura,
+        idEstudiante: practica.idEstudiante,
+        idCursacion: practica.idCursacion,
+
         idConvenio: convenio.idConvenio,
       });
     }
   }
 
-  const PTConvenios = await prisma.pTConvenio.createManyAndReturn({
+  await prisma.pTConvenio.createMany({
     data: PTConveniosQueries,
+    skipDuplicates: true,
   });
 
+  const PTConvenios = await prisma.pTConvenio.findMany();
   moreLog(PTConvenios);
+
+  console.timeEnd('PTCONVENIO SEEDING');
 
   console.timeEnd('PRACTICA SEEDING');
   console.info('El seeding de prácticas terminó');
 
-  // usuarios
-
+  // =============================
+  // USUARIOS
+  // =============================
   console.time('Crear Usuarios');
 
-  const usuariosQueries: Usuario[] = [];
+  const usuariosQueries: any[] = [];
+
   for (const user of constants.USUARIOS) {
     const hashedPassword = await argon.hash(user.hashedPassword);
-    delete user.hashedPassword;
 
-    user.hashedPassword = hashedPassword;
-
-    usuariosQueries.push(user);
+    usuariosQueries.push({
+      ...user,
+      hashedPassword,
+    });
   }
 
-  const usuarios: Usuario[] = await prisma.usuario.createManyAndReturn({
+  await prisma.usuario.createMany({
     data: usuariosQueries,
+    skipDuplicates: true,
   });
 
+  const usuarios = await prisma.usuario.findMany();
   moreLog(usuarios);
 
   console.timeEnd('Crear Usuarios');
-  console.log('termino todo');
+
+  console.log('✅ termino todo');
 }
+
+// =============================
+// HELPERS
+// =============================
 
 const moreLog = function (obj: any): void {
   console.log(util.inspect(obj, true, null, true));
@@ -399,15 +407,17 @@ function calcularNroAsignaturasCursadas(
   const agniosEnCarrera = agnioActual - agnioIngreso;
 
   if (agniosEnCarrera >= 5) {
-    // 100% de las asignaturas cursadas
     return asignaturasPorPlan;
   }
 
-  // Proporción cursada en función del tramo
   const porcentajeCursado = (agniosEnCarrera - 1) / 5 + (1 / 5) * Math.random();
 
   return Math.ceil(porcentajeCursado * asignaturasPorPlan);
 }
+
+// =============================
+// RUN
+// =============================
 
 main()
   .then(async () => {

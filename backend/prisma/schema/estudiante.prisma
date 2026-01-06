@@ -1,15 +1,19 @@
 model Estudiante {
-  idEstudiante   Int    @id @default(autoincrement())
-  rut            String @unique
-  nombreCompleto String
-  nombreSocial   String
-  agnioIngreso   Int
-  idPlan         Int
+  idEstudiante     Int      @id @default(autoincrement())
+  rut              String   @unique
+  nombreCompleto   String
+  nombreSocial     String
+  agnioIngreso     Int
+  idPlan           Int
 
-  Cursaciones  Cursacion[]   @relation("curso las asignaturas")
-  Plan         Plan          @relation("sigue el plan", fields: [idPlan], references: [idPlan])
-  ResultadoEND ResultadoEND? @relation("obtiene los resultados")
+  Cursaciones      Cursacion[]  @relation("curso las asignaturas")
+  Plan             Plan         @relation("sigue el plan", fields: [idPlan], references: [idPlan])
+  ResultadoEND     ResultadoEND? @relation("obtiene los resultados")
+
+  // ✅ Relación 1 a 1 con seguimiento de egresado
+  Egresado         Egresado?
 }
+
 
 model Cursacion {
   idCursacion      Int    @id @default(autoincrement())

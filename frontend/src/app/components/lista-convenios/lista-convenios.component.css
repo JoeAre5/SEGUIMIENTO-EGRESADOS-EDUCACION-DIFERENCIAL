@@ -1,0 +1,29 @@
+::ng-deep .p-calendar {
+  border: none !important; /* Quita el borde predeterminado */
+  box-shadow: none !important; /* Elimina la sombra predeterminada */
+  width: 100% !important; /* Asegura que el dropdown ocupe todo el ancho */
+  min-width: 0; /* Opcional: evita que el dropdown tenga un ancho mínimo */
+}
+
+::ng-deep .p-calendar .p-inputtext {
+  border: none !important; /* Quita el borde del input */
+  box-shadow: none !important; /* Elimina cualquier sombra */
+  background-color: transparent;
+}
+
+::ng-deep .p-calendar .p-inputtext:focus {
+  outline: none !important; /* Elimina el borde de foco predeterminado */
+}
+
+
+::ng-deep .p-dropdown {
+  border: none !important; /* Quita el borde predeterminado */
+  box-shadow: none !important; /* Elimina la sombra predeterminada */
+  background-color: transparent !important;
+  width: 100% !important; /* Asegura que el dropdown ocupe todo el ancho */
+  min-width: 0; /* Opcional: evita que el dropdown tenga un ancho mínimo */
+}
+
+:host ::ng-deep .p-progress-spinner-circle {
+  stroke: rgb(3 105 161) !important;
+}

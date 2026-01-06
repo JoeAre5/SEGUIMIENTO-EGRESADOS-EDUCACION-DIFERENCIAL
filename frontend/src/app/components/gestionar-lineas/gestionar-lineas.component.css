@@ -1,0 +1,40 @@
+/* No agregues transición a los elementos arrastrados, solo después de que se haya soltado */
+.cdk-drag-preview {
+    @apply z-50 shadow-lg bg-white rounded-md;
+    transform: translate3d(0, 0, 0);
+    transition: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-color: gray;
+  }
+  
+.cdk-drag-preview .delete-button {
+  display: none; /* Oculta el botón de eliminar */
+}
+
+.cdk-drag-placeholder {
+  opacity: 0; 
+}
+
+.example-box {
+  transition: transform 200ms ease-out;
+}
+
+.example-box.cdk-drag-animating {
+  @apply transition-transform duration-200 ease-out;
+}
+
+.example-box.cdk-drag-placeholder {
+  @apply opacity-0;
+}
+
+.example-list.cdk-drop-list-dragging .example-box:not(.cdk-drag-placeholder) {
+  transition: transform 200ms ease-out;
+}
+
+
+:host ::ng-deep .p-progress-spinner-circle {
+  stroke: rgb(3 105 161) !important;
+}
+

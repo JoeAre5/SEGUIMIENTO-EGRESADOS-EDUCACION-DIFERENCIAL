@@ -1,0 +1,209 @@
+<div class="w-full my-5 ps-10">
+    <button (click)="volverAlMenu()" class="transition-transform hover:scale-105 px-4 py-2 bg-gray-300 hover:bg-gray-400 hover:text-white rounded-full shadow-md">
+        <p class="flex items-center">
+            <i class="pi pi-arrow-left text-xl me-2"></i> Volver
+        </p>
+    </button>
+</div>
+
+<div class="bg-white border-y py-3 shadow-lg">
+    <div class="flex items-center justify-between w-11/12">
+        <div class="bg-sky-700 w-3/12 rounded-r-2xl py-4">
+            <h1 class="text-4xl text-white text-center font-bold">Convenios</h1>
+        </div>
+        <button class="rounded-full px-4 transform transition hover:scale-105 py-2 bg-sky-700 hover:bg-sky-800" (click)="alternarModal()">
+            <span class="text-white font-semibold">Agregar Convenio</span>
+        </button>     
+    </div>
+</div>
+
+@if(cargando){
+
+    <div class="w-full flex justify-center items-center" style="height: calc(100vh - 320px);">
+        <p-progressSpinner styleClass="w-4rem h-4rem" strokeWidth="8" fill="none" animationDuration=".5s"/>
+    </div>
+
+} @else {
+    <div class="bg-sky-700 shadow-lg w-full py-4 px-24 mt-10 flex justify-between items-center">
+        <div class="w-full">
+            <span class="p-input-icon-left w-full">
+                <i class="pi pi-search text-sky-700"></i>
+                <input 
+                    type="text" 
+                    class="w-full ps-10 py-2 rounded-xl font-medium text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white" 
+                    placeholder="Buscar Convenio" 
+                    (input)="filtrarConvenios($event)">
+            </span>
+        </div>
+    </div>
+
+    <div class="w-10/12 mx-auto bg-white border rounded shadow-lg items-center flex justify-center mt-8">
+        
+        <div class="card flex justify-content-center">
+            <p-paginator 
+                (onPageChange)="onPageChange($event)" 
+                [first]="first" 
+                [rows]="rows" 
+                [totalRecords]="totalRecords" 
+                [rowsPerPageOptions]="[5, 10, 30]"
+                [styleClass]="'custom-paginator'"/>
+        </div>
+    </div>
+
+    <div class="w-10/12 mx-auto p-6 my-10 space-y-6">
+        @for (convenio of conveniosPaginados; track convenio; let i = $index) {
+            <div class="rounded-md bg-white flex flex-col md:flex-row shadow-lg overflow-hidden transform transition hover:scale-105 hover:shadow-2xl">
+                <div class="w-2/12 border-r-2 border-sky-700">
+                    <img [src]="obtenerImagen(convenio.imagen)" 
+                        class="h-60 w-full object-fill">
+                </div>
+
+                <div class="w-8/12 p-4 flex flex-col justify-center space-y-2">
+                    <h2 class="font-semibold text-xl text-sky-700 text-center md:text-left">{{ convenio.nombreConvenio }}</h2>
+                    <h3 class="text-gray-700">Centro de Práctica: {{ convenio.centroPractica }}</h3>
+                    <h3 class="text-gray-700">Año de Inicio: {{ convenio.inicio | date: 'yyyy' }}</h3>
+                    <div class="py-2 px-4 rounded-lg font-semibold text-white text-center shadow-md bg-sky-500">
+                        {{ convenio.nombreModalidad }}
+                    </div>
+                </div>
+
+                <div class="w-2/12 flex flex-col justify-center items-center gap-4 p-4 border-l-2 border-sky-700">
+                    <button class="w-full flex items-center justify-center py-2 px-3 rounded-lg bg-amber-500 text-white font-medium shadow-md hover:bg-amber-600" (click)="verDetalle(convenio.idConvenio)">
+                        <i class="pi pi-info-circle mr-2"></i>
+                        <span class="text-md">Ver Detalles</span>
+                    </button>
+
+                    <button class="w-full flex items-center justify-center py-2 px-3 rounded-lg bg-red-500 text-white font-medium shadow-md hover:bg-red-600" (click)="confirmarEliminacion(convenio.idConvenio)">
+                        <i class="pi pi-times-circle mr-2"></i>                   
+                        <span class="text-md">Eliminar</span>
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+
+    <p-dialog  
+        [(visible)]="visible" 
+        [modal]="true" 
+        [breakpoints]="{ '1199px': '75vw', '575px': '90vw' }" 
+        [style]="{ width: '75vw' }" 
+        [draggable]="false" 
+        [resizable]="false">
+        
+        <ng-template pTemplate="headless">
+            <div class="bg-gray-100 border-2 border-sky-700 rounded-md shadow-lg">
+                <form [formGroup]="formularioConvenio" (ngSubmit)="agregarConvenio()">
+                    <div class="bg-white mt-5 py-3 shadow-lg border-y">
+                        <h1 class="p-4 rounded-r-2xl w-6/12 bg-sky-700 text-white text-4xl font-bold">Registrar Convenio</h1>
+                    </div>
+                    <div class="border bg-white rounded-lg py-4 my-5 mx-10 shadow-xl overflow-auto max-h-[60vh]">
+                        <h2 class="mx-10 my-5 text-2xl p-2 font-bold">Detalles del Convenio</h2>
+                        <div class="mx-10 mb-12 flex justify-between">
+                            <p-floatLabel class="w-full me-5">
+                                <input id="nombre" formControlName="nombre" type="text" class="bg-gray-100 focus:outline-none focus:border-sky-700 w-full px-3 py-2 border-2 shadow-lg rounded-2xl font-medium" pInputText/>
+                                <label for="Nombre del convenio">Nombre del Convenio</label>
+                            </p-floatLabel>
+                            
+                            <p-floatLabel class="w-full ms-5">
+                                <input id="centro" formControlName="centro" type="text" class="bg-gray-100 focus:outline-none focus:border-sky-700 w-full px-3 py-2 border-2 shadow-lg rounded-2xl font-medium" pInputText/>
+                                <!--Verificar que el centro de practica no exista-->
+                                <label for="centro">Centro de Práctica</label>
+                            </p-floatLabel>
+                        </div>
+                        
+                        <div class="mx-10 mb-12 flex items-center">
+                            @if (!modalidadNueva){
+                                <p-floatLabel class="w-6/12 me-5 pe-6">
+                                    <p-dropdown 
+                                        [options]="modalidades" 
+                                        formControlName="idModalidad" 
+                                        placeholder="Seleccione una Modalidad"
+                                        class="bg-gray-100 focus:outline-none focus:border-sky-700 py-3 border-2 shadow-lg rounded-2xl w-full"
+                                        id="modalidad"
+                                        optionLabel="nombreModalidad"
+                                        optionValue="idModalidad"
+                                        />
+                                    <label for="modalidad">Modalidad de Práctica</label>
+                                </p-floatLabel>
+                            }
+                            @else{
+                                <p-floatLabel class="w-6/12 pe-5 me-5">
+                                    <input id="modalidad" formControlName="nombreModalidad" type="text" class="bg-gray-100 focus:outline-none focus:border-sky-700 w-full px-3 py-2 border-2 shadow-lg rounded-2xl font-medium" pInputText/>
+                                    <label for="modalida">Modalidad de Práctica</label>
+                                </p-floatLabel>
+
+                            }
+                            <input type="checkbox" 
+                                class="h-6 w-6 !text-sky-700 !focus:ring-2 !focus:ring-sky-500 !rounded !border-gray-300 !checked:bg-sky-700 !checked:border-sky-700 !focus:outline-none !transition !duration-200" 
+                                (click)="alternarModalidad()">
+                            <h2 class="text-md p-2 font-semibold">Agregar Nueva Modalidad</h2>
+                        </div>
+                        <div class="mx-10 mb-12 flex items-center"> 
+                            <p-floatLabel class="w-6/12 me-5 pe-6">
+                                <p-calendar  
+                                    view="year" 
+                                    dateFormat="yy"
+                                    formControlName="inicio"
+                                    class="bg-gray-100 focus:outline-none focus:border-sky-700 py-3 border-2 shadow-lg rounded-2xl font-medium" 
+                                    id="inicio"
+                                    [disabled]="!periodo"
+                                    [minDate]="inicioMinimo"
+                                    [maxDate]="inicioMaximo"
+                                    />
+                                <label for="inicio">Año de Inicio</label>
+                            </p-floatLabel>
+                            <!--dejar default encendido el checkbos-->
+                            <input type="checkbox" 
+                            class="h-6 w-6" 
+                            (click)="alternarPeriodo()">
+                            <h2 class="text-md p-2 font-semibold">Inicia este Periodo</h2>
+                        </div>
+
+                        <h2 class="mx-10 my-5 text-2xl p-2 font-bold">Imagen del Convenio</h2>
+                        <div class="mx-10 mb-12">
+                            <p-fileUpload 
+                                name="demo[]" 
+                                [multiple]="false" 
+                                chooseLabel="Seleccionar Archivo"
+                                chooseStyleClass="bg-sky-700 border-sky-700"
+                                removeStyleClass="bg-sky-700 border-sky-700"
+                                showUploadButton="false"
+                                showCancelButton="false"
+                                accept="image/*"
+                                maxFileSize="5000000"
+                                (onSelect)="seleccionarArchivo($event, 'imagen')"
+                                (onRemove)="borrarArchivo($event, 'imagen')">
+                            </p-fileUpload>
+                        </div>
+                        <h2 class="mx-10 my-5 text-2xl p-2 font-bold">Documento del Convenio</h2>
+                        <div class="mx-10 mb-12">
+                            <p-fileUpload 
+                                name="demo[]" 
+                                [multiple]="false" 
+                                chooseLabel="Seleccionar Archivo"
+                                chooseStyleClass="bg-sky-700 border-sky-700"
+                                removeStyleClass="bg-sky-700 border-sky-700"
+                                showUploadButton="false"
+                                showCancelButton="false"
+                                accept="application/pdf" 
+                                maxFileSize="5000000"
+                                (onSelect)="seleccionarArchivo($event, 'terminos')"
+                                (onRemove)="borrarArchivo($event, 'terminos')">
+                            </p-fileUpload>
+                        </div>
+                    </div>
+                    <div class="flex justify-center">
+                        <a class="border-2 ms-1 my-1 bg-sky-700 hover:bg-sky-800 cursor-pointer  text-center text-white w-6/12 py-5 text-2xl font-bold p-2 rounded-l-md" (click)="alternarModal()">
+                            Volver
+                        </a>
+                        <button class="border-2 me-1 my-1 bg-sky-700 hover:bg-sky-800 text-white w-6/12 py-5 text-2xl font-bold p-2 rounded-r-md">
+                            Agregar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </ng-template>
+    </p-dialog>
+}
+
+<p-toast position="top-right"></p-toast>

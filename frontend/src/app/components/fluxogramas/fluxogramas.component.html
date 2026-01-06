@@ -1,0 +1,27 @@
+<div  class="w-full bg-white py-5 ps-10">
+  <button (click)="devolverAlMenu()" class="transition-transform hover:scale-105 px-4 py-2 bg-gray-300 hover:bg-gray-400 hover:text-white rounded-full shadow-md">
+    <p class="flex items-center">
+        <i class="pi pi-arrow-left text-xl me-2"></i> Volver
+    </p>
+  </button>
+</div>
+
+<div class="bg-white min-h-screen px-8">
+  <div class="flex items-center justify-center bg-[#DC911A] rounded-xl py-6 mb-10">
+    <h1 class="text-5xl font-black text-white">Fluxogramas</h1>
+  </div>
+
+  @if(cargando){
+    <div class="w-full flex justify-center items-center" style="height: calc(100vh - 400px);">
+      <p-progressSpinner styleClass="w-4rem h-4rem" strokeWidth="8" fill="none" animationDuration=".5s"/>
+    </div>
+  } @else {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 m-4">
+      <p-card *ngFor="let fluxograma of fluxogramas" header="" styleClass="bg-[#21A4DC] shadow-md cursor-pointer rounded-lg text-center text-white py-12 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]" (click)="escogerPlan(fluxograma.idPlan)">
+        <p class="text-2xl font-bold mb-2">{{ fluxograma.titulo }}</p>
+        <p class="text-lg">Código: {{ fluxograma.codigo }}</p>
+        <p class="text-lg">Fecha: {{ fluxograma.agnio}}</p>
+      </p-card>
+    </div>
+  }
+</div>

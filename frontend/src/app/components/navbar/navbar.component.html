@@ -1,0 +1,60 @@
+<nav class="bg-sky-700 text-white flex justify-between items-center px-10 py-3">
+  <div class="flex items-center">
+    <button class="text-white p-2 mr-10" (click)="mostrarBarraLateral()">
+      <i class="pi pi-bars text-2xl"></i>
+    </button>
+
+    <div class="flex items-center cursor-pointer ms-5" (click)="irAMenu()">
+      <img src="logo.png" alt="Logo" class="h-12 mr-4 object-contain" />
+      <div class="text-start">
+        <h2 class="font-bold text-md leading-tight">Pedagogía en</h2>
+        <h2 class="font-bold text-md leading-tight">Educación Diferencial</h2>
+      </div>
+    </div>
+  </div>
+
+  @if (!isLoginRoute()) {
+  <div class="flex items-center space-x-4">
+    <div>
+      <button class="text-white" (click)="menu.toggle($event)">
+        <i class="pi pi-cog text-xl"></i>
+      </button>
+      <p-menu
+        baseZIndex="1049"
+        #menu
+        [popup]="true"
+        [model]="menuDesplegable"
+        [appendTo]="'body'"
+      ></p-menu>
+    </div>
+  </div>
+  }
+</nav>
+
+<div class="absolute" [style]="{ height: 'calc(100vh - 66px)' }">
+  <p-sidebar
+    [(visible)]="barraLateralVisible"
+    position="left"
+    [modal]="false"
+    [style]="{ position: 'absolute' }"
+  >
+    @if (!isLoginRoute()){
+    <ng-template pTemplate="header">
+      <div class="font-semibold text-2xl border-b-4 border-sky-700 w-10/12">
+        <span>Modulos</span>
+      </div>
+    </ng-template>
+
+    <p-tree
+      [value]="devolverOpcionesSegunRol()"
+      selectionMode="single"
+      styleClass="border-0 p-0 mx-3 font-medium"
+      (onNodeSelect)="seleccionarNodo($event)"
+    ></p-tree>
+    } @else {
+    <div class="w-full mt-10 text-center">
+      <span class="font-normal text-md">Debes iniciar sesión para navegar</span>
+    </div>
+    }
+  </p-sidebar>
+</div>

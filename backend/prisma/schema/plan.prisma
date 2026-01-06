@@ -1,0 +1,10 @@
+model Plan {
+  idPlan               Int               @id @default(autoincrement())
+  codigo               Int               @unique
+  titulo               String            @unique
+  agnio                Int
+  fechaInstauracion    DateTime          @default(now()) @db.Date
+  AsignaturasDefinidas Asignatura[]      @relation("es contemplada por")
+  EstudiantesPorPlan   Estudiante[]      @relation("sigue el plan")
+  LineasDefinidas      LineaAsignatura[] @relation("es definido por")
+}

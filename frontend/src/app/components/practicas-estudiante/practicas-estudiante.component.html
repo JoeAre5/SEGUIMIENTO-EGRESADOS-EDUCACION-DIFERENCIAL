@@ -1,0 +1,117 @@
+@if(cargando){
+<div
+  class="w-full flex justify-center items-center"
+  style="height: calc(100vh - 100px)"
+>
+  <p-progressSpinner
+    styleClass="w-4rem h-4rem"
+    strokeWidth="8"
+    fill="none"
+    animationDuration=".5s"
+  />
+</div>
+} @else {
+<div class="min-h-screen flex flex-col">
+  <div class="pt-4 flex-grow">
+    <button
+      (click)="devolverAMenuEstudiante()"
+      class="transition-transform hover:scale-105 mb-5 ms-10 px-4 py-2 bg-gray-300 hover:bg-gray-400 hover:text-white rounded-full shadow-md"
+    >
+      <p class="flex items-center">
+        <i class="pi pi-arrow-left text-xl me-2"></i> Volver
+      </p>
+    </button>
+
+    <!-- <div class="bg-white py-5 shadow-lg"> -->
+    <div class="pr-20">
+      <div class="bg-[#0369A1] py-4 rounded-e-3xl">
+        <p class="px-10 mb-1 text-cyan-50">Nombre del Estudiante</p>
+        <p class="text-cyan-50 mb-1 text-4xl px-10">
+          {{ practicas_estudiante.estudiante.nombreCompleto }}
+        </p>
+      </div>
+    </div>
+    <!-- </div>  -->
+
+    <div class="bg-blue-200">
+      <p-paginator
+        styleClass="bg-white my-7 shadow-xl text-cyan-50"
+        [rows]="practicasPorPagina"
+        [totalRecords]="obtenerCantidadTotalPracticas()"
+        [pageLinkSize]="5"
+        [first]="(paginaActual - 1) * practicasPorPagina"
+        (onPageChange)="onCambioDePagina($event)"
+      >
+      </p-paginator>
+    </div>
+
+    <div class="container mx-auto my-5 shadow-xl">
+      <div class="bg-[#0369A1] rounded-md flex-grow text-cyan-50 pb-8">
+        <div class="h-3/4">
+          <div class="mx-20">
+            <p class="py-5 font-semibold text-3xl">Prácticas Realizadas</p>
+          </div>
+          <div *ngFor="let practica of this.obtenerPracticasPaginadas()">
+            <div
+              class="py-2 transition ease-in-out hover:-translate-x-2 hover:scale-140"
+            >
+              <div class="bg-[#1377AD] mx-20 rounded-t-lg p-4">
+                <p class="font-semibold text-2xl">
+                  {{ practica.nombrePractica }}
+                </p>
+              </div>
+              <div
+                class="bg-[#048AD3] mx-20 rounded-b-2xl flex-row grid grid-cols-2 gap-4 shadow-md"
+              >
+                <div class="rounded-b-xl w-full">
+                  <div class="px-4 justify-between">
+                    <div class="py-2">
+                      <p class="text-cyan-100">Centro de Práctica</p>
+                      <div
+                        *ngFor="
+                          let centroPractica of practica.centrosDePractica
+                        "
+                      >
+                        <p class="text-2xl">{{ centroPractica }}</p>
+                      </div>
+                    </div>
+                    <div class="py-2">
+                      <p class="text-cyan-100">Modalidad</p>
+                      <div *ngFor="let modalidad of practica.modadidades">
+                        <p class="text-2xl">{{ modalidad }}</p>
+                      </div>
+                    </div>
+                    <div class="py-2">
+                      <p class="text-cyan-100">Título Práctica</p>
+                      <p class="text-xl">{{ practica.nombrePractica }}</p>
+                    </div>
+                    <div class="py-2">
+                      <p class="text-xl font-bold">
+                        Intento {{ practica.numIntento }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="justify-self-end content-center mx-5 justify-center"
+                >
+                  <div
+                    class="bg-[#DC911A] m-6 shadow-lg text-2xl w-40 h-40 flex items-center justify-center rounded-xl"
+                  >
+                    <p
+                      class="text-shadow text-5xl font-semibold text-green-100"
+                    >
+                      {{ practica.notaFinal.toFixed(1) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="h-12"></div>
+      </div>
+    </div>
+  </div>
+</div>
+}

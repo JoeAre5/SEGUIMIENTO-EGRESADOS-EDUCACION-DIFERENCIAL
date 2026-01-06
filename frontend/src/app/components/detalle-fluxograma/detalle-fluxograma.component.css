@@ -1,0 +1,3 @@
+:host ::ng-deep .p-progress-spinner-circle {
+    stroke: rgb(3 105 161) !important;
+}

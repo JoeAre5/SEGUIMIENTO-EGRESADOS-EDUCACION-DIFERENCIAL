@@ -1,0 +1,53 @@
+model Asignatura {
+  idAsignatura             Int              @default(autoincrement())
+  codigo                   String
+  nombre                   String
+  nombreCorto              String
+  unidad                   String?
+  caracter                 CARACTER
+  areaFormacion            AREA
+  creditos                 Int
+  tributaciones            Int[]
+  prerrequisitos           Int[]
+  posicion                 Int
+  semestre                 Int
+  competencias             String[]
+  descripcion              String?
+  linkSyllabus             String?
+  idPlan                   Int
+  idLinea                  Int?
+  PlanDeEstudio            Plan             @relation("es contemplada por", fields: [idPlan], references: [idPlan])
+  LineaContemplaAsignatura LineaAsignatura? @relation("referencia a la asignatura", fields: [idPlan, idLinea], references: [idPlan, idLinea])
+  CursacionesTomadas       Cursacion[]      @relation("asignatura referenciada")
+
+  @@id([idPlan, idAsignatura])
+  @@unique([idPlan, codigo], name: "codigoPorPlanUnico")
+  @@unique([idPlan, nombre], name: "nombrePorPlanUnico")
+  @@unique([idPlan, nombreCorto], name: "nombreCortoPorPlanUnico")
+}
+
+model LineaAsignatura {
+  idLinea    Int          @default(autoincrement())
+  titulo     String
+  color      String?
+  idPlan     Int
+  Asignatura Asignatura[] @relation("referencia a la asignatura")
+  Plan       Plan         @relation("es definido por", fields: [idPlan], references: [idPlan])
+
+  @@id([idPlan, idLinea])
+  @@unique([idPlan, titulo], name: "tituloUnicoPorPlan")
+}
+
+enum CARACTER {
+  NORMAL
+  ELECTIVO
+  PRACTICA
+  TITULACION
+}
+
+enum AREA {
+  FP
+  FG
+  FE
+  FB
+}

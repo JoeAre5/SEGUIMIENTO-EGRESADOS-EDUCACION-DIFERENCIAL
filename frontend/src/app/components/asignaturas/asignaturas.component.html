@@ -1,0 +1,55 @@
+<div class="w-full my-5 ps-10">
+    <button (click)="volverAlMenu()" class="transition-transform hover:scale-105 px-4 py-2 bg-gray-300 hover:bg-gray-400 hover:text-white rounded-full shadow-md">
+        <p class="flex items-center">
+            <i class="pi pi-arrow-left text-xl me-2"></i> Volver
+        </p>
+    </button>
+</div>
+
+<div class="max-w-7xl mx-auto bg-[#0369A1] shadow-lg rounded-lg p-8 mt-5">
+    <h1 class="text-3xl font-bold mb-4 text-white bg-[#21A4DC] p-2 rounded text-center">Asignaturas</h1>
+    <div class="mb-4">
+        <input type="text" placeholder="Buscar Asignaturas..." class="w-full p-3 border border-[#21A4DC] rounded-md focus:outline-none focus:ring focus:ring-[#b77e13] focus:border-[#b77e13]" (input)="filtrarAsignaturas($event)" />
+    </div>
+    <div *ngIf="cargando; else contenido" class="w-full flex justify-center items-center h-96">
+        <div class="spinner-border animate-spin inline-block w-16 h-16 border-4 rounded-full border-t-transparent border-[#21A4DC]"></div>
+    </div>
+    <ng-template #contenido>
+        <div class="w-full mx-auto bg-white rounded-md items-center flex justify-center mt-12">
+            <div class="card flex justify-content-center">
+                <p-paginator 
+                    (onPageChange)="cambioDePagina($event)" 
+                    [first]="inicio" 
+                    [rows]="filas" 
+                    [totalRecords]="numeroAsignaturas" 
+                    [rowsPerPageOptions]="[5, 10, 30]"
+                    [styleClass]="'custom-paginator'"/>
+            </div>
+        </div>  
+        <div class="space-y-4 mt-12">
+            @for(asignatura of asignaturasPaginadas; track asignatura){
+                <div class="border border-gray-300 rounded-lg p-4 bg-white shadow-md hover:shadow-lg transition duration-300">
+                    <h3 class="text-xl font-semibold text-[#21A4DC]">{{ asignatura.nombreAsignatura }} ({{ asignatura.codigoAsignatura }})</h3>
+                    <p class="text-gray-600">
+                        Formación: {{ asignatura.areaFormacion }}
+                      </p>
+                  
+                      <div *ngIf="asignatura.planes && asignatura.planes.length > 0">
+                        <p class="text-gray-600 font-bold">Planes Donde se Imparte:</p>
+                        <div *ngFor="let plan of asignatura.planes">
+                          <p class="text-gray-600">
+                            • Plan: {{ plan.titulo }} (Código: {{ plan.codigo }})
+                          </p>
+                          <p class="text-gray-600 ml-4">
+                            Semestre de Realización: {{ asignatura.semestreRealizacion }}
+                          </p>
+                        </div>
+                      </div>
+                    <button class="mt-3 w-full bg-[#DC911A] text-white py-2 rounded-md hover:bg-[#b77e13] transition duration-200" (click)="verDetalles(asignatura.codigoAsignatura)">
+                        Ver detalles
+                    </button>
+                </div>
+            }
+        </div>
+    </ng-template>
+</div>

@@ -1,0 +1,21 @@
+<p-contextMenu #menu [model]="menuItems"></p-contextMenu>
+
+<div class="flex justify-center items-end h-screen bg-gray-100">
+  <div class="alumno-card relative flex flex-col items-center bg-white p-8 rounded-3xl shadow-2xl w-full max-w-3xl mx-8" (contextmenu)="menu.show($event)">
+    <div class="w-32 h-32 rounded-full bg-gray-300 flex items-center justify-center mb-6">
+      <img [src]="alumno.imagen || 'path/to/default-avatar.png'" alt="Foto del alumno" class="w-full h-full rounded-full object-cover" />
+    </div>
+
+    <div class="text-center">
+      <p class="text-3xl font-bold text-gray-800 mb-2">{{ alumno.nombreCompleto }}</p>
+      <p class="text-xl text-blue-500">Cohorte {{ alumno.cohorte }}</p>
+      <p class="text-xl text-orange-600 mt-2">Promedio {{ alumno.promedio }}</p>
+    </div>
+
+    <div class="mt-6">
+      <button (click)="navegarMenuAlumno(alumno.id)" class="px-6 py-3 bg-blue-500 text-white rounded-full shadow-lg text-lg hover:bg-blue-600 transition duration-300">
+        Ir a menú Alumno
+      </button>
+    </div>
+  </div>
+</div>

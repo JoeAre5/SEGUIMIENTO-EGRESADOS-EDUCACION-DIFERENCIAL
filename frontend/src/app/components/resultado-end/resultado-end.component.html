@@ -1,0 +1,111 @@
+@if(cargando){
+  
+  <div class="w-full flex justify-center items-center" style="height: calc(100vh - 70px);">
+    <p-progressSpinner styleClass="w-4rem h-4rem" strokeWidth="8" fill="none" animationDuration=".5s"/>
+  </div>
+
+} @else {
+
+  <div class="w-full my-5 ps-10">
+    <button (click)="volverAlListado()" class="justify-center px-3 py-2 bg-gray-200 hover:bg-gray-300 hover:text-white text-gray-700 rounded-full shadow-md focus:outline-none focus:ring-2 focus:ring-gray-400">
+        <p class="flex items-center">
+            <i class="pi pi-arrow-left text-xl me-2"></i> Volver
+        </p>
+    </button>
+  </div>
+  
+  <div class="bg-white border-y py-3 shadow-lg">
+    <div class="flex items-center justify-between w-11/12">
+        <div class="bg-sky-700 w-fit px-10 rounded-r-xl py-4">
+            <h1 class="text-4xl text-white text-center font-bold">Resultados END</h1>
+        </div>
+  
+        <div class="w-3/6 flex rounded-lg justify-evenly bg-sky-700 py-4 text-center">
+          <label class="px-4 text-center text-white text-3xl font-semibold select-none">Año: {{end.agnoRendicion}}</label> 
+          <label class="px-4 text-center text-white text-3xl font-semibold select-none">Cohorte: {{end.cohorteAsociado}}</label> 
+        </div>
+  
+        <button [disabled]="cargando" class="rounded-full px-4 transform transition hover:scale-105 py-2 bg-sky-700 hover:bg-sky-800" (click)="alternarModal()">
+          <span class="text-white font-semibold">Editar Documento</span>
+      </button>  
+    </div>
+  </div>
+
+  <div class="flex justify-center my-5">
+    <div class="border-2 border-gray-300 rounded-lg p-4 w-9/12">
+      <iframe [src]="ruta" width="100%" height="1000" style="border: none; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); border-radius: 8px;"></iframe>
+    </div>
+  </div>
+
+  <p-dialog  
+          [(visible)]="visible" 
+          [modal]="true" 
+          [breakpoints]="{ '1199px': '75vw', '575px': '90vw' }" 
+          [style]="{ width: '75vw' }" 
+          [draggable]="false" 
+          [resizable]="false">
+          
+          <ng-template pTemplate="headless">
+              <div class="bg-gray-100 border-2 border-sky-700 rounded-md shadow-lg">
+                  <form [formGroup]="formularioEND" (ngSubmit)="editarDocumento()">
+                      <div class="bg-white mt-5 py-3 shadow-lg border-y">
+                          <h1 class="p-4 rounded-r-2xl w-6/12 bg-sky-700 text-white text-4xl font-bold">Editar Resultados END</h1>
+                      </div>
+                      <div class="border bg-white rounded-lg py-4 my-5 mx-10 shadow-xl overflow-auto max-h-[60vh]">
+                          <h2 class="mx-10 my-5 text-2xl p-2 font-bold">Detalles de los Resultados END</h2>    
+                          <div class="mx-10 mb-12 flex items-center"> 
+                              <p-floatLabel class="w-6/12 me-5 pe-6">
+                                  <p-calendar  
+                                      view="year" 
+                                      dateFormat="yy"
+                                      formControlName="agnio"
+                                      class="bg-gray-100 focus:outline-none focus:border-sky-700 py-3 border-2 shadow-lg rounded-2xl font-medium" 
+                                      id="inicio"
+                                      />
+                                  <label for="inicio">Año</label>
+                              </p-floatLabel>
+                          </div><div class="mx-10 mb-12 flex items-center"> 
+                              <p-floatLabel class="w-6/12 me-5 pe-6">
+                                  <p-calendar  
+                                      view="year" 
+                                      dateFormat="yy"
+                                      formControlName="cohorte"
+                                      class="bg-gray-100 focus:outline-none focus:border-sky-700 py-3 border-2 shadow-lg rounded-2xl font-medium" 
+                                      id="inicio"
+                                      />
+                                  <label for="inicio">Cohorte</label>
+                              </p-floatLabel>
+                          </div>
+
+                          <h2 class="mx-10 my-5 text-2xl p-2 font-bold">Documento PDF de los Resultados END</h2>
+                          <div class="mx-10 mb-12">
+                              <p-fileUpload 
+                                  name="demo[]" 
+                                  [multiple]="false" 
+                                  chooseLabel="Seleccionar archivo"
+                                  chooseStyleClass="bg-sky-700 border-sky-700"
+                                  removeStyleClass="bg-sky-700 border-sky-700"
+                                  showUploadButton="false"
+                                  showCancelButton="false"
+                                  accept="application/pdf"
+                                  maxFileSize="5000000"
+                                  (onSelect)="seleccionarArchivo($event)"
+                                  (onRemove)="borrarArchivo($event)">
+                              </p-fileUpload>
+                          </div>
+                      </div>
+                      <div class="flex justify-center">
+                          <a class="border-2 ms-1 my-1 bg-sky-700 hover:bg-sky-800 cursor-pointer  text-center text-white w-6/12 py-5 text-2xl font-bold p-2 rounded-l-md" (click)="alternarModal()">
+                              Volver
+                          </a>
+                          <button class="border-2 me-1 my-1 bg-sky-700 hover:bg-sky-800 text-white w-6/12 py-5 text-2xl font-bold p-2 rounded-r-md">
+                              Agregar
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </ng-template>
+  </p-dialog>
+}
+
+<p-toast position="top-right"></p-toast>

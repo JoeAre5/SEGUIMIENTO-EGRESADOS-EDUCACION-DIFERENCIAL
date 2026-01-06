@@ -1,0 +1,131 @@
+<div class="w-full my-5 ps-10">
+  <button
+    (click)="volver()"
+    class="transition-transform hover:scale-105 px-4 py-2 bg-gray-300 hover:bg-gray-400 hover:text-white rounded-full shadow-md"
+  >
+    <p class="flex items-center">
+      <i class="pi pi-arrow-left text-xl me-2"></i> Volver
+    </p>
+  </button>
+</div>
+
+<div class="h-full w-full flex flex-col">
+  <div
+    class="bg-[#DC911A] px-20 py-6 flex-1 container mx-auto text-white text-xl font-semibold rounded-md"
+  >
+    <p class="font-sans text-3xl">Estudiantes de la Carrera</p>
+  </div>
+  <div class="bg-[#0369A1] px-20 my-5 py-6 flex-1 container mx-auto rounded-md">
+    <p class="px-1 text-white">Buscar Estudiante</p>
+    <input
+      type="text"
+      [(ngModel)]="input_estudiante"
+      placeholder="Nombre del Estudiante o Rut"
+      class="w-full p-2 rounded-lg"
+    />
+
+    <div class="flex justify-center space-x-4 mt-4">
+      <div class="flex space-x-2">
+        <div *ngFor="let cohorte of this.estudiantes_por_cohorte">
+          <button
+            class="bg-[#DC911A] text-white px-6 py-2 rounded-md font-semibold"
+            (click)="filtrarPorCohorte(cohorte.cohorte)"
+          >
+            Cohorte {{ cohorte.cohorte }}
+          </button>
+        </div>
+      </div>
+      <div>
+        <button
+          class="bg-[#DC911A] text-white py-2 px-6 rounded-md font-semibold"
+          (click)="mostrarTodosLosEstudiantes()"
+        >
+          Todos los Estudiantes
+        </button>
+      </div>
+    </div>
+
+    <div class="w-full bg-white my-5 shadow-lg z-10 rounded-xl">
+      <p-paginator
+        [rows]="estudiantesPorPagina"
+        [totalRecords]="obtenerCantidadTotalEstudiantes()"
+        [pageLinkSize]="5"
+        [first]="(paginaActual - 1) * estudiantesPorPagina"
+        (onPageChange)="onCambioDePagina($event)"
+      >
+      </p-paginator>
+    </div>
+
+    <div
+      class="space-y-4 mt-4 py-2 flex-1 overflow-y-auto"
+      style="max-height: calc(100vh - 200px)"
+    >
+      <ng-container *ngIf="cargando; else studentList">
+        <div
+          *ngFor="let i of [1, 2, 3, 4, 5, 6]"
+          class="bg-white rounded-lg shadow p-4 flex justify-between items-center"
+        >
+          <div class="p-3">
+            <p-skeleton
+              width="300px"
+              height="30px"
+              styleClass="mb-2"
+            ></p-skeleton>
+            <p-skeleton
+              width="150px"
+              height="30px"
+              styleClass="mb-2"
+            ></p-skeleton>
+          </div>
+          <div class="text-center">
+            <p-skeleton
+              width="100px"
+              height="100px"
+              styleClass="mb-2"
+            ></p-skeleton>
+          </div>
+        </div>
+      </ng-container>
+
+      <ng-template #studentList>
+        <div
+          *ngFor="let estudiante of this.obtenerEstudiantesPaginados()"
+          class="bg-white rounded-lg shadow flex justify-between items-center transition ease-in-out delay-25 hover:-translate-y-1 hover:scale-101 duration-300"
+          (contextmenu)="
+            this.mostrarMenuContextual(menuEstudiante, $event, estudiante)
+          "
+        >
+          <div class="p-4">
+            <div class="text-gray-600 text-sm">
+              Nombre Completo del Estudiante
+            </div>
+            <div class="text-lg font-semibold">
+              {{ estudiante.nombreCompleto }}
+            </div>
+            <div class="text-gray-700">Rut {{ estudiante.rut }}</div>
+          </div>
+          <div
+            class="text-center rounded-r-lg bg-[#DC911A] cursor-pointer"
+            (click)="irAMenuEstudiante(estudiante)"
+          >
+            <div class="bg-[#DC911A] text-white px-4 py-1 rounded-t-lg">
+              Cohorte
+            </div>
+            <div
+              class="text-lg font-semibold text-white px-4 py-1 rounded-b-lg"
+            >
+              {{ estudiante.agnio_cohorte }}
+            </div>
+            <button class="text-white text-sm mt-2 px-3 py-1 rounded-lg">
+              Ver detalles
+            </button>
+          </div>
+        </div>
+        <p-contextMenu
+          #menuEstudiante
+          [model]="opcionMenuContextual"
+        ></p-contextMenu>
+      </ng-template>
+    </div>
+  </div>
+</div>

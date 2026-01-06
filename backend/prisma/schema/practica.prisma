@@ -1,0 +1,61 @@
+model PracticaTomada {
+  fechaInicio          DateTime         @db.Date
+  fechaTermino         DateTime         @default(now()) @db.Date
+  resultadoDiagnostico Json
+  resultado            EstadoAprobacion @default(APROBADO)
+  idPlan               Int
+  idAsignatura         Int
+  idEstudiante         Int
+  idCursacion          Int
+  PTConvenios          PTConvenio[]     @relation("cursacion practica")
+  CursacionPractica    Cursacion        @relation("referencia la cursacion", fields: [idAsignatura, idPlan, idEstudiante, idCursacion], references: [idAsignatura, idPlan, idEstudiante, idCursacion])
+
+  @@id([idPlan, idAsignatura, idEstudiante, idCursacion])
+}
+
+model PTConvenio {
+  nivel          NIVEL
+  idPlan         Int
+  idAsignatura   Int
+  idEstudiante   Int
+  idCursacion    Int
+  idConvenio     Int
+  PracticaTomada PracticaTomada @relation("cursacion practica", fields: [idAsignatura, idPlan, idEstudiante, idCursacion], references: [idAsignatura, idPlan, idEstudiante, idCursacion])
+  Convenio       Convenio       @relation("convenio referenciado", fields: [idConvenio], references: [idConvenio])
+
+  @@id([idPlan, idAsignatura, idEstudiante, idCursacion, idConvenio])
+}
+
+model Convenio {
+  idConvenio                  Int          @id @default(autoincrement())
+  titulo                      String       @unique
+  centroPractica              String
+  fechaInicioConvenio         DateTime     @default(now()) @db.Date
+  fechaFinConvenio            DateTime     @default(dbgenerated("(now() + '1000 years'::interval)")) @db.Date
+  validez                     Boolean      @default(true)
+  documentoConvenio           String?
+  urlFoto                     String?
+  idModalidad                 Int
+  Modalidad                   Modalidad    @relation("sigue la modalidad", fields: [idModalidad], references: [idModalidad])
+  PracticasTomadasPorConvenio PTConvenio[] @relation("convenio referenciado")
+}
+
+model Modalidad {
+  idModalidad        Int        @id @default(autoincrement())
+  nombreModalidad    String     @unique
+  fechaCreacion      DateTime   @default(now()) @db.Date
+  fechaDesuso        DateTime?  @default(dbgenerated("(now() + '1000 years'::interval)")) @db.Date
+  validez            Boolean    @default(true)
+  conveniosAsociados Convenio[] @relation("sigue la modalidad")
+}
+
+enum EstadoAprobacion {
+  APROBADO
+  DESAPROBADO
+}
+
+enum NIVEL {
+  BASICA
+  MEDIA
+  SUPERIOR
+}

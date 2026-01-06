@@ -1,0 +1,188 @@
+<div class="w-full my-5 ps-10">
+  <button
+    (click)="devolverAListarFluxogramas()"
+    class="transition-transform hover:scale-105 m-2 px-4 py-2 bg-gray-300 hover:bg-gray-400 hover:text-white rounded-full shadow-md"
+  >
+    <p class="flex items-center">
+      <i class="pi pi-arrow-left text-xl me-2"></i> Volver
+    </p>
+  </button>
+</div>
+
+<div class="min-h-screen bg-gray-100 mb-10">
+  <div class="container mx-auto rounded-lg overflow-hidden">
+    @if(cargando){
+    <div
+      class="w-full flex justify-center items-center"
+      style="height: calc(100vh - 100px)"
+    >
+      <p-progressSpinner
+        styleClass="w-4rem h-4rem"
+        strokeWidth="8"
+        fill="none"
+        animationDuration=".5s"
+      />
+    </div>
+    } @else {
+
+    <div class="bg-[#21A4DC] p-8 text-center rounded-t-lg">
+      <h1 class="text-5xl font-black text-white">
+        Plan de Estudios: {{ fluxograma.titulo }}
+      </h1>
+      <h3 class="text-xl font-medium text-white mt-4">
+        Año: {{ fluxograma.agnio }}
+      </h3>
+    </div>
+
+    @if(cargandoLinea){
+    <div
+      class="w-full flex justify-center items-center"
+      style="height: calc(100vh - 100px)"
+    >
+      <p-progressSpinner
+        styleClass="w-4rem h-4rem"
+        strokeWidth="8"
+        fill="none"
+        animationDuration=".5s"
+      />
+    </div>
+    } @else {
+    <div
+      *tieneRol="[ADMINISTRADOR, JEFA_CARRERA, DOCENTE, COORDINADOR]"
+      class="w-full bg-white text-end py-5"
+    >
+      <button
+        class="text-end bg-[#DC911A] font-bold text-lg text-white px-4 me-5 py-2 rounded-xl hover:bg-[#bf7d13] transition-transform hover:scale-105"
+        (click)="gestionarLinea()"
+      >
+        Gestionar Líneas
+      </button>
+    </div>
+
+    <div class="bg-white px-5">
+      <div class="overflow-x-auto" (scroll)="onScroll()">
+        <div class="flex space-x-8">
+          <div
+            *ngFor="let semestre of semestres; let i = index"
+            class="min-w-[400px]"
+          >
+            <div class="p-6 bg-gray-100 rounded-lg shadow-md">
+              <div
+                class="mb-6 p-4 bg-[#DC911A] text-white text-2xl font-bold rounded-lg"
+              >
+                {{ semestre }} Semestre
+              </div>
+              <div class="space-y-4">
+                <ng-container
+                  *ngFor="let asignatura of detalleFluxograma; let j = index"
+                >
+                  <div *ngIf="asignatura.semestre === i + 1">
+                    <ng-container
+                      *ngIf="
+                        !asignatura.LineaContemplaAsignatura;
+                        else conLinea
+                      "
+                    >
+                      <div
+                        #card
+                        class="p-4 rounded-xl cursor-pointer transition-transform hover:scale-105 hover:shadow-lg"
+                        [ngClass]="{
+                          'bg-green-500 text-white': esTributada(
+                            asignatura.idAsignatura
+                          ),
+                          'bg-red-500 text-white':
+                            esPrevia(asignatura.idAsignatura) &&
+                            !esTributada(asignatura.idAsignatura),
+                          'bg-gray-300 text-gray-800':
+                            !esPrevia(asignatura.idAsignatura) &&
+                            !esTributada(asignatura.idAsignatura)
+                        }"
+                        (click)="
+                          detalleAsignatura(
+                            asignatura.idAsignatura,
+                            asignatura.codigo
+                          )
+                        "
+                        (mouseenter)="
+                          resaltarAsignaturas(
+                            asignatura.prerrequisitos,
+                            asignatura.tributaciones
+                          )
+                        "
+                        (mouseleave)="quitarResaltado()"
+                      >
+                        <div class="text-sm font-semibold mb-1">
+                          {{ asignatura.codigo }}
+                        </div>
+                        <div class="text-lg font-bold">
+                          {{ asignatura.nombre }}
+                        </div>
+                      </div>
+                      <p-contextMenu
+                        #menu
+                        [target]="card"
+                        [model]="lineaMenu"
+                        (onShow)="abrirContextMenu(menu, asignatura.codigo)"
+                        [styleClass]="
+                          'w-[300px] bg-white shadow-lg border border-gray-300 rounded-md p-2'
+                        "
+                      ></p-contextMenu>
+                    </ng-container>
+
+                    <ng-template #conLinea>
+                      <div
+                        #card
+                        class="p-4 rounded-xl cursor-pointer transition-transform hover:scale-105 hover:shadow-lg"
+                        [ngStyle]="{
+                          'background-color':
+                            asignatura.LineaContemplaAsignatura.color ||
+                            '#CCCCCC'
+                        }"
+                        [ngClass]="{
+                              'bg-green-500 text-white': esTributada(asignatura.idAsignatura),
+                              'bg-red-500 text-white': esPrevia(asignatura.idAsignatura) && !esTributada(asignatura.idAsignatura),
+                            }"
+                        (click)="
+                          detalleAsignatura(
+                            asignatura.idAsignatura,
+                            asignatura.codigo
+                          )
+                        "
+                        (mouseenter)="
+                          resaltarAsignaturas(
+                            asignatura.prerrequisitos,
+                            asignatura.tributaciones
+                          )
+                        "
+                        (mouseleave)="quitarResaltado()"
+                      >
+                        <div class="text-sm font-semibold mb-1">
+                          {{ asignatura.codigo }}
+                        </div>
+                        <div class="text-lg font-bold">
+                          {{ asignatura.nombre }}
+                        </div>
+                      </div>
+                      <p-contextMenu
+                        #menu
+                        [target]="card"
+                        [model]="lineaMenu"
+                        (onShow)="abrirContextMenu(menu, asignatura.codigo)"
+                        [styleClass]="
+                          'w-[300px] bg-white shadow-lg border border-gray-300 rounded-md p-2'
+                        "
+                      ></p-contextMenu>
+                    </ng-template>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    } }
+  </div>
+</div>
+
+<p-toast position="top-right"></p-toast>

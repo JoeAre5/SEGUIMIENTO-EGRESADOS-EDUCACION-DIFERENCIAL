@@ -18,10 +18,15 @@ import { join } from 'path';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env', // ✅ fuerza a leer el archivo .env
+      expandVariables: true, // ✅ opcional pero recomendado
+    }),
+
     AsignaturasModule,
     CursosModule,
     PlanesEstudioModule,
-    ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     PracticasModule,
     EndsModule,
@@ -29,7 +34,9 @@ import { join } from 'path';
     EstudiantesModule,
     AuthModule,
     LineaAsignaturaModule,
+
     MulterModule.register({ dest: './documents/convenios' }),
+
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'documents'),
       serveRoot: '/documents',

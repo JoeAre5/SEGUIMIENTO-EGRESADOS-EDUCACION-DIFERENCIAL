@@ -13,89 +13,65 @@
     styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
     (click)="redirigirHacia('fluxogramas')"
   >
-    <!-- 
-    Fluxograma: administrador,  jefa de carrera,  secretaria de jefa de carrera,  docente,  coordinadora de práctica
-      - ver los fluxogramas (y sus asignaturas)
-      - ver la aprobación de las asignaturas de carácter normal
-      - ver los promedios de las asignaturas de carácter práctico
-      - ver las líneas
-      - gestionar las líneas (excepto secretaria)
-    -->
     <p class="text-4xl font-semibold">Fluxogramas</p>
   </p-card>
+
   <p-card
     *tieneRol="[ADMINISTRADOR, JEFA_CARRERA, SECRETARIO, DOCENTE, COORDINADOR]"
     header=""
     styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
     (click)="redirigirHacia('asignaturas')"
   >
-    <!-- 
-    Asignaturas: administrador,  jefa de carrera, secretaria de jefa de carrer,  docente,  coordinadora de práctica
-      - ver las asignaturas
-      - ver detalle de la asignatura (estadísticas anuales y por cohorte)
-   -->
-
     <p class="text-4xl font-semibold">Asignaturas</p>
   </p-card>
+
   <p-card
     *tieneRol="[ADMINISTRADOR, JEFA_CARRERA, SECRETARIO, COORDINADOR]"
     header=""
     styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
     (click)="redirigirHacia('convenios')"
   >
-    <!-- Convenios: administrador,  jefa de carrera,  secretaria de jefa de carrera, coordinadora de práctica
-        - ver los convenios
-        - ver los detalles de los convenios
-        - gestionar los convenios (agregar, editar o eliminar)
-        - gestionar modalidades (agregar nuevas)
-        - ver el documento del convenio 
-    -->
     <p class="text-4xl font-semibold">Convenios</p>
   </p-card>
+
   <p-card
     *tieneRol="[ADMINISTRADOR, JEFA_CARRERA, DOCENTE, COORDINADOR]"
     header=""
     styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
     (click)="redirigirHacia('ver-tendencias')"
   >
-    <!-- 
-    Ver tendencias de corte práctico: administrador,  jefa de carrera, docente,  coordinadora de práctica
-      - ver las tendencias de corte práctico 
-    -->
     <p class="text-4xl font-semibold">Tendencias de corte práctico</p>
   </p-card>
+
   <p-card
     *tieneRol="[ADMINISTRADOR, JEFA_CARRERA]"
     header=""
     styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
     (click)="redirigirHacia('listar-estudiantes')"
   >
-    <!-- 
-    Avance individual: administrado,  jefa de carrera
-    - ver los estudiantes de la carrera
-    - ir al menú alumno (ver detalles de prácticas y avance curricular)
-    - acceder al menú prácticas por estudiante
-    - acceder a la vista de avance curricular
-    - ver los promedios obtenidos por semestre del alumno
-    - ver las cursaciones (notas por asignatura) individuales del alumno
-   -->
-
     <p class="text-4xl font-semibold">Avance individual</p>
   </p-card>
+
   <p-card
     *tieneRol="[ADMINISTRADOR, JEFA_CARRERA]"
     header=""
     styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
     (click)="redirigirHacia('end')"
   >
-    <!-- 
-    END: administrador,  jefa de carrera
-      - ver las rendiciones de la END y acceder a sus documentos
-      - agregar resultados de la END por año de rendición y cohorte
-   -->
     <p class="text-4xl font-semibold">END</p>
   </p-card>
 
+  <!-- ✅ NUEVO BOTÓN: Seguimiento Egresados -->
+  <p-card
+    *tieneRol="[ADMINISTRADOR, JEFA_CARRERA, COORDINADOR]"
+    header=""
+    styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
+    (click)="redirigirHacia('seguimiento-egresados')"
+  >
+    <p class="text-4xl font-semibold">Seguimiento Egresados</p>
+  </p-card>
+
+  <!-- ❌ Próximo -->
   <p-card
     header=""
     styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"

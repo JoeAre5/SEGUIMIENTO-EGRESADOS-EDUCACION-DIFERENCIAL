@@ -1,0 +1,128 @@
+<div class="bg-white border-y mt-10 py-5 shadow-lg">
+  <div class="flex items-center justify-between w-11/12">
+    <div class="bg-sky-700 w-6/12 rounded-r-xl py-4">
+      <h1 class="text-3xl text-white text-center font-bold">
+        Seguimiento de Egresados
+      </h1>
+    </div>
+  </div>
+</div>
+
+<div class="m-10 bg-white p-10 shadow-lg rounded-md">
+
+  <form [formGroup]="formulario" class="grid grid-cols-2 gap-6">
+
+    <!-- id estudiante -->
+    <div>
+      <label class="block font-semibold mb-2">ID Estudiante *</label>
+      <input pInputText type="number" formControlName="idEstudiante" class="w-full" />
+      <small class="text-red-500" *ngIf="formulario.get('idEstudiante')?.touched && formulario.get('idEstudiante')?.invalid">
+        Campo obligatorio
+      </small>
+    </div>
+
+    <!-- fecha egreso -->
+    <div>
+      <label class="block font-semibold mb-2">Fecha de Egreso *</label>
+      <p-calendar formControlName="fechaEgreso" [showIcon]="true" dateFormat="yy-mm-dd" class="w-full"></p-calendar>
+      <small class="text-red-500" *ngIf="formulario.get('fechaEgreso')?.touched && formulario.get('fechaEgreso')?.invalid">
+        Campo obligatorio
+      </small>
+    </div>
+
+    <!-- situación actual -->
+    <div>
+      <label class="block font-semibold mb-2">Situación Actual *</label>
+      <p-dropdown
+        formControlName="situacionActual"
+        [options]="situaciones"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+      <small class="text-red-500" *ngIf="formulario.get('situacionActual')?.touched && formulario.get('situacionActual')?.invalid">
+        Campo obligatorio
+      </small>
+    </div>
+
+    <!-- Año seguimiento -->
+    <div>
+      <label class="block font-semibold mb-2">Año Seguimiento *</label>
+      <p-inputNumber formControlName="anioSeguimiento" class="w-full"></p-inputNumber>
+    </div>
+
+    <!-- empresa -->
+    <div>
+      <label class="block font-semibold mb-2">Empresa</label>
+      <input pInputText formControlName="empresa" class="w-full" />
+    </div>
+
+    <!-- cargo -->
+    <div>
+      <label class="block font-semibold mb-2">Cargo</label>
+      <input pInputText formControlName="cargo" class="w-full" />
+    </div>
+
+    <!-- sueldo -->
+    <div>
+      <label class="block font-semibold mb-2">Sueldo (CLP)</label>
+      <p-inputNumber formControlName="sueldo" class="w-full"></p-inputNumber>
+    </div>
+
+    <!-- Año ingreso laboral -->
+    <div>
+      <label class="block font-semibold mb-2">Año Ingreso Laboral</label>
+      <p-inputNumber formControlName="anioIngresoLaboral" class="w-full"></p-inputNumber>
+    </div>
+
+    <!-- CONTACTO -->
+    <div class="col-span-2 mt-6">
+      <h2 class="text-xl font-bold text-sky-700">Datos de contacto</h2>
+      <hr class="my-3" />
+    </div>
+
+    <!-- telefono -->
+    <div>
+      <label class="block font-semibold mb-2">Teléfono</label>
+      <input pInputText formControlName="telefono" class="w-full" />
+    </div>
+
+    <!-- email -->
+    <div>
+      <label class="block font-semibold mb-2">Email</label>
+      <input pInputText formControlName="emailContacto" class="w-full" />
+      <small class="text-red-500" *ngIf="formulario.get('emailContacto')?.touched && formulario.get('emailContacto')?.invalid">
+        Email inválido
+      </small>
+    </div>
+
+    <!-- direccion -->
+    <div>
+      <label class="block font-semibold mb-2">Dirección</label>
+      <input pInputText formControlName="direccion" class="w-full" />
+    </div>
+
+    <!-- linkedin -->
+    <div>
+      <label class="block font-semibold mb-2">LinkedIn</label>
+      <input pInputText formControlName="linkedin" class="w-full" />
+    </div>
+
+    <!-- contacto alternativo -->
+    <div class="col-span-2">
+      <label class="block font-semibold mb-2">Contacto Alternativo</label>
+      <input pInputText formControlName="contactoAlternativo" class="w-full" />
+    </div>
+
+    <!-- BOTONES -->
+    <div class="col-span-2 flex justify-end gap-4 mt-6">
+      <button pButton type="button" class="p-button-secondary" (click)="volverMenu()">
+        Volver
+      </button>
+
+      <button pButton type="button" class="p-button-success" (click)="guardar()">
+        Guardar Seguimiento
+      </button>
+    </div>
+
+  </form>
+</div>

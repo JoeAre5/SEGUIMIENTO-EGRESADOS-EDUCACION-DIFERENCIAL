@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { FluxogramasComponent } from './components/fluxogramas/fluxogramas.component';
+import { SeguimientoEgresadosComponent } from './components/seguimiento-egresados/seguimiento-egresados.component';
 import { AprobacionCursoComponent } from './components/aprobacion-curso/aprobacion-curso.component';
 import { DetalleFluxogramaComponent } from './components/detalle-fluxograma/detalle-fluxograma.component';
 import { EstadisticaDiagnosticoComponent } from './components/estadistica-diagnostico/estadistica-diagnostico.component';
@@ -22,6 +23,7 @@ import { GestionarLineasComponent } from './components/gestionar-lineas/gestiona
 import { TendenciasAsignaturaCortePracticoComponent } from './components/tendencias-asignatura-corte-practico/tendencias-asignatura-corte-practico.component';
 import { DetallePracticaComponent } from './components/detalle-practica/detalle-practica.component';
 import { PracticasConvenioComponent } from './components/practicas-convenio/practicas-convenio.component';
+
 /**
  * RUTAS                    ROLES
  * [/fluxogramas]       -> [todos]
@@ -29,13 +31,29 @@ import { PracticasConvenioComponent } from './components/practicas-convenio/prac
  * [/asignaturas]       -> [admin,jc,secretario, docente, coordinador]
  * [/end]               -> [admin, jc]
  * [/avance-individual] -> [admin,jc]
- *[/ver-tendencias]     -> [administrador,  jc, docente,  coordinador]
+ * [/ver-tendencias]    -> [administrador, jc, docente, coordinador]
+ * [/seguimiento-egresados] -> [admin, jc, coordinador]
  */
 
 export const routes: Routes = [
   { path: '', redirectTo: '/fluxogramas', pathMatch: 'full' },
   { path: 'login', component: LoginComponent, canActivate: [loginGuard] },
   { path: 'menu', component: MenuComponent, canActivate: [authGuard] },
+
+  // ✅ NUEVA RUTA SEGUIMIENTO EGRESADOS
+  {
+    path: 'seguimiento-egresados',
+    component: SeguimientoEgresadosComponent,
+    canActivate: [authGuard, hasRoleGuard],
+    data: {
+      roles: [
+        Roles.ADMINISTRADOR,
+        Roles.JEFA_CARRERA,
+        Roles.COORDINADOR,
+      ],
+    },
+  },
+
   {
     path: 'fluxogramas',
     component: FluxogramasComponent,
@@ -50,6 +68,7 @@ export const routes: Routes = [
       ],
     },
   },
+
   {
     path: 'convenios',
     component: ListaConveniosComponent,
@@ -63,11 +82,13 @@ export const routes: Routes = [
       ],
     },
   },
+
   {
     path: 'convenio/:idConvenio',
     component: ConvenioComponent,
     canActivate: [authGuard],
   },
+
   {
     path: 'end',
     component: ListaEndComponent,
@@ -76,21 +97,25 @@ export const routes: Routes = [
       roles: [Roles.ADMINISTRADOR, Roles.JEFA_CARRERA],
     },
   },
+
   {
     path: 'aprobacion/:idFluxograma/:codigoAsignatura',
     component: AprobacionCursoComponent,
     canActivate: [authGuard],
   },
+
   {
     path: 'fluxograma/:idFluxograma',
     component: DetalleFluxogramaComponent,
     canActivate: [authGuard],
   },
+
   {
     path: 'estadisticas/:idFluxograma/:codigoAsignatura',
     component: EstadisticaDiagnosticoComponent,
     canActivate: [authGuard],
   },
+
   {
     path: 'practicas',
     component: PracticasComponent,
@@ -105,6 +130,7 @@ export const routes: Routes = [
       ],
     },
   },
+
   {
     path: 'asignaturas',
     component: AsignaturasComponent,
@@ -119,19 +145,23 @@ export const routes: Routes = [
       ],
     },
   },
+
   {
     path: 'detalle-asignatura/:codigoAsignatura',
     component: DetalleAsignaturaComponent,
     canActivate: [authGuard],
   },
+
   {
     path: 'avance-estudiante/:idEstudiante',
     component: AvanceEstudianteComponent,
   },
+
   {
     path: 'practicas-estudiante/:idEstudiante',
     component: PracticasEstudianteComponent,
   },
+
   {
     path: 'listar-estudiantes',
     component: ListarEstudianteComponent,
@@ -140,10 +170,12 @@ export const routes: Routes = [
       roles: [Roles.ADMINISTRADOR, Roles.JEFA_CARRERA],
     },
   },
+
   {
     path: 'menu-estudiante/:idEstudiante/:nombreEstudiante',
     component: MenuEstudianteComponent,
   },
+
   {
     path: 'ver-tendencias',
     component: TendenciasAsignaturaCortePracticoComponent,
@@ -157,25 +189,30 @@ export const routes: Routes = [
       ],
     },
   },
+
   {
     path: 'practica-detalle/:titulo',
     component: DetallePracticaComponent,
     canActivate: [authGuard],
   },
+
   {
     path: 'practicas-convenio/:idConvenio',
     component: PracticasConvenioComponent,
     canActivate: [authGuard],
   },
+
   {
     path: 'gestionar-lineas/:idPlan',
     component: GestionarLineasComponent,
     canActivate: [authGuard],
   },
+
   {
     path: 'end/:idEND',
     component: ResultadoEndComponent,
     canActivate: [authGuard],
   },
+
   { path: '**', redirectTo: '/menu' },
 ];

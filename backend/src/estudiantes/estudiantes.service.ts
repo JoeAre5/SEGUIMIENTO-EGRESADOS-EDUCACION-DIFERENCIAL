@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   estudiantesGetEstudiante,
@@ -16,24 +20,111 @@ import {
   InfoCohorteEstudianteDTO,
   ListarPorCohorteDTO,
 } from './dto/cohortes.dto';
+
+// ✅ DTOs nuevos
+import { CreateEstudianteDto } from './dto/create-estudiante.dto';
+import { UpdateEstudianteDto } from './dto/update-estudiante.dto';
+
 @Injectable()
 export class EstudiantesService {
   constructor(private prisma: PrismaService) {}
 
-  // Bloque de Avance de estudiante
-  //
+  // ✅ NUEVO MÉTODO: listar estudiantes (para egresados)
+  async findAll() {
+    return this.prisma.estudiante.findMany({
+      select: {
+        idEstudiante: true,
+        nombreCompleto: true,
+        rut: true,
+        agnioIngreso: true,
+      },
+      orderBy: {
+        nombreCompleto: 'asc',
+      },
+    });
+  }
 
-  /*
-   * Retorna la información de un estudiante utilizando el dto
-   * InfoEstudianteDTO
-   * EJ
-   * {
-   *  nombreCompleto: "Nombre Completo",
-   *  rut: "21.111.111-1",
-   *  agnioIngreso: 2024,
-   *  plan: 2020
-   * }
-   * */
+  // ✅✅ NUEVO: CREAR ESTUDIANTE
+  async create(dto: CreateEstudianteDto) {
+  const existe = await this.prisma.estudiante.findUnique({
+    where: { rut: dto.rut },
+  });
+
+  if (existe) {
+    throw new BadRequestException('Ya existe un estudiante con ese RUT');
+  }
+
+  return this.prisma.estudiante.create({
+    data: {
+      rut: dto.rut,
+      nombreCompleto: `${dto.nombre} ${dto.apellido}`.trim(), // ✅ se construye aquí
+      nombreSocial: dto.nombreSocial,
+      agnioIngreso: dto.agnioIngreso,
+      idPlan: dto.idPlan,
+    },
+  });
+}
+
+
+  // ✅✅ NUEVO: ACTUALIZAR ESTUDIANTE
+  async update(idEstudiante: number, dto: UpdateEstudianteDto) {
+  const existe = await this.prisma.estudiante.findUnique({
+    where: { idEstudiante },
+  });
+
+  if (!existe) throw new NotFoundException('Estudiante no encontrado');
+
+  // ✅ validar rut si cambia
+  if (dto.rut && dto.rut !== existe.rut) {
+    const rutExiste = await this.prisma.estudiante.findUnique({
+      where: { rut: dto.rut },
+    });
+
+    if (rutExiste)
+      throw new BadRequestException('Ya existe otro estudiante con ese RUT');
+  }
+
+  // ✅ construir nombreCompleto si llega nombre o apellido
+  let nombreCompleto = existe.nombreCompleto;
+
+  const nombreActual = dto.nombre ?? existe.nombreCompleto.split(' ')[0];
+  const apellidoActual =
+    dto.apellido ?? existe.nombreCompleto.split(' ').slice(1).join(' ');
+
+  if (dto.nombre || dto.apellido) {
+    nombreCompleto = `${nombreActual} ${apellidoActual}`.trim();
+  }
+
+  return this.prisma.estudiante.update({
+    where: { idEstudiante },
+    data: {
+      rut: dto.rut ?? undefined,
+      nombreCompleto,
+      nombreSocial: dto.nombreSocial ?? undefined,
+      agnioIngreso: dto.agnioIngreso ?? undefined,
+      idPlan: dto.idPlan ?? undefined,
+    },
+  });
+}
+
+
+  // ✅✅ NUEVO: ELIMINAR ESTUDIANTE
+  async delete(idEstudiante: number) {
+    const existe = await this.prisma.estudiante.findUnique({
+      where: { idEstudiante },
+    });
+
+    if (!existe) throw new NotFoundException('Estudiante no encontrado');
+
+    return this.prisma.estudiante.delete({
+      where: { idEstudiante },
+    });
+  }
+
+  // ===============================
+  // 🔥 TU CÓDIGO ORIGINAL COMPLETO
+  // ===============================
+
   async getEstudianteById(idEstudiante: number) {
     const infoEstudiante = await this.prisma.$queryRawTyped(
       estudiantesGetEstudiante(idEstudiante),
@@ -47,27 +138,8 @@ export class EstudiantesService {
         promedio: value.promedio,
       };
     })[0] as InfoEstudianteDTO;
-    //marca el [0] porque la respuesta de la bd es un arreglo con un sólo elemento
   }
 
-  /*
-   * Retorna la información los cursos que ha realizado el estudiante usando
-   * CursoEstudianteDTO[]
-   * EJ
-   * [
-   *  {
-   *    idAsignatura: 1,
-   *    codigo: "FI-2021",
-   *    areaFormacion: "FP"
-   *    agnioRealizacion: 2024,
-   *    semestreRealizacion: 3,
-   *    numIntento: 1,
-   *    notaFinal: 1
-   *  },
-   * { ... },
-   * { ... }
-   * ]
-   * */
   async getInfoCursosDeEstudiante(rut: string) {
     const infoCursos = await this.prisma.$queryRawTyped(
       estudiantesGetCursos(rut),
@@ -85,23 +157,6 @@ export class EstudiantesService {
     }) as CursoEstudianteDTO[];
   }
 
-  /*
-   * Retorna la información del promedio del estudiante a lo largo
-   * de los semestres que ha rendido utilizando
-   * SemestreRealizadoDTO[]
-   * EJ
-   * [
-   *   {
-   *     numSemestre: 1,
-   *     promedio: 6.5
-   *   },
-   *   {
-   *     numSemestre: 2,
-   *     promedio: 6.4
-   *   }
-   *   ...
-   * ]
-   * */
   async getPromedioIndividualPorSemestre(
     rut: string,
   ): Promise<SemestreRealizadoDTO[]> {
@@ -116,23 +171,6 @@ export class EstudiantesService {
     }) as SemestreRealizadoDTO[];
   }
 
-  /*
-   * Retorna la información del promedio de un cohorte o generación a lo largo
-   * de los semestres que han rendido utilizando
-   * SemestreRealizadoDTO[]
-   * EJ
-   * [
-   *   {
-   *     numSemestre: 1,
-   *     promedio: 6.5
-   *   },
-   *   {
-   *     numSemestre: 2,
-   *     promedio: 6.4
-   *   }
-   *   ...
-   * ]
-   * */
   async getPromedioDeCohortePorSemestre(
     agnioCohorte: number,
   ): Promise<SemestreRealizadoDTO[]> {
@@ -169,8 +207,6 @@ export class EstudiantesService {
     } as AvanceDto;
   }
 
-  //Bloque de Obtener a todos los estudiantes
-
   private async listarCohortes(): Promise<number[]> {
     const resultCohortes = await this.prisma.estudiante.findMany({
       select: {
@@ -184,9 +220,7 @@ export class EstudiantesService {
     });
   }
 
-  private async getAllEstudiantesCohorte(): Promise<
-    InfoCohorteEstudianteDTO[]
-  > {
+  private async getAllEstudiantesCohorte(): Promise<InfoCohorteEstudianteDTO[]> {
     const resultadoEstudiantes = await this.prisma.estudiante.findMany({
       select: {
         idEstudiante: true,
@@ -206,28 +240,6 @@ export class EstudiantesService {
     });
   }
 
-  /*
-   * Método Principal del Bloque
-   *
-   * Retorna cada uno de los estudiantes ordenados y clasificados por cohorte usando
-   * ListarPorCohorteDTO[]
-   * [
-   *     {
-   *       "cohorte": 2020,
-   *       "estudiantes": [
-   *           {
-   *               "nombre_completo": "Estudiante Numero Dos",
-   *               "rut": "22.222.222-2",
-   *               "agnio_cohorte": 2020
-   *           },
-   *           { ... },
-   *           { ... },
-   *       ]
-   *     },
-   *     { ... },
-   *     { ... },
-   * ]
-   * */
   async getEstudiantesPorCohorte() {
     const cohortes = await this.listarCohortes();
     const estudiantes = await this.getAllEstudiantesCohorte();
@@ -243,8 +255,7 @@ export class EstudiantesService {
         estudiantes: mismoCohorte,
       } as ListarPorCohorteDTO);
     });
+
     return responseDto;
   }
 }
-
-// FIN Bloque listar a todos los estudiantes

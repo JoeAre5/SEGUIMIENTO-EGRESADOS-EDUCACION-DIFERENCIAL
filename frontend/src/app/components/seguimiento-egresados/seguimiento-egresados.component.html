@@ -1,3 +1,7 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<!-- ✅ HEADER -->
 <div class="bg-white border-y mt-10 py-5 shadow-lg">
   <div class="flex items-center justify-between w-11/12">
     <div class="bg-sky-700 w-6/12 rounded-r-xl py-4">
@@ -8,29 +12,143 @@
   </div>
 </div>
 
+<!-- ✅ FORMULARIO -->
 <div class="m-10 bg-white p-10 shadow-lg rounded-md">
-
   <form [formGroup]="formulario" class="grid grid-cols-2 gap-6">
 
-    <!-- id estudiante -->
-    <div>
-      <label class="block font-semibold mb-2">ID Estudiante *</label>
-      <input pInputText type="number" formControlName="idEstudiante" class="w-full" />
-      <small class="text-red-500" *ngIf="formulario.get('idEstudiante')?.touched && formulario.get('idEstudiante')?.invalid">
-        Campo obligatorio
+    <!-- ✅ Datos principales -->
+    <div class="col-span-2">
+      <h2 class="text-xl font-bold text-sky-700">Información General</h2>
+      <hr class="my-3" />
+    </div>
+
+    <!-- ✅ SELECTOR MODO -->
+    <div class="col-span-2 flex gap-4 items-center mb-2">
+      <label class="font-semibold">Modo:</label>
+
+      <button
+        pButton
+        type="button"
+        class="p-button-sm"
+        [class.p-button-info]="modoEstudiante === 'existente'"
+        [class.p-button-outlined]="modoEstudiante !== 'existente'"
+        (click)="modoEstudiante = 'existente'"
+      >
+        Seleccionar Estudiante
+      </button>
+
+      <button
+        pButton
+        type="button"
+        class="p-button-sm"
+        [class.p-button-success]="modoEstudiante === 'nuevo'"
+        [class.p-button-outlined]="modoEstudiante !== 'nuevo'"
+        (click)="modoEstudiante = 'nuevo'"
+      >
+        Crear Estudiante Nuevo
+      </button>
+    </div>
+
+    <!-- ✅ MODO EXISTENTE -->
+    <div class="col-span-2" *ngIf="modoEstudiante === 'existente'">
+      <label class="block font-semibold mb-2">Seleccionar Estudiante *</label>
+
+      <p-dropdown
+        [options]="estudiantes"
+        [(ngModel)]="estudianteSeleccionado"
+        [ngModelOptions]="{ standalone: true }"
+        optionLabel="nombreCompleto"
+        placeholder="Buscar por nombre o rut"
+        [filter]="true"
+        filterBy="nombreCompleto,rut"
+        [showClear]="true"
+        class="w-full"
+      >
+        <ng-template let-estudiante pTemplate="item">
+          <div class="flex flex-col">
+            <span class="font-bold">{{ estudiante.nombreCompleto }}</span>
+            <small class="text-gray-500">{{ estudiante.rut }}</small>
+          </div>
+        </ng-template>
+      </p-dropdown>
+
+      <small class="text-red-500" *ngIf="intentoGuardar && !estudianteSeleccionado">
+        Debes seleccionar un estudiante.
       </small>
     </div>
 
-    <!-- fecha egreso -->
+    <!-- ✅ MODO NUEVO -->
+    <div class="col-span-2" *ngIf="modoEstudiante === 'nuevo'">
+      <h3 class="text-lg font-bold text-sky-700 mt-2">🆕 Nuevo Estudiante</h3>
+
+      <div class="grid grid-cols-2 gap-6 mt-4">
+        <div>
+          <label class="block font-semibold mb-2">RUT *</label>
+          <input
+            pInputText
+            [(ngModel)]="nuevoEstudiante.rut"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Ej: 20.123.456-7"
+            class="w-full"
+          />
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-2">Año ingreso *</label>
+          <p-inputNumber
+            [(ngModel)]="nuevoEstudiante.agnioIngreso"
+            [ngModelOptions]="{ standalone: true }"
+            class="w-full"
+            [useGrouping]="false"
+          ></p-inputNumber>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-2">Nombre *</label>
+          <input
+            pInputText
+            [(ngModel)]="nuevoEstudiante.nombre"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Ej: Juan"
+            class="w-full"
+          />
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-2">ID Plan *</label>
+          <p-inputNumber
+            [(ngModel)]="nuevoEstudiante.idPlan"
+            [ngModelOptions]="{ standalone: true }"
+            class="w-full"
+            [useGrouping]="false"
+          ></p-inputNumber>
+        </div>
+
+        <div class="col-span-2">
+          <label class="block font-semibold mb-2">Apellido *</label>
+          <input
+            pInputText
+            [(ngModel)]="nuevoEstudiante.apellido"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Ej: Pérez"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ fecha egreso -->
     <div>
       <label class="block font-semibold mb-2">Fecha de Egreso *</label>
-      <p-calendar formControlName="fechaEgreso" [showIcon]="true" dateFormat="yy-mm-dd" class="w-full"></p-calendar>
-      <small class="text-red-500" *ngIf="formulario.get('fechaEgreso')?.touched && formulario.get('fechaEgreso')?.invalid">
-        Campo obligatorio
-      </small>
+      <p-calendar
+        formControlName="fechaEgreso"
+        [showIcon]="true"
+        dateFormat="yy-mm-dd"
+        class="w-full"
+      ></p-calendar>
     </div>
 
-    <!-- situación actual -->
+    <!-- ✅ situación actual -->
     <div>
       <label class="block font-semibold mb-2">Situación Actual *</label>
       <p-dropdown
@@ -39,15 +157,6 @@
         placeholder="Seleccionar"
         class="w-full"
       ></p-dropdown>
-      <small class="text-red-500" *ngIf="formulario.get('situacionActual')?.touched && formulario.get('situacionActual')?.invalid">
-        Campo obligatorio
-      </small>
-    </div>
-
-    <!-- Año seguimiento -->
-    <div>
-      <label class="block font-semibold mb-2">Año Seguimiento *</label>
-      <p-inputNumber formControlName="anioSeguimiento" class="w-full"></p-inputNumber>
     </div>
 
     <!-- empresa -->
@@ -68,61 +177,211 @@
       <p-inputNumber formControlName="sueldo" class="w-full"></p-inputNumber>
     </div>
 
-    <!-- Año ingreso laboral -->
+    <!-- Año seguimiento -->
     <div>
-      <label class="block font-semibold mb-2">Año Ingreso Laboral</label>
-      <p-inputNumber formControlName="anioIngresoLaboral" class="w-full"></p-inputNumber>
+      <label class="block font-semibold mb-2">Año Seguimiento *</label>
+      <p-inputNumber formControlName="anioSeguimiento" class="w-full" [useGrouping]="false"></p-inputNumber>
     </div>
 
-    <!-- CONTACTO -->
+    <!-- ✅ DOCUMENTOS -->
     <div class="col-span-2 mt-6">
-      <h2 class="text-xl font-bold text-sky-700">Datos de contacto</h2>
+      <h2 class="text-xl font-bold text-sky-700">Documentos</h2>
       <hr class="my-3" />
     </div>
 
-    <!-- telefono -->
-    <div>
-      <label class="block font-semibold mb-2">Teléfono</label>
-      <input pInputText formControlName="telefono" class="w-full" />
-    </div>
-
-    <!-- email -->
-    <div>
-      <label class="block font-semibold mb-2">Email</label>
-      <input pInputText formControlName="emailContacto" class="w-full" />
-      <small class="text-red-500" *ngIf="formulario.get('emailContacto')?.touched && formulario.get('emailContacto')?.invalid">
-        Email inválido
-      </small>
-    </div>
-
-    <!-- direccion -->
-    <div>
-      <label class="block font-semibold mb-2">Dirección</label>
-      <input pInputText formControlName="direccion" class="w-full" />
-    </div>
-
-    <!-- linkedin -->
-    <div>
-      <label class="block font-semibold mb-2">LinkedIn</label>
-      <input pInputText formControlName="linkedin" class="w-full" />
-    </div>
-
-    <!-- contacto alternativo -->
     <div class="col-span-2">
-      <label class="block font-semibold mb-2">Contacto Alternativo</label>
-      <input pInputText formControlName="contactoAlternativo" class="w-full" />
+      <input
+        type="file"
+        multiple
+        (change)="onFileSelected($event)"
+        class="block w-full border border-gray-300 p-2 rounded-md"
+      />
     </div>
 
-    <!-- BOTONES -->
-    <div class="col-span-2 flex justify-end gap-4 mt-6">
+    <!-- ✅ Botones -->
+    <div class="col-span-2 flex justify-end gap-4 mt-8">
       <button pButton type="button" class="p-button-secondary" (click)="volverMenu()">
         Volver
       </button>
 
+      <button pButton type="button" class="p-button-warning" (click)="resetFormulario()">
+        Limpiar
+      </button>
+
       <button pButton type="button" class="p-button-success" (click)="guardar()">
-        Guardar Seguimiento
+        Guardar
       </button>
     </div>
-
   </form>
 </div>
+
+<!-- ✅ TABLA DE EGRESADOS -->
+<div class="m-10 bg-white p-8 shadow-lg rounded-md">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-bold text-sky-700">Listado de Egresados</h2>
+
+    <!-- ✅ BUSQUEDA GLOBAL -->
+    <div class="flex gap-4 items-center">
+      <span class="p-input-icon-left">
+        <i class="pi pi-search"></i>
+        <input
+          pInputText
+          type="text"
+          placeholder="Buscar..."
+          (input)="onGlobalFilter(dt, $event)"
+        />
+      </span>
+    </div>
+  </div>
+
+  <p-table
+    #dt
+    [value]="egresados"
+    [paginator]="true"
+    [rows]="10"
+    [loading]="loading"
+    [rowHover]="true"
+    class="p-datatable-sm"
+    [globalFilterFields]="['Estudiante.nombreCompleto','Estudiante.rut','situacionActual','empresa','cargo']"
+  >
+    <ng-template pTemplate="header">
+      <tr>
+        <th>Estudiante</th>
+        <th>RUT</th>
+        <th>Situación</th>
+        <th>Año Seguimiento</th>
+        <th>Empresa</th>
+        <th>Cargo</th>
+        <th>Sueldo</th>
+        <th>Acciones</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-egresado>
+      <tr>
+        <td>{{ egresado.Estudiante?.nombreCompleto }}</td>
+        <td>{{ egresado.Estudiante?.rut }}</td>
+
+        <td>
+          <p-tag
+            [value]="egresado.situacionActual"
+            [severity]="getSituacionSeverity(egresado.situacionActual)"
+          ></p-tag>
+        </td>
+
+        <td>{{ egresado.anioSeguimiento }}</td>
+        <td>{{ egresado.empresa || '-' }}</td>
+        <td>{{ egresado.cargo || '-' }}</td>
+
+        <td>
+          <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full font-bold">
+            CLP{{ formatCLP(egresado.sueldo) }}
+          </span>
+        </td>
+
+        <!-- ✅ BOTONES -->
+        <td class="flex gap-2 justify-center">
+          <button
+            pButton
+            icon="pi pi-pencil"
+            class="p-button-rounded p-button-info"
+            pTooltip="Editar"
+            (click)="abrirEdicion(egresado)"
+          ></button>
+
+          <button
+            pButton
+            icon="pi pi-trash"
+            class="p-button-rounded p-button-danger"
+            pTooltip="Eliminar"
+            (click)="eliminar(egresado)"
+          ></button>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+<!-- ✅ MODAL EDICION COMPLETA -->
+<p-dialog
+  [(visible)]="editDialogVisible"
+  [modal]="true"
+  [style]="{ width: '650px' }"
+  [closable]="true"
+  header="✏️ Editar Seguimiento"
+>
+  <form [formGroup]="editFormulario" class="grid grid-cols-2 gap-4">
+
+    <div class="col-span-2">
+      <label class="font-semibold block mb-2">Situación *</label>
+      <p-dropdown
+        formControlName="situacionActual"
+        [options]="situaciones"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <div>
+      <label class="font-semibold block mb-2">Empresa</label>
+      <input pInputText formControlName="empresa" class="w-full" />
+    </div>
+
+    <div>
+      <label class="font-semibold block mb-2">Cargo</label>
+      <input pInputText formControlName="cargo" class="w-full" />
+    </div>
+
+    <div>
+      <label class="font-semibold block mb-2">Sueldo</label>
+      <p-inputNumber formControlName="sueldo" class="w-full"></p-inputNumber>
+    </div>
+
+    <div>
+      <label class="font-semibold block mb-2">Año Seguimiento *</label>
+      <p-inputNumber formControlName="anioSeguimiento" class="w-full"></p-inputNumber>
+    </div>
+
+    <div>
+      <label class="font-semibold block mb-2">Teléfono</label>
+      <input pInputText formControlName="telefono" class="w-full" />
+    </div>
+
+    <div>
+      <label class="font-semibold block mb-2">Email</label>
+      <input pInputText formControlName="emailContacto" class="w-full" />
+    </div>
+
+    <div class="col-span-2">
+      <label class="font-semibold block mb-2">Dirección</label>
+      <input pInputText formControlName="direccion" class="w-full" />
+    </div>
+
+    <div class="col-span-2">
+      <label class="font-semibold block mb-2">LinkedIn</label>
+      <input pInputText formControlName="linkedin" class="w-full" />
+    </div>
+
+    <div class="col-span-2">
+      <label class="font-semibold block mb-2">Contacto Alternativo</label>
+      <input pInputText formControlName="contactoAlternativo" class="w-full" />
+    </div>
+
+    <div class="col-span-2 flex justify-end gap-3 mt-6">
+      <button
+        pButton
+        type="button"
+        label="Cancelar"
+        class="p-button-secondary"
+        (click)="editDialogVisible = false"
+      ></button>
+
+      <button
+        pButton
+        type="button"
+        label="Guardar"
+        class="p-button-success"
+        (click)="guardarEdicion()"
+      ></button>
+    </div>
+  </form>
+</p-dialog>

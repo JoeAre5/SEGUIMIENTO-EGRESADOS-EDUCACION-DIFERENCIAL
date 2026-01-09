@@ -23,6 +23,7 @@ import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { SidebarModule } from 'primeng/sidebar'; // ✅ NUEVO
 
 import {
   EgresadosService,
@@ -56,6 +57,7 @@ import { switchMap, of } from 'rxjs';
     TooltipModule,
     ConfirmDialogModule,
     DialogModule,
+    SidebarModule, // ✅ NUEVO
   ],
   templateUrl: './seguimiento-egresados.component.html',
   styleUrl: './seguimiento-egresados.component.css',
@@ -84,7 +86,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   modalDocsVisible = false;
   documentosModal: any[] = [];
 
-  // ✅ Drawer / Sidebar (solo variable lista si luego lo usas)
+  // ✅ Drawer / Sidebar
   drawerFormulario: boolean = false;
 
   situaciones = [
@@ -168,6 +170,15 @@ export class SeguimientoEgresadosComponent implements OnInit {
       (s) => s.value.toLowerCase() === limpio
     );
     return match ? match.value : null;
+  }
+
+  // ✅ ✅ ✅ NUEVAS FUNCIONES DRAWER
+  abrirDrawerFormulario() {
+    this.drawerFormulario = true;
+  }
+
+  cerrarDrawerFormulario() {
+    this.drawerFormulario = false;
   }
 
   // ✅ AUTO-RELLENO AL SELECCIONAR ESTUDIANTE
@@ -491,6 +502,10 @@ export class SeguimientoEgresadosComponent implements OnInit {
   abrirEdicion(egresado: any) {
     this.estudianteSeleccionado = egresado.Estudiante;
     this.onEstudianteChange();
+
+    // ✅ ✅ ✅ ABRE DRAWER AL EDITAR
+    this.drawerFormulario = true;
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -504,7 +519,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.documentosModal = [];
   }
 
+  // ✅ BOTÓN IR AL FORMULARIO → ABRE DRAWER
   irAlFormulario() {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    this.drawerFormulario = true;
   }
 }

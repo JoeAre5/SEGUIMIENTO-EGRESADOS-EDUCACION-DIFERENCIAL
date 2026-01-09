@@ -162,14 +162,20 @@
             />
           </div>
 
+          <!-- ✅ ✅ ✅ CAMBIO AQUÍ: PLANES EN VEZ DE IDPLAN -->
           <div>
-            <label class="block font-semibold mb-2">ID Plan *</label>
-            <p-inputNumber
+            <label class="block font-semibold mb-2">Plan de Estudios *</label>
+
+            <p-dropdown
+              [options]="planesOptions"
               [(ngModel)]="nuevoEstudiante.idPlan"
               [ngModelOptions]="{ standalone: true }"
+              placeholder="Selecciona un plan"
+              [filter]="true"
+              filterBy="label"
+              [showClear]="true"
               class="w-full"
-              [useGrouping]="false"
-            ></p-inputNumber>
+            ></p-dropdown>
           </div>
 
           <div class="col-span-2">
@@ -365,13 +371,10 @@
 
 <!-- ✅ TABLA DE EGRESADOS -->
 <div class="m-10 bg-white p-8 shadow-lg rounded-md">
-
-  <!-- ✅ TÍTULO + BOTÓN IR ARRIBA + BUSCADOR -->
   <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
     <div class="flex items-center gap-3">
       <h2 class="text-xl font-bold text-sky-700">Listado de Egresados</h2>
 
-      <!-- ✅ BOTÓN IR AL FORMULARIO -->
       <button
         pButton
         type="button"
@@ -384,12 +387,7 @@
 
     <span class="p-input-icon-left">
       <i class="pi pi-search"></i>
-      <input
-        pInputText
-        type="text"
-        placeholder="Buscar..."
-        (input)="onGlobalFilter(dt, $event)"
-      />
+      <input pInputText type="text" placeholder="Buscar..." (input)="onGlobalFilter(dt, $event)" />
     </span>
   </div>
 
@@ -464,10 +462,7 @@
               (click)="abrirModalDocumentos(egresado)"
             ></button>
 
-            <span
-              *ngIf="!egresado.documentos || egresado.documentos.length === 0"
-              class="text-gray-400 italic"
-            >
+            <span *ngIf="!egresado.documentos || egresado.documentos.length === 0" class="text-gray-400 italic">
               Sin archivos
             </span>
           </td>

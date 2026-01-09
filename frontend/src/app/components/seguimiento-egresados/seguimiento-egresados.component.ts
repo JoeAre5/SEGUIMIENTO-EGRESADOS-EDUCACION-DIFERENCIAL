@@ -37,6 +37,14 @@ import {
 
 import { switchMap, of } from 'rxjs';
 
+// ✅ ✅ NUEVO: INTERFAZ PLAN
+interface PlanDTO {
+  idPlan: number;
+  codigo: number;
+  titulo: string;
+  agnio: number;
+}
+
 @Component({
   selector: 'app-seguimiento-egresados',
   standalone: true,
@@ -89,6 +97,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
   // ✅ Drawer / Sidebar
   drawerFormulario: boolean = false;
 
+  // ✅ ✅ NUEVO: PLANES DISPONIBLES
+  planes: PlanDTO[] = [];
+
+  // ✅ ✅ NUEVO: OPCIONES PARA DROPDOWN (PrimeNG)
+  planesOptions: any[] = [];
+
   situaciones = [
     { label: 'Trabajando', value: 'Trabajando' },
     { label: 'Cesante', value: 'Cesante' },
@@ -121,6 +135,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   ngOnInit(): void {
     this.cargarEgresados();
     this.cargarEstudiantes();
+    this.cargarPlanes(); // ✅ ✅ NUEVO
   }
 
   crearFormulario() {
@@ -149,6 +164,24 @@ export class SeguimientoEgresadosComponent implements OnInit {
     });
   }
 
+  // ✅ ✅ ✅ NUEVO: CARGAR PLANES DESDE BACKEND
+  cargarPlanes() {
+    this.egresadosService.getPlanesEstudio().subscribe({
+      next: (data: any[]) => {
+        this.planes = data as PlanDTO[];
+
+        // ✅ crea options para PrimeNG dropdown
+        this.planesOptions = this.planes.map((p) => ({
+          label: `${p.titulo} (${p.agnio})`,
+          value: p.idPlan,
+        }));
+      },
+      error: (err: any) => {
+        console.error('❌ ERROR CARGANDO PLANES:', err);
+      },
+    });
+  }
+
   cargarEgresados() {
     this.loading = true;
     this.egresadosService.findAll().subscribe({
@@ -172,13 +205,19 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return match ? match.value : null;
   }
 
-  // ✅ ✅ ✅ NUEVAS FUNCIONES DRAWER
+  // ✅ ✅ ✅ NUEVAS FUNCIONES DRAWER (CORRECTAS)
   abrirDrawerFormulario() {
     this.drawerFormulario = true;
   }
 
   cerrarDrawerFormulario() {
     this.drawerFormulario = false;
+  }
+
+  // ✅ ✅ ✅ NUEVO: ABRIR DRAWER COMO "NUEVO"
+  nuevoSeguimiento() {
+    this.resetFormulario();
+    this.drawerFormulario = true;
   }
 
   // ✅ AUTO-RELLENO AL SELECCIONAR ESTUDIANTE
@@ -261,6 +300,16 @@ export class SeguimientoEgresadosComponent implements OnInit {
         severity: 'warn',
         summary: 'Falta estudiante',
         detail: 'Debes seleccionar un estudiante.',
+      });
+      return;
+    }
+
+    // ✅ ✅ SI ES NUEVO → validar que seleccione plan
+    if (this.modoEstudiante === 'nuevo' && !this.nuevoEstudiante.idPlan) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Falta Plan',
+        detail: 'Debes seleccionar un plan de estudios.',
       });
       return;
     }
@@ -367,6 +416,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
           this.cargarEstudiantes();
 
           if (id) setTimeout(() => this.onEstudianteChange(), 300);
+
+          // ✅ ✅ ✅ CIERRE AUTOMÁTICO DEL DRAWER AL GUARDAR
+          this.drawerFormulario = false;
         },
         error: (err: any) => {
           console.error('❌ ERROR GUARDAR:', err);
@@ -433,6 +485,10 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.intentoGuardar = false;
     this.existeSeguimiento = false;
     this.modoEstudiante = 'existente';
+
+    // ✅ ✅ reset idPlan en nuevo estudiante
+    this.nuevoEstudiante.idPlan = undefined;
+
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 

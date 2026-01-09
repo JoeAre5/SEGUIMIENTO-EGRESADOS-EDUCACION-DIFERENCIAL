@@ -121,4 +121,12 @@ export class EgresadosService {
   deleteDocumento(idDocumento: number): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/documento/${idDocumento}`);
   }
+
+  /* ===========================
+   ✅ NUEVO: LISTAR PLANES DE ESTUDIO ✅
+   ✅ GET /planes-de-estudio
+  =========================== */
+  getPlanesEstudio(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiFilesUrl}/planes-de-estudio`);
+  }
 }

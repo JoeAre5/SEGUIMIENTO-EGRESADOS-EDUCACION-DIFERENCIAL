@@ -14,8 +14,15 @@ export interface UpdateEgresadoDto {
   sueldo?: number;
   anioIngresoLaboral?: number;
   anioSeguimiento?: number;
+
+  // ✅ datos de contacto
   telefono?: string;
   emailContacto?: string;
+
+  // ✅ nuevos campos prisma
+  linkedin?: string;
+  direccion?: string;
+  contactoAlternativo?: string;
 }
 
 /* ===========================
@@ -31,30 +38,58 @@ export class EgresadosService {
 
   constructor(private http: HttpClient) {}
 
-  // ✅ CREAR con archivos
+  /* ===========================
+   ✅ CREAR con archivos
+   ✅ POST /egresados
+  =========================== */
   createWithFiles(formData: FormData): Observable<any> {
     return this.http.post<any>(this.apiUrl, formData);
   }
 
-  // ✅ LISTAR
+  /* ===========================
+   ✅ LISTAR TODOS
+   ✅ GET /egresados
+  =========================== */
   findAll(): Observable<any[]> {
     return this.http.get<any[]>(this.apiUrl);
   }
 
-  // ✅ BUSCAR por estudiante
+  /* ===========================
+   ✅ BUSCAR POR ESTUDIANTE
+   ✅ GET /egresados/estudiante/:idEstudiante
+  =========================== */
   findOneByEstudiante(idEstudiante: number): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/${idEstudiante}`);
+    return this.http.get<any>(`${this.apiUrl}/estudiante/${idEstudiante}`);
   }
 
-  // ✅ UPDATE por idEstudiante
+  /* ===========================
+   ✅ UPDATE SOLO TEXTO
+   ✅ PATCH /egresados/estudiante/:idEstudiante
+  =========================== */
   updateByEstudiante(idEstudiante: number, dto: UpdateEgresadoDto): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${idEstudiante}`, dto);
+    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, dto);
   }
 
-  // ✅ ELIMINAR por idEgresado
-  delete(idEgresado: number): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${idEgresado}`);
+  /* ===========================
+   ✅ UPDATE CON ARCHIVOS ✅
+   ✅ PATCH /egresados/estudiante/:idEstudiante
+   ✅ Sirve para agregar documentos sin borrar los anteriores
+  =========================== */
+  updateWithFilesByEstudiante(idEstudiante: number, formData: FormData): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, formData);
   }
+
+  /* ===========================
+   ✅ ELIMINAR POR idEgresado
+   ✅ DELETE /egresados/:idEgresado
+  =========================== */
+  delete(idEgresado: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/${idEgresado}`);
+  }
+
+  /* ===========================
+   ✅ DOCUMENTOS
+  =========================== */
 
   // ✅ genera URL completa
   getDocumentoUrl(path: string): string {

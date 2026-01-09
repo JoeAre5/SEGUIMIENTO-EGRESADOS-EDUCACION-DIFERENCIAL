@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateEgresadoDto } from './dto/create-egresado.dto';
 import { UpdateEgresadoDto } from './dto/update-egresado.dto';
 import { Express } from 'express';
+import { unlink } from 'fs/promises';
+import { join } from 'path';
 
 @Injectable()
 export class EgresadosService {
@@ -47,7 +49,9 @@ export class EgresadosService {
         anioIngresoLaboral: dto.anioIngresoLaboral
           ? Number(dto.anioIngresoLaboral)
           : null,
-        anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null,
+        anioSeguimiento: dto.anioSeguimiento
+          ? Number(dto.anioSeguimiento)
+          : null,
         telefono: dto.telefono || null,
         emailContacto: dto.emailContacto || null,
         direccion: dto.direccion || null,
@@ -123,18 +127,32 @@ export class EgresadosService {
     // ✅ Construimos solo lo que venga en dto
     const dataUpdate: any = {
       ...(fechaConvertida ? { fechaEgreso: fechaConvertida } : {}),
-      ...(dto.situacionActual !== undefined ? { situacionActual: dto.situacionActual } : {}),
+      ...(dto.situacionActual !== undefined
+        ? { situacionActual: dto.situacionActual }
+        : {}),
       ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
       ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
-      ...(dto.sueldo !== undefined ? { sueldo: dto.sueldo ? Number(dto.sueldo) : null } : {}),
+      ...(dto.sueldo !== undefined
+        ? { sueldo: dto.sueldo ? Number(dto.sueldo) : null }
+        : {}),
       ...(dto.anioIngresoLaboral !== undefined
-        ? { anioIngresoLaboral: dto.anioIngresoLaboral ? Number(dto.anioIngresoLaboral) : null }
+        ? {
+            anioIngresoLaboral: dto.anioIngresoLaboral
+              ? Number(dto.anioIngresoLaboral)
+              : null,
+          }
         : {}),
       ...(dto.anioSeguimiento !== undefined
-        ? { anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null }
+        ? {
+            anioSeguimiento: dto.anioSeguimiento
+              ? Number(dto.anioSeguimiento)
+              : null,
+          }
         : {}),
       ...(dto.telefono !== undefined ? { telefono: dto.telefono } : {}),
-      ...(dto.emailContacto !== undefined ? { emailContacto: dto.emailContacto } : {}),
+      ...(dto.emailContacto !== undefined
+        ? { emailContacto: dto.emailContacto }
+        : {}),
       ...(dto.direccion !== undefined ? { direccion: dto.direccion } : {}),
       ...(dto.linkedin !== undefined ? { linkedin: dto.linkedin } : {}),
       ...(dto.contactoAlternativo !== undefined
@@ -162,7 +180,51 @@ export class EgresadosService {
   }
 
   /* ===========================
-    ✅ DELETE
+    ✅ ✅ ✅ DELETE DOCUMENTO INDIVIDUAL (NUEVO)
+    ✅ DELETE /egresados/documento/:idDocumento
+  =========================== */
+  async deleteDocumento(idDocumento: number) {
+    idDocumento = Number(idDocumento);
+
+    // ✅ 1. Buscar documento
+    const doc = await this.prisma.documentoEgresado.findUnique({
+      where: { idDocumento },
+    });
+
+    if (!doc) throw new NotFoundException('Documento no encontrado');
+
+    // ✅ 2. Eliminar archivo físico
+    try {
+      // ✅ convierte "/documents/egresados/file.pdf" → "documents/egresados/file.pdf"
+      const rutaRelativa = doc.url.replace('/documents/', 'documents/');
+      const ruta = join(process.cwd(), rutaRelativa);
+
+      await unlink(ruta);
+    } catch (err: any) {
+      console.warn('⚠️ No se pudo eliminar el archivo físico:', err.message);
+    }
+
+    // ✅ 3. Eliminar registro en BD
+    await this.prisma.documentoEgresado.delete({
+      where: { idDocumento },
+    });
+
+    // ✅ 4. Retornar egresado actualizado
+    const egresado = await this.prisma.egresado.findUnique({
+      where: { idEgresado: doc.idEgresado },
+      include: {
+        documentos: true,
+        Estudiante: {
+          select: { rut: true, nombreCompleto: true },
+        },
+      },
+    });
+
+    return egresado;
+  }
+
+  /* ===========================
+    ✅ DELETE EGRESADO COMPLETO
   =========================== */
   async delete(idEgresado: number) {
     idEgresado = Number(idEgresado);

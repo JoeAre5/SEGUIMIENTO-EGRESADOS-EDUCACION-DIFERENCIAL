@@ -84,6 +84,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
   modalDocsVisible = false;
   documentosModal: any[] = [];
 
+  // ✅ Drawer / Sidebar (solo variable lista si luego lo usas)
+  drawerFormulario: boolean = false;
+
   situaciones = [
     { label: 'Trabajando', value: 'Trabajando' },
     { label: 'Cesante', value: 'Cesante' },
@@ -158,7 +161,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     });
   }
 
-  // ✅ Normalizar situación para que matchee con dropdown
   normalizarSituacion(valor: any): string | null {
     if (!valor) return null;
     const limpio = valor.toString().trim().toLowerCase();
@@ -210,7 +212,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
           contactoAlternativo: eg.contactoAlternativo ?? '',
         });
 
-        // ✅ Documentos existentes del egresado seleccionado
         this.documentosExistentes = eg.documentos || [];
 
         this.messageService.add({
@@ -240,7 +241,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 
-  // ✅ ✅ ✅ Guardar sin duplicar y con archivos en PATCH
+  // ✅ Guardar sin duplicar y con archivos en PATCH
   guardar() {
     this.intentoGuardar = true;
 
@@ -272,10 +273,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         switchMap((estudiante: any) => {
           const idEstudiante = estudiante.idEstudiante;
 
-          // ✅ Si ya existe seguimiento → PATCH
           if (this.existeSeguimiento) {
-
-            // ✅ Si NO hay archivos → PATCH normal
             if (this.documentosSeleccionados.length === 0) {
               const dto: UpdateEgresadoDto = {
                 ...this.formulario.value,
@@ -289,7 +287,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
               return this.egresadosService.updateByEstudiante(idEstudiante, dto);
             }
 
-            // ✅ Si HAY archivos → PATCH con FormData (multipart)
             const formData = new FormData();
 
             const fecha = this.formulario.value.fechaEgreso;
@@ -311,10 +308,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
               formData.append('documentos', file)
             );
 
-            return this.egresadosService.updateWithFilesByEstudiante(idEstudiante, formData);
+            return this.egresadosService.updateWithFilesByEstudiante(
+              idEstudiante,
+              formData
+            );
           }
 
-          // ✅ Si NO existe → POST con archivos
           const formData = new FormData();
           formData.append('idEstudiante', idEstudiante.toString());
 
@@ -350,15 +349,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
               : '✅ Seguimiento creado correctamente.',
           });
 
-          // ✅ refresca lista y vuelve a cargar datos del estudiante
           const id = this.estudianteSeleccionado?.idEstudiante;
+
           this.limpiarInputArchivos();
           this.cargarEgresados();
           this.cargarEstudiantes();
 
-          if (id) {
-            setTimeout(() => this.onEstudianteChange(), 300);
-          }
+          if (id) setTimeout(() => this.onEstudianteChange(), 300);
         },
         error: (err: any) => {
           console.error('❌ ERROR GUARDAR:', err);
@@ -370,6 +367,51 @@ export class SeguimientoEgresadosComponent implements OnInit {
           });
         },
       });
+  }
+
+  // ✅ ELIMINAR DOCUMENTO INDIVIDUAL
+  eliminarDocumento(doc: any) {
+    if (!doc?.idDocumento) return;
+
+    this.confirmationService.confirm({
+      message: `¿Seguro que deseas eliminar el documento "${doc.nombre}"?`,
+      header: 'Eliminar documento',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.egresadosService.deleteDocumento(doc.idDocumento).subscribe({
+          next: (egresadoActualizado: any) => {
+            this.documentosExistentes = egresadoActualizado.documentos || [];
+            this.documentosModal = egresadoActualizado.documentos || [];
+
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Documento eliminado',
+              detail: '✅ Documento eliminado correctamente.',
+            });
+
+            this.cargarEgresados();
+
+            if (this.modalDocsVisible && this.documentosModal.length === 0) {
+              this.modalDocsVisible = false;
+
+              this.messageService.add({
+                severity: 'info',
+                summary: 'Sin documentos',
+                detail: '📌 Ya no quedan documentos para este egresado.',
+              });
+            }
+          },
+          error: (err: any) => {
+            console.error('❌ ERROR ELIMINAR DOCUMENTO:', err);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error',
+              detail: '❌ No se pudo eliminar el documento.',
+            });
+          },
+        });
+      },
+    });
   }
 
   resetFormulario() {
@@ -385,12 +427,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   volverMenu() {
     this.router.navigateByUrl('/menu');
-  }
-
-  // ✅ MODAL DOCUMENTOS
-  abrirModalDocumentos(egresado: any) {
-    this.documentosModal = egresado.documentos || [];
-    this.modalDocsVisible = true;
   }
 
   verDocumento(doc: any) {
@@ -452,10 +488,23 @@ export class SeguimientoEgresadosComponent implements OnInit {
     table.filterGlobal(event.target.value, 'contains');
   }
 
-  // ✅ para que no reviente el HTML
   abrirEdicion(egresado: any) {
     this.estudianteSeleccionado = egresado.Estudiante;
     this.onEstudianteChange();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  abrirModalDocumentos(egresado: any) {
+    this.documentosModal = egresado.documentos || [];
+    this.modalDocsVisible = true;
+  }
+
+  cerrarModalDocumentos() {
+    this.modalDocsVisible = false;
+    this.documentosModal = [];
+  }
+
+  irAlFormulario() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }

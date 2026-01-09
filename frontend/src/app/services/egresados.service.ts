@@ -66,8 +66,14 @@ export class EgresadosService {
    ✅ UPDATE SOLO TEXTO
    ✅ PATCH /egresados/estudiante/:idEstudiante
   =========================== */
-  updateByEstudiante(idEstudiante: number, dto: UpdateEgresadoDto): Observable<any> {
-    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, dto);
+  updateByEstudiante(
+    idEstudiante: number,
+    dto: UpdateEgresadoDto
+  ): Observable<any> {
+    return this.http.patch<any>(
+      `${this.apiUrl}/estudiante/${idEstudiante}`,
+      dto
+    );
   }
 
   /* ===========================
@@ -75,8 +81,14 @@ export class EgresadosService {
    ✅ PATCH /egresados/estudiante/:idEstudiante
    ✅ Sirve para agregar documentos sin borrar los anteriores
   =========================== */
-  updateWithFilesByEstudiante(idEstudiante: number, formData: FormData): Observable<any> {
-    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, formData);
+  updateWithFilesByEstudiante(
+    idEstudiante: number,
+    formData: FormData
+  ): Observable<any> {
+    return this.http.patch<any>(
+      `${this.apiUrl}/estudiante/${idEstudiante}`,
+      formData
+    );
   }
 
   /* ===========================
@@ -100,5 +112,13 @@ export class EgresadosService {
   downloadDocumento(url: string): Observable<Blob> {
     const fullUrl = this.getDocumentoUrl(url);
     return this.http.get(fullUrl, { responseType: 'blob' });
+  }
+
+  /* ===========================
+   ✅ ELIMINAR DOCUMENTO INDIVIDUAL ✅
+   ✅ DELETE /egresados/documento/:idDocumento
+  =========================== */
+  deleteDocumento(idDocumento: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/documento/${idDocumento}`);
   }
 }

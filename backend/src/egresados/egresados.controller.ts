@@ -57,7 +57,7 @@ export class EgresadosController {
     return this.egresadosService.findOne(idEstudiante);
   }
 
-  // ✅ PATCH actualizar por idEstudiante
+  // ✅ PATCH actualizar por idEstudiante (incluye documentos)
   @Patch('estudiante/:idEstudiante')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
@@ -76,7 +76,18 @@ export class EgresadosController {
     @Body() dto: UpdateEgresadoDto,
     @UploadedFiles() archivos: Express.Multer.File[],
   ) {
-    return this.egresadosService.updateByEstudiante(idEstudiante, dto, archivos || []);
+    return this.egresadosService.updateByEstudiante(
+      idEstudiante,
+      dto,
+      archivos || [],
+    );
+  }
+
+  // ✅ ✅ ✅ DELETE documento individual
+  // ✅ DELETE /egresados/documento/:idDocumento
+  @Delete('documento/:idDocumento')
+  deleteDocumento(@Param('idDocumento', ParseIntPipe) idDocumento: number) {
+    return this.egresadosService.deleteDocumento(idDocumento);
   }
 
   // ✅ DELETE eliminar por idEgresado

@@ -1,6 +1,10 @@
-import { IsOptional, IsString, IsInt } from 'class-validator';
+import { IsOptional, IsString, IsInt, IsNumber } from 'class-validator';
 
 export class UpdateEgresadoDto {
+  @IsOptional()
+  @IsString()
+  fechaEgreso?: string; // ✅ agregado
+
   @IsOptional()
   @IsString()
   situacionActual?: string;
@@ -14,9 +18,11 @@ export class UpdateEgresadoDto {
   cargo?: string;
 
   @IsOptional()
+  @IsNumber()
   sueldo?: number;
 
   @IsOptional()
+  @IsInt()
   anioIngresoLaboral?: number;
 
   @IsOptional()
@@ -24,17 +30,22 @@ export class UpdateEgresadoDto {
   anioSeguimiento?: number;
 
   @IsOptional()
+  @IsString()
   telefono?: string;
 
   @IsOptional()
+  @IsString()
   emailContacto?: string;
 
   @IsOptional()
+  @IsString()
   direccion?: string;
 
   @IsOptional()
+  @IsString()
   linkedin?: string;
 
   @IsOptional()
+  @IsString()
   contactoAlternativo?: string;
 }

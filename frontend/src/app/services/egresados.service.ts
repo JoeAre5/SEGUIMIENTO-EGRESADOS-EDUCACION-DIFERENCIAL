@@ -3,65 +3,19 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 /* ===========================
- ✅ DTOs de envío
+ ✅ DTOs
 =========================== */
 
-export interface CreateEgresadoDto {
-  idEstudiante: number;
-  fechaEgreso: string; // ⚠️ debe llegar ISO DateTime
-  situacionActual: string;
-
+export interface UpdateEgresadoDto {
+  fechaEgreso?: string;
+  situacionActual?: string;
   empresa?: string;
   cargo?: string;
   sueldo?: number;
   anioIngresoLaboral?: number;
   anioSeguimiento?: number;
-
   telefono?: string;
   emailContacto?: string;
-  direccion?: string;
-  linkedin?: string;
-  contactoAlternativo?: string;
-}
-
-export interface UpdateEgresadoDto extends Partial<CreateEgresadoDto> {}
-
-/* ===========================
- ✅ Tipado de respuesta
-=========================== */
-
-export interface DocumentoEgresado {
-  idDocumento?: number;
-  nombre: string;
-  url: string;
-  idEgresado: number;
-}
-
-export interface EstudianteInfo {
-  rut: string;
-  nombreCompleto: string;
-}
-
-export interface EgresadoResponse {
-  idEgresado: number;
-  idEstudiante: number;
-  fechaEgreso: string;
-  situacionActual: string;
-
-  empresa?: string;
-  cargo?: string;
-  sueldo?: number;
-  anioIngresoLaboral?: number;
-  anioSeguimiento?: number;
-
-  telefono?: string;
-  emailContacto?: string;
-  direccion?: string;
-  linkedin?: string;
-  contactoAlternativo?: string;
-
-  documentos?: DocumentoEgresado[];
-  Estudiante?: EstudianteInfo;
 }
 
 /* ===========================
@@ -73,39 +27,43 @@ export interface EgresadoResponse {
 })
 export class EgresadosService {
   private apiUrl = 'http://localhost:3000/egresados';
+  private apiFilesUrl = 'http://localhost:3000';
 
   constructor(private http: HttpClient) {}
 
-  // ✅ Crear con archivos (FormData)
-  createWithFiles(formData: FormData): Observable<EgresadoResponse> {
-    return this.http.post<EgresadoResponse>(this.apiUrl, formData);
+  // ✅ CREAR con archivos
+  createWithFiles(formData: FormData): Observable<any> {
+    return this.http.post<any>(this.apiUrl, formData);
   }
 
-  // ✅ Traer todos
-  findAll(): Observable<EgresadoResponse[]> {
-    return this.http.get<EgresadoResponse[]>(this.apiUrl);
+  // ✅ LISTAR
+  findAll(): Observable<any[]> {
+    return this.http.get<any[]>(this.apiUrl);
   }
 
-  // ✅ Obtener por estudiante
-  findByEstudiante(idEstudiante: number): Observable<EgresadoResponse> {
-    return this.http.get<EgresadoResponse>(
-      `${this.apiUrl}/estudiante/${idEstudiante}`
-    );
+  // ✅ BUSCAR por estudiante
+  findOneByEstudiante(idEstudiante: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/${idEstudiante}`);
   }
 
-  // ✅ PATCH por estudiante (Swagger)
-  updateByEstudiante(
-    idEstudiante: number,
-    dto: UpdateEgresadoDto
-  ): Observable<EgresadoResponse> {
-    return this.http.patch<EgresadoResponse>(
-      `${this.apiUrl}/estudiante/${idEstudiante}`,
-      dto
-    );
+  // ✅ UPDATE por idEstudiante
+  updateByEstudiante(idEstudiante: number, dto: UpdateEgresadoDto): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/${idEstudiante}`, dto);
   }
 
-  // ✅ DELETE por egresado
+  // ✅ ELIMINAR por idEgresado
   delete(idEgresado: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${idEgresado}`);
+  }
+
+  // ✅ genera URL completa
+  getDocumentoUrl(path: string): string {
+    return `${this.apiFilesUrl}${path}`;
+  }
+
+  // ✅ descarga como blob (forzada)
+  downloadDocumento(url: string): Observable<Blob> {
+    const fullUrl = this.getDocumentoUrl(url);
+    return this.http.get(fullUrl, { responseType: 'blob' });
   }
 }

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
 import {
   FormBuilder,
   FormGroup,
@@ -24,7 +24,10 @@ import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 
-import { EgresadosService, UpdateEgresadoDto } from '../../services/egresados.service';
+import {
+  EgresadosService,
+  UpdateEgresadoDto,
+} from '../../services/egresados.service';
 import {
   EstudiantesService,
   EstudianteDTO,
@@ -58,6 +61,8 @@ import { switchMap, of } from 'rxjs';
   styleUrl: './seguimiento-egresados.component.css',
 })
 export class SeguimientoEgresadosComponent implements OnInit {
+  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
   formulario!: FormGroup;
   documentosSeleccionados: File[] = [];
   egresados: any[] = [];
@@ -72,9 +77,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
   editFormulario!: FormGroup;
   egresadoEditando: any = null;
 
-  // filtros
-  filtroSituacion: string | null = null;
-  filtroAnio: number | null = null;
+  // ✅ MODAL DOCUMENTOS
+  modalDocsVisible = false;
+  documentosModal: any[] = [];
 
   situaciones = [
     { label: 'Trabajando', value: 'Trabajando' },
@@ -85,7 +90,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   intentoGuardar: boolean = false;
 
-  // ✅ NUEVO ESTUDIANTE
   nuevoEstudiante: CreateEstudianteDTO = {
     rut: '',
     nombre: '',
@@ -123,9 +127,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       anioSeguimiento: [2026, Validators.required],
       telefono: [''],
       emailContacto: ['', Validators.email],
-      direccion: [''],
-      linkedin: [''],
-      contactoAlternativo: [''],
     });
   }
 
@@ -139,9 +140,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       anioSeguimiento: [null, Validators.required],
       telefono: [''],
       emailContacto: ['', Validators.email],
-      direccion: [''],
-      linkedin: [''],
-      contactoAlternativo: [''],
     });
   }
 
@@ -166,6 +164,51 @@ export class SeguimientoEgresadosComponent implements OnInit {
     });
   }
 
+  // ✅ ✅ ✅ AUTO-RELLENO AL SELECCIONAR ESTUDIANTE
+  onEstudianteChange() {
+    if (!this.estudianteSeleccionado?.idEstudiante) {
+      this.formulario.reset({ anioSeguimiento: 2026 });
+      return;
+    }
+
+    const id = this.estudianteSeleccionado.idEstudiante;
+
+    this.egresadosService.findOneByEstudiante(id).subscribe({
+      next: (egresado: any) => {
+        if (!egresado) {
+          // ✅ Si no tiene seguimiento → limpiar formulario
+          this.formulario.reset({ anioSeguimiento: 2026 });
+          return;
+        }
+
+        // ✅ Convertir fecha (string ISO) a Date para Calendar
+        const fechaDate = egresado.fechaEgreso ? new Date(egresado.fechaEgreso) : null;
+
+        this.formulario.patchValue({
+          fechaEgreso: fechaDate,
+          situacionActual: egresado.situacionActual,
+          empresa: egresado.empresa,
+          cargo: egresado.cargo,
+          sueldo: egresado.sueldo,
+          anioIngresoLaboral: egresado.anioIngresoLaboral,
+          anioSeguimiento: egresado.anioSeguimiento || 2026,
+          telefono: egresado.telefono,
+          emailContacto: egresado.emailContacto,
+        });
+
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Datos cargados',
+          detail: '✅ Formulario rellenado automáticamente.',
+        });
+      },
+      error: () => {
+        // ✅ Si NO existe seguimiento, solo limpiar
+        this.formulario.reset({ anioSeguimiento: 2026 });
+      },
+    });
+  }
+
   onFileSelected(event: any) {
     const files: FileList = event.target.files;
     this.documentosSeleccionados = [];
@@ -175,7 +218,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
     }
   }
 
-  // ✅ GUARDAR EGRESADO + CREAR ESTUDIANTE NUEVO SI CORRESPONDE
+  limpiarInputArchivos() {
+    this.documentosSeleccionados = [];
+    if (this.fileInput) this.fileInput.nativeElement.value = '';
+  }
+
   guardar() {
     this.intentoGuardar = true;
 
@@ -186,23 +233,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
         detail: 'Debes seleccionar un estudiante.',
       });
       return;
-    }
-
-    if (this.modoEstudiante === 'nuevo') {
-      if (
-        !this.nuevoEstudiante.rut ||
-        !this.nuevoEstudiante.nombre ||
-        !this.nuevoEstudiante.apellido ||
-        !this.nuevoEstudiante.agnioIngreso ||
-        !this.nuevoEstudiante.idPlan
-      ) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: 'Faltan datos',
-          detail: 'Completa todos los campos del estudiante.',
-        });
-        return;
-      }
     }
 
     if (this.formulario.invalid) {
@@ -222,10 +252,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     obtenerEstudiante$
       .pipe(
         switchMap((estudiante: any) => {
-          if (!estudiante?.idEstudiante) {
-            throw new Error('No se pudo obtener idEstudiante');
-          }
-
           const formData = new FormData();
           formData.append('idEstudiante', estudiante.idEstudiante.toString());
 
@@ -263,11 +289,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
           this.cargarEstudiantes();
         },
         error: (err: any) => {
-          console.error('❌ ERROR GUARDAR EGRESADO:', err);
+          console.error('❌ ERROR GUARDAR:', err);
           this.messageService.add({
             severity: 'error',
             summary: 'Error al guardar',
-            detail: err?.error?.message || err?.message || '❌ No se pudo guardar.',
+            detail:
+              err?.error?.message || err?.message || '❌ No se pudo guardar.',
           });
         },
       });
@@ -277,25 +304,56 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.formulario.reset({ anioSeguimiento: 2026 });
     this.documentosSeleccionados = [];
     this.estudianteSeleccionado = null;
-
-    this.nuevoEstudiante = {
-      rut: '',
-      nombre: '',
-      apellido: '',
-      nombreSocial: '',
-      agnioIngreso: undefined,
-      idPlan: undefined,
-    };
-
-    this.modoEstudiante = 'existente';
     this.intentoGuardar = false;
+    this.modoEstudiante = 'existente';
+    if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 
   volverMenu() {
     this.router.navigateByUrl('/menu');
   }
 
-  // ✅ ABRIR MODAL EDICION
+  abrirModalDocumentos(egresado: any) {
+    this.documentosModal = egresado.documentos || [];
+    this.modalDocsVisible = true;
+  }
+
+  verDocumento(doc: any) {
+    const url = this.egresadosService.getDocumentoUrl(doc.url);
+    window.open(url, '_blank');
+  }
+
+  descargarDocumento(doc: any) {
+    const url = this.egresadosService.getDocumentoUrl(doc.url);
+
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) throw new Error('No se pudo descargar');
+        return response.blob();
+      })
+      .then((blob) => {
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = doc.nombre || 'documento.pdf';
+
+        document.body.appendChild(link);
+        link.click();
+
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      })
+      .catch((err) => {
+        console.error('❌ Error al descargar:', err);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: '❌ No se pudo descargar el documento.',
+        });
+      });
+  }
+
   abrirEdicion(egresado: any) {
     this.egresadoEditando = egresado;
 
@@ -304,26 +362,18 @@ export class SeguimientoEgresadosComponent implements OnInit {
       empresa: egresado.empresa,
       cargo: egresado.cargo,
       sueldo: egresado.sueldo,
-      anioIngresoLaboral: egresado.anioIngresoLaboral,
       anioSeguimiento: egresado.anioSeguimiento,
       telefono: egresado.telefono,
       emailContacto: egresado.emailContacto,
-      direccion: egresado.direccion,
-      linkedin: egresado.linkedin,
-      contactoAlternativo: egresado.contactoAlternativo,
     });
 
     this.editDialogVisible = true;
   }
 
-  // ✅ GUARDAR EDICION (PATCH correcto)
   guardarEdicion() {
     if (this.editFormulario.invalid || !this.egresadoEditando) return;
 
-    const dto: UpdateEgresadoDto = {
-      ...this.editFormulario.value,
-    };
-
+    const dto: UpdateEgresadoDto = { ...this.editFormulario.value };
     const idEstudiante = Number(this.egresadoEditando.idEstudiante);
 
     this.egresadosService.updateByEstudiante(idEstudiante, dto).subscribe({
@@ -347,14 +397,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
     });
   }
 
-  // ✅ ELIMINAR
   eliminar(egresado: any) {
     this.confirmationService.confirm({
       message: `¿Seguro que deseas eliminar el seguimiento de ${egresado.Estudiante?.nombreCompleto}?`,
       header: 'Confirmar eliminación',
       icon: 'pi pi-exclamation-triangle',
-      acceptLabel: 'Sí, eliminar',
-      rejectLabel: 'Cancelar',
       accept: () => {
         this.egresadosService.delete(egresado.idEgresado).subscribe({
           next: () => {
@@ -377,7 +424,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     });
   }
 
-  // ✅ SEVERITY TAG
   getSituacionSeverity(situacion: string) {
     switch (situacion) {
       case 'Trabajando':
@@ -396,7 +442,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return valor.toLocaleString('es-CL');
   }
 
-  // ✅ GLOBAL SEARCH
   onGlobalFilter(table: any, event: any) {
     table.filterGlobal(event.target.value, 'contains');
   }

@@ -8,14 +8,14 @@ import { Express } from 'express';
 export class EgresadosService {
   constructor(private prisma: PrismaService) {}
 
-  // ✅ Helper: convierte "YYYY-MM-DD" a Date ISO válido
+  // ✅ Helper: convierte "YYYY-MM-DD" o ISO en Date válida
   private parseFecha(fecha: string): Date {
-    if (!fecha) return null;
+    if (!fecha) return undefined;
 
-    // si ya viene con formato ISO completo, Prisma la acepta
+    // si ya viene ISO completo
     if (fecha.includes('T')) return new Date(fecha);
 
-    // si viene tipo 2020-05-20 -> convertirlo
+    // si viene tipo 2020-05-20
     return new Date(`${fecha}T00:00:00.000Z`);
   }
 
@@ -26,7 +26,6 @@ export class EgresadosService {
     dto.idEstudiante = Number(dto.idEstudiante);
     dto.fechaEgreso = dto.fechaEgreso?.toString();
 
-    // ✅ convertimos fechaEgreso al formato correcto
     const fechaConvertida = this.parseFecha(dto.fechaEgreso);
 
     const existe = await this.prisma.egresado.findUnique({
@@ -34,29 +33,30 @@ export class EgresadosService {
     });
 
     if (existe) {
-      return this.updateByEstudiante(dto.idEstudiante, dto, archivos);
+      return this.updateByEstudiante(dto.idEstudiante, dto as any, archivos);
     }
 
-    // ✅ Crear egresado nuevo
     const egresado = await this.prisma.egresado.create({
       data: {
         idEstudiante: dto.idEstudiante,
         fechaEgreso: fechaConvertida,
         situacionActual: dto.situacionActual,
-        empresa: dto.empresa,
-        cargo: dto.cargo,
+        empresa: dto.empresa || null,
+        cargo: dto.cargo || null,
         sueldo: dto.sueldo ? Number(dto.sueldo) : null,
-        anioIngresoLaboral: dto.anioIngresoLaboral ? Number(dto.anioIngresoLaboral) : null,
+        anioIngresoLaboral: dto.anioIngresoLaboral
+          ? Number(dto.anioIngresoLaboral)
+          : null,
         anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null,
-        telefono: dto.telefono,
-        emailContacto: dto.emailContacto,
-        direccion: dto.direccion,
-        linkedin: dto.linkedin,
-        contactoAlternativo: dto.contactoAlternativo,
+        telefono: dto.telefono || null,
+        emailContacto: dto.emailContacto || null,
+        direccion: dto.direccion || null,
+        linkedin: dto.linkedin || null,
+        contactoAlternativo: dto.contactoAlternativo || null,
       },
     });
 
-    // ✅ Si vienen archivos, los guardamos en DocumentoEgresado
+    // ✅ Guardar archivos (si vienen)
     if (archivos && archivos.length > 0) {
       const docs = archivos.map((f) => ({
         nombre: f.originalname,
@@ -64,9 +64,7 @@ export class EgresadosService {
         idEgresado: egresado.idEgresado,
       }));
 
-      await this.prisma.documentoEgresado.createMany({
-        data: docs,
-      });
+      await this.prisma.documentoEgresado.createMany({ data: docs });
     }
 
     return this.findOne(dto.idEstudiante);
@@ -118,28 +116,38 @@ export class EgresadosService {
 
     if (!existe) throw new NotFoundException('Egresado no encontrado');
 
-    const fechaConvertida = dto.fechaEgreso ? this.parseFecha(dto.fechaEgreso.toString()) : undefined;
+    const fechaConvertida = dto.fechaEgreso
+      ? this.parseFecha(dto.fechaEgreso.toString())
+      : undefined;
 
-    // ✅ Update datos
+    // ✅ Construimos solo lo que venga en dto
+    const dataUpdate: any = {
+      ...(fechaConvertida ? { fechaEgreso: fechaConvertida } : {}),
+      ...(dto.situacionActual !== undefined ? { situacionActual: dto.situacionActual } : {}),
+      ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
+      ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
+      ...(dto.sueldo !== undefined ? { sueldo: dto.sueldo ? Number(dto.sueldo) : null } : {}),
+      ...(dto.anioIngresoLaboral !== undefined
+        ? { anioIngresoLaboral: dto.anioIngresoLaboral ? Number(dto.anioIngresoLaboral) : null }
+        : {}),
+      ...(dto.anioSeguimiento !== undefined
+        ? { anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null }
+        : {}),
+      ...(dto.telefono !== undefined ? { telefono: dto.telefono } : {}),
+      ...(dto.emailContacto !== undefined ? { emailContacto: dto.emailContacto } : {}),
+      ...(dto.direccion !== undefined ? { direccion: dto.direccion } : {}),
+      ...(dto.linkedin !== undefined ? { linkedin: dto.linkedin } : {}),
+      ...(dto.contactoAlternativo !== undefined
+        ? { contactoAlternativo: dto.contactoAlternativo }
+        : {}),
+    };
+
     await this.prisma.egresado.update({
       where: { idEstudiante },
-      data: {
-        ...(fechaConvertida ? { fechaEgreso: fechaConvertida } : {}),
-        situacionActual: dto.situacionActual,
-        empresa: dto.empresa,
-        cargo: dto.cargo,
-        sueldo: dto.sueldo ? Number(dto.sueldo) : null,
-        anioIngresoLaboral: dto.anioIngresoLaboral ? Number(dto.anioIngresoLaboral) : null,
-        anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null,
-        telefono: dto.telefono,
-        emailContacto: dto.emailContacto,
-        direccion: dto.direccion,
-        linkedin: dto.linkedin,
-        contactoAlternativo: dto.contactoAlternativo,
-      },
+      data: dataUpdate,
     });
 
-    // ✅ Guardar nuevos documentos SIN borrar anteriores
+    // ✅ Guardar nuevos documentos sin borrar anteriores
     if (archivos && archivos.length > 0) {
       const docs = archivos.map((f) => ({
         nombre: f.originalname,
@@ -147,9 +155,7 @@ export class EgresadosService {
         idEgresado: existe.idEgresado,
       }));
 
-      await this.prisma.documentoEgresado.createMany({
-        data: docs,
-      });
+      await this.prisma.documentoEgresado.createMany({ data: docs });
     }
 
     return this.findOne(idEstudiante);
@@ -161,7 +167,6 @@ export class EgresadosService {
   async delete(idEgresado: number) {
     idEgresado = Number(idEgresado);
 
-    // eliminar docs primero
     await this.prisma.documentoEgresado.deleteMany({
       where: { idEgresado },
     });

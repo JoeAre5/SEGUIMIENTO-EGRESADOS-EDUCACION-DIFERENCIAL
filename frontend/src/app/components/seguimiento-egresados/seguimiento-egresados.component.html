@@ -219,6 +219,11 @@
           dateFormat="yy-mm-dd"
           class="w-full"
         ></p-calendar>
+
+        <!-- ✅ validación año seguimiento vs egreso (del TS) -->
+        <small class="text-red-500" *ngIf="formHasError('anioSeguimientoMenorQueEgreso')">
+          Año de seguimiento no puede ser menor que el año de egreso.
+        </small>
       </div>
 
       <!-- ✅ situación actual -->
@@ -245,6 +250,32 @@
       <div>
         <label class="block font-semibold mb-2">Sueldo (CLP)</label>
         <p-inputNumber formControlName="sueldo" class="w-full"></p-inputNumber>
+      </div>
+
+      <!-- ✅ Año ingreso laboral -->
+      <div>
+        <label class="block font-semibold mb-2">Año Ingreso Laboral</label>
+        <p-inputNumber
+          formControlName="anioIngresoLaboral"
+          class="w-full"
+          [useGrouping]="false"
+          placeholder="Ej: 2024"
+        ></p-inputNumber>
+
+        <!-- ✅ Validación min/max del control (del TS) -->
+        <small class="text-red-500" *ngIf="isInvalid('anioIngresoLaboral')">
+          <ng-container *ngIf="getError('anioIngresoLaboral')?.min">
+            Año ingreso laboral demasiado bajo.
+          </ng-container>
+          <ng-container *ngIf="getError('anioIngresoLaboral')?.max">
+            Año ingreso laboral demasiado alto.
+          </ng-container>
+        </small>
+
+        <!-- ✅ Validación cruzada (del TS): ingreso laboral >= año egreso -->
+        <small class="text-red-500" *ngIf="formHasError('anioIngresoLaboralMenorQueEgreso')">
+          Año ingreso laboral debe ser mayor o igual al año de egreso.
+        </small>
       </div>
 
       <div>
@@ -471,6 +502,7 @@
         'situacionActual',
         'empresa',
         'cargo',
+        'anioIngresoLaboral',
         'telefono',
         'emailContacto'
       ]"
@@ -481,6 +513,7 @@
           <th>RUT</th>
           <th>Situación</th>
           <th>Año Seguimiento</th>
+          <th>Año Ingreso Laboral</th>
           <th>Empresa</th>
           <th>Cargo</th>
           <th>Sueldo</th>
@@ -504,6 +537,7 @@
           </td>
 
           <td>{{ egresado.anioSeguimiento }}</td>
+          <td>{{ egresado.anioIngresoLaboral || '-' }}</td>
           <td>{{ egresado.empresa || '-' }}</td>
           <td>{{ egresado.cargo || '-' }}</td>
 

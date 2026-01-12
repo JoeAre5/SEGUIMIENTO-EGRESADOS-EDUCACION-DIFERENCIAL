@@ -5,6 +5,8 @@ import {
   Validators,
   ReactiveFormsModule,
   FormsModule,
+  ValidatorFn,
+  AbstractControl,
 } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
@@ -23,7 +25,7 @@ import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
-import { SidebarModule } from 'primeng/sidebar'; // ✅ NUEVO
+import { SidebarModule } from 'primeng/sidebar';
 
 import {
   EgresadosService,
@@ -37,7 +39,6 @@ import {
 
 import { switchMap, of } from 'rxjs';
 
-// ✅ ✅ NUEVO: INTERFAZ PLAN
 interface PlanDTO {
   idPlan: number;
   codigo: number;
@@ -65,7 +66,7 @@ interface PlanDTO {
     TooltipModule,
     ConfirmDialogModule,
     DialogModule,
-    SidebarModule, // ✅ NUEVO
+    SidebarModule,
   ],
   templateUrl: './seguimiento-egresados.component.html',
   styleUrl: './seguimiento-egresados.component.css',
@@ -76,8 +77,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
   formulario!: FormGroup;
 
   documentosSeleccionados: File[] = [];
-
-  // ✅ Documentos existentes del egresado seleccionado
   documentosExistentes: any[] = [];
 
   egresados: any[] = [];
@@ -87,20 +86,14 @@ export class SeguimientoEgresadosComponent implements OnInit {
   estudianteSeleccionado: EstudianteDTO | null = null;
   modoEstudiante: 'existente' | 'nuevo' = 'existente';
 
-  // ✅ saber si ya existe seguimiento → evita duplicar
   existeSeguimiento: boolean = false;
 
-  // ✅ MODAL DOCUMENTOS
   modalDocsVisible = false;
   documentosModal: any[] = [];
 
-  // ✅ Drawer / Sidebar
   drawerFormulario: boolean = false;
 
-  // ✅ ✅ NUEVO: PLANES DISPONIBLES
   planes: PlanDTO[] = [];
-
-  // ✅ ✅ NUEVO: OPCIONES PARA DROPDOWN (PrimeNG)
   planesOptions: any[] = [];
 
   situaciones = [
@@ -121,16 +114,22 @@ export class SeguimientoEgresadosComponent implements OnInit {
     idPlan: undefined,
   };
 
-  // ✅✅✅ VALIDACIONES (sin afectar tu UI)
-  // ✅ Teléfono: permite prefijo +CC (1–3 dígitos) opcional y luego EXACTO 8 dígitos
   private readonly PHONE_8_REGEX = /^(\+?\d{1,3}\s?)?\d{8}$/;
-
-  // Email simple/robusto
   private readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-  // LinkedIn perfil o empresa
   private readonly LINKEDIN_REGEX =
     /^https?:\/\/(www\.)?linkedin\.com\/(in|company)\/[A-Za-z0-9-_%]+\/?(\?.*)?$/i;
+
+  // ✅ Años lógicos
+  readonly CURRENT_YEAR = new Date().getFullYear();
+  readonly MIN_ANIO_INGRESO = 1980;
+  readonly MAX_ANIO_INGRESO = this.CURRENT_YEAR;
+
+  readonly MIN_ANIO_SEGUIMIENTO = 2000;
+  readonly MAX_ANIO_SEGUIMIENTO = this.CURRENT_YEAR + 1;
+
+  rutDuplicadoNuevo = false;
+  rutDuplicadoExistente = false;
+  anioIngresoInvalidoNuevo = false;
 
   constructor(
     private fb: FormBuilder,
@@ -146,10 +145,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
   ngOnInit(): void {
     this.cargarEgresados();
     this.cargarEstudiantes();
-    this.cargarPlanes(); // ✅ ✅ NUEVO
+    this.cargarPlanes();
   }
 
-  // ✅✅✅ Helpers para tus mensajes en HTML (los que agregamos)
   isInvalid(controlName: string): boolean {
     const c = this.formulario.get(controlName);
     return !!(c && c.invalid && (c.dirty || c.touched || this.intentoGuardar));
@@ -159,54 +157,110 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return this.formulario.get(controlName)?.errors;
   }
 
-  crearFormulario() {
-    this.formulario = this.fb.group({
-      fechaEgreso: [null, Validators.required],
-      situacionActual: [null, Validators.required],
-      empresa: [''],
-      cargo: [''],
-      sueldo: [null],
-      anioIngresoLaboral: [null],
-      anioSeguimiento: [2026, Validators.required],
-
-      // ✅✅✅ VALIDACIONES CONTACTO (solo valida si escriben algo)
-      telefono: [
-        '',
-        [Validators.maxLength(20), Validators.pattern(this.PHONE_8_REGEX)],
-      ],
-      emailContacto: [
-        '',
-        [Validators.maxLength(120), Validators.pattern(this.EMAIL_REGEX)],
-      ],
-      linkedin: [
-        '',
-        [Validators.maxLength(200), Validators.pattern(this.LINKEDIN_REGEX)],
-      ],
-      direccion: ['', [Validators.maxLength(250)]],
-      contactoAlternativo: ['', [Validators.maxLength(120)]],
-    });
+  formHasError(errorKey: string): boolean {
+    return !!(
+      this.formulario?.errors?.[errorKey] &&
+      (this.formulario.touched || this.intentoGuardar)
+    );
   }
 
-  // ✅✅✅ Teléfono: solo 8 dígitos + código país opcional (+CC)
-  // Se usa con (input)="onTelefonoInput()" en el HTML
+  crearFormulario() {
+    this.formulario = this.fb.group(
+      {
+        fechaEgreso: [null, Validators.required],
+        situacionActual: [null, Validators.required],
+        empresa: [''],
+        cargo: [''],
+        sueldo: [null],
+
+        // ✅✅✅ Año ingreso laboral: SOLO rango lógico (sin relación con año seguimiento)
+        anioIngresoLaboral: [
+          null,
+          [
+            Validators.min(this.MIN_ANIO_INGRESO),
+            Validators.max(this.CURRENT_YEAR + 1),
+          ],
+        ],
+
+        anioSeguimiento: [
+          2026,
+          [
+            Validators.required,
+            Validators.min(this.MIN_ANIO_SEGUIMIENTO),
+            Validators.max(this.MAX_ANIO_SEGUIMIENTO),
+          ],
+        ],
+
+        telefono: [
+          '',
+          [Validators.maxLength(20), Validators.pattern(this.PHONE_8_REGEX)],
+        ],
+        emailContacto: [
+          '',
+          [Validators.maxLength(120), Validators.pattern(this.EMAIL_REGEX)],
+        ],
+        linkedin: [
+          '',
+          [Validators.maxLength(200), Validators.pattern(this.LINKEDIN_REGEX)],
+        ],
+        direccion: ['', [Validators.maxLength(250)]],
+        contactoAlternativo: ['', [Validators.maxLength(120)]],
+      },
+      {
+        // ✅✅✅ Validaciones cruzadas (SIN relación ingreso laboral vs seguimiento)
+        validators: [this.validarReglasCruzadas()],
+      }
+    );
+  }
+
+  // ✅✅✅ Reglas cruzadas:
+  // 1) Año seguimiento >= año egreso
+  // 2) Año ingreso laboral >= año egreso (si se ingresó)
+  private validarReglasCruzadas(): ValidatorFn {
+    return (control: AbstractControl) => {
+      const group = control as FormGroup;
+
+      const fecha = group.get('fechaEgreso')?.value;
+      const anioSeg = group.get('anioSeguimiento')?.value;
+      const anioIngresoLab = group.get('anioIngresoLaboral')?.value;
+
+      if (!fecha) return null;
+
+      const anioEgreso = new Date(fecha).getFullYear();
+
+      const errors: any = {};
+
+      if (anioSeg && anioSeg < anioEgreso) {
+        errors.anioSeguimientoMenorQueEgreso = true;
+      }
+
+      // ✅ si el usuario escribió año ingreso laboral, debe ser >= año egreso
+      if (
+        anioIngresoLab !== null &&
+        anioIngresoLab !== undefined &&
+        anioIngresoLab !== '' &&
+        anioIngresoLab < anioEgreso
+      ) {
+        errors.anioIngresoLaboralMenorQueEgreso = true;
+      }
+
+      return Object.keys(errors).length ? errors : null;
+    };
+  }
+
   onTelefonoInput() {
     const c = this.formulario.get('telefono');
     if (!c) return;
 
     let v = (c.value ?? '').toString();
 
-    // Permitir + solo al inicio y dígitos
     v = v.replace(/[^\d+]/g, '');
-
-    // Si hay +, solo permitir uno al inicio
-    if (v.includes('+')) {
-      v = '+' + v.replace(/\+/g, '');
-    }
+    if (v.includes('+')) v = '+' + v.replace(/\+/g, '');
 
     if (v.startsWith('+')) {
       const digits = v.slice(1).replace(/\D/g, '');
-      const prefijo = digits.slice(0, 3); // hasta 3 dígitos de país
-      const local = digits.slice(3).slice(0, 8); // EXACTO máx 8
+      const prefijo = digits.slice(0, 3);
+      const local = digits.slice(3).slice(0, 8);
       v = '+' + prefijo + (local.length ? ' ' + local : '');
     } else {
       v = v.replace(/\D/g, '').slice(0, 8);
@@ -215,54 +269,59 @@ export class SeguimientoEgresadosComponent implements OnInit {
     c.setValue(v, { emitEvent: false });
   }
 
-  // ✅✅✅ RUT: cuerpo solo números (máx 8), DV 1 solo (0-9 o K). Formatea con . y -
   private formatearRutControlado(raw: string): string {
     let s = (raw ?? '').toString().toUpperCase();
-
-    // Solo dejamos dígitos y K (todo lo demás fuera)
     s = s.replace(/[^0-9K]/g, '');
-
-    // Si quedó solo "K" (sin cuerpo), no es válido como entrada
     if (s === 'K') return '';
 
-    // Tomar DV como el ÚLTIMO caracter si es dígito o K
-    const last = s.slice(-1);
-    const tieneDV = /^[0-9K]$/.test(last) && s.length >= 2;
-
+    let cuerpo = '';
     let dv = '';
-    let cuerpoDigits = '';
 
-    if (tieneDV) {
-      dv = last;
-      // cuerpo = todo menos el DV, PERO solo dígitos
-      const sinDv = s.slice(0, -1);
-      cuerpoDigits = sinDv.replace(/\D/g, '');
-    } else {
-      // aún no hay DV: solo cuerpo numérico
-      cuerpoDigits = s.replace(/\D/g, '');
+    for (const ch of s) {
+      if (/\d/.test(ch)) {
+        if (dv) continue;
+        if (cuerpo.length < 8) cuerpo += ch;
+        else dv = ch;
+      } else if (ch === 'K') {
+        dv = 'K';
+      }
     }
 
-    // Cuerpo máximo 8 dígitos
-    cuerpoDigits = cuerpoDigits.slice(0, 8);
+    if (!cuerpo) return '';
 
-    if (!cuerpoDigits) return '';
+    const cuerpoConPuntos = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return dv ? `${cuerpoConPuntos}-${dv}` : cuerpoConPuntos;
+  }
 
-    // Formato con puntos
-    const cuerpoConPuntos = cuerpoDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  private normalizarRut(rut: string): string {
+    return (rut ?? '').toString().toUpperCase().replace(/[^0-9K]/g, '');
+  }
 
-    // Si hay DV, se muestra (uno solo)
-    if (dv) {
-      // Si el usuario puso dv pero el cuerpo es muy corto, igual se deja, el validador real decide
-      return `${cuerpoConPuntos}-${dv}`;
-    }
+  private existeRutEnEstudiantes(
+    rut: string,
+    excluirIdEstudiante?: number | null
+  ): boolean {
+    const objetivo = this.normalizarRut(rut);
+    if (!objetivo || objetivo.length < 2) return false;
 
-    return cuerpoConPuntos;
+    return (this.estudiantes ?? []).some((e) => {
+      if (excluirIdEstudiante && e.idEstudiante === excluirIdEstudiante)
+        return false;
+      return this.normalizarRut(e.rut) === objetivo;
+    });
   }
 
   onRutInputExistente() {
     if (!this.estudianteSeleccionado) return;
+
     this.estudianteSeleccionado.rut = this.formatearRutControlado(
       (this.estudianteSeleccionado.rut as any) ?? ''
+    );
+
+    const id = this.estudianteSeleccionado?.idEstudiante ?? null;
+    this.rutDuplicadoExistente = this.existeRutEnEstudiantes(
+      this.estudianteSeleccionado.rut,
+      id
     );
   }
 
@@ -270,9 +329,17 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.nuevoEstudiante.rut = this.formatearRutControlado(
       (this.nuevoEstudiante.rut as any) ?? ''
     );
+
+    this.rutDuplicadoNuevo = this.existeRutEnEstudiantes(this.nuevoEstudiante.rut);
   }
 
-  // ✅✅✅ Validación real de RUT (módulo 11) con DV numérico o K.
+  private validarAnioIngresoNuevo(): boolean {
+    const v = this.nuevoEstudiante?.agnioIngreso;
+    if (v === undefined || v === null) return false;
+    if (v < this.MIN_ANIO_INGRESO || v > this.MAX_ANIO_INGRESO) return false;
+    return true;
+  }
+
   isRutValido(rutFormateado: string): boolean {
     if (!rutFormateado) return false;
 
@@ -286,7 +353,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     const cuerpo = limpio.slice(0, -1);
     const dv = limpio.slice(-1);
 
-    // cuerpo solo dígitos y largo típico (7 u 8)
     if (!/^\d+$/.test(cuerpo)) return false;
     if (cuerpo.length < 7 || cuerpo.length > 8) return false;
 
@@ -316,13 +382,10 @@ export class SeguimientoEgresadosComponent implements OnInit {
     });
   }
 
-  // ✅ ✅ ✅ NUEVO: CARGAR PLANES DESDE BACKEND
   cargarPlanes() {
     this.egresadosService.getPlanesEstudio().subscribe({
       next: (data: any[]) => {
         this.planes = data as PlanDTO[];
-
-        // ✅ crea options para PrimeNG dropdown
         this.planesOptions = this.planes.map((p) => ({
           label: `${p.titulo} (${p.agnio})`,
           value: p.idPlan,
@@ -355,7 +418,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return match ? match.value : null;
   }
 
-  // ✅ ✅ ✅ NUEVAS FUNCIONES DRAWER (CORRECTAS)
   abrirDrawerFormulario() {
     this.drawerFormulario = true;
   }
@@ -364,33 +426,31 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.drawerFormulario = false;
   }
 
-  // ✅ ✅ ✅ NUEVO: ABRIR DRAWER COMO "NUEVO"
   nuevoSeguimiento() {
     this.resetFormulario();
     this.drawerFormulario = true;
   }
 
-  // ✅ ✅ ✅ ✅ ✅ NUEVO (NO AFECTA NADA): abrir desde botón "Nuevo / Editar" LIMPIO
   abrirFormularioNuevo() {
-    this.resetFormulario(); // limpia todo (incluye estudianteSeleccionado)
+    this.resetFormulario();
     this.modoEstudiante = 'existente';
     this.drawerFormulario = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  // ✅ ✅ ✅ ✅ ✅ NUEVO (NO AFECTA NADA): al click "Crear Estudiante Nuevo" limpia selección anterior
   cambiarAModoNuevo() {
-    // Limpia lo que estaba seleccionado antes
     this.estudianteSeleccionado = null;
     this.existeSeguimiento = false;
     this.documentosExistentes = [];
     this.documentosSeleccionados = [];
     this.intentoGuardar = false;
 
-    // Limpia el form (mantiene año seguimiento)
+    this.rutDuplicadoNuevo = false;
+    this.rutDuplicadoExistente = false;
+    this.anioIngresoInvalidoNuevo = false;
+
     this.formulario.reset({ anioSeguimiento: 2026 });
 
-    // Limpia el formulario de nuevo estudiante
     this.nuevoEstudiante = {
       rut: '',
       nombre: '',
@@ -400,16 +460,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
       idPlan: undefined,
     };
 
-    // Cambia modo
     this.modoEstudiante = 'nuevo';
   }
 
-  // ✅ ✅ ✅ NUEVO: al editar, asegurar selección real del dropdown + rellenar
   private seleccionarEstudianteParaEdicion(egresado: any) {
     const id =
-      egresado?.Estudiante?.idEstudiante ??
-      egresado?.idEstudiante ??
-      null;
+      egresado?.Estudiante?.idEstudiante ?? egresado?.idEstudiante ?? null;
 
     if (!id) {
       this.estudianteSeleccionado = egresado?.Estudiante ?? null;
@@ -421,6 +477,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
     if (encontrado) {
       this.estudianteSeleccionado = encontrado;
+      this.rutDuplicadoExistente = false;
       setTimeout(() => this.onEstudianteChange(), 0);
       return;
     }
@@ -430,20 +487,22 @@ export class SeguimientoEgresadosComponent implements OnInit {
         this.estudiantes = data;
         const found2 = this.estudiantes.find((e) => e.idEstudiante === id);
         this.estudianteSeleccionado = found2 ?? (egresado?.Estudiante ?? null);
+        this.rutDuplicadoExistente = false;
         setTimeout(() => this.onEstudianteChange(), 0);
       },
       error: (err: any) => {
         console.error(err);
         this.estudianteSeleccionado = egresado?.Estudiante ?? null;
+        this.rutDuplicadoExistente = false;
         setTimeout(() => this.onEstudianteChange(), 0);
       },
     });
   }
 
-  // ✅ AUTO-RELLENO AL SELECCIONAR ESTUDIANTE
   onEstudianteChange() {
     this.existeSeguimiento = false;
     this.documentosExistentes = [];
+    this.rutDuplicadoExistente = false;
 
     if (!this.estudianteSeleccionado?.idEstudiante) {
       this.formulario.reset({ anioSeguimiento: 2026 });
@@ -511,16 +570,44 @@ export class SeguimientoEgresadosComponent implements OnInit {
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 
-  // ✅ Guardar sin duplicar y con archivos en PATCH
   guardar() {
     this.intentoGuardar = true;
-
     this.formulario.markAllAsTouched();
+
+    if (this.modoEstudiante === 'nuevo') {
+      this.anioIngresoInvalidoNuevo = !this.validarAnioIngresoNuevo();
+      if (this.anioIngresoInvalidoNuevo) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Año ingreso inválido',
+          detail: `Debe estar entre ${this.MIN_ANIO_INGRESO} y ${this.MAX_ANIO_INGRESO}.`,
+        });
+        return;
+      }
+    }
+
+    if (this.modoEstudiante === 'nuevo' && this.rutDuplicadoNuevo) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'RUT duplicado',
+        detail: 'Ya existe un estudiante con ese RUT.',
+      });
+      return;
+    }
+
+    if (this.modoEstudiante === 'existente' && this.rutDuplicadoExistente) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'RUT duplicado',
+        detail: 'Ese RUT ya pertenece a otro estudiante.',
+      });
+      return;
+    }
 
     const rutActual =
       this.modoEstudiante === 'existente'
-        ? (this.estudianteSeleccionado?.rut ?? '')
-        : (this.nuevoEstudiante?.rut ?? '');
+        ? this.estudianteSeleccionado?.rut ?? ''
+        : this.nuevoEstudiante?.rut ?? '';
 
     if (!this.isRutValido(rutActual)) {
       this.messageService.add({
@@ -666,7 +753,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       });
   }
 
-  // ✅ ELIMINAR DOCUMENTO INDIVIDUAL
   eliminarDocumento(doc: any) {
     if (!doc?.idDocumento) return;
 
@@ -720,6 +806,10 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.existeSeguimiento = false;
     this.modoEstudiante = 'existente';
 
+    this.rutDuplicadoNuevo = false;
+    this.rutDuplicadoExistente = false;
+    this.anioIngresoInvalidoNuevo = false;
+
     this.nuevoEstudiante.idPlan = undefined;
 
     if (this.fileInput) this.fileInput.nativeElement.value = '';
@@ -735,34 +825,33 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   descargarDocumento(doc: any) {
-  if (!doc?.url) return;
+    if (!doc?.url) return;
 
-  const filename = (doc?.nombre || 'documento').toString();
+    const filename = (doc?.nombre || 'documento').toString();
 
-  this.egresadosService.downloadDocumento(doc.url).subscribe({
-    next: (blob: Blob) => {
-      const blobUrl = window.URL.createObjectURL(blob);
+    this.egresadosService.downloadDocumento(doc.url).subscribe({
+      next: (blob: Blob) => {
+        const blobUrl = window.URL.createObjectURL(blob);
 
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename; // fuerza descarga
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
 
-      window.URL.revokeObjectURL(blobUrl);
-    },
-    error: (err) => {
-      console.error('❌ Error descargando documento:', err);
-      this.messageService.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'No se pudo descargar el documento.',
-      });
-    },
-  });
-}
-
+        window.URL.revokeObjectURL(blobUrl);
+      },
+      error: (err) => {
+        console.error('❌ Error descargando documento:', err);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'No se pudo descargar el documento.',
+        });
+      },
+    });
+  }
 
   eliminar(egresado: any) {
     this.confirmationService.confirm({

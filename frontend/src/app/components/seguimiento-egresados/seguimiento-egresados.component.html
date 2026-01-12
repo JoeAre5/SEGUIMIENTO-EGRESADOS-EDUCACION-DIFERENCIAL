@@ -123,7 +123,16 @@
           [ngModelOptions]="{ standalone: true }"
           placeholder="Ej: 20.123.456-7"
           class="w-full"
+          maxlength="12"
+          inputmode="text"
+          autocomplete="off"
+          (input)="onRutInputExistente()"
         />
+
+        <!-- ✅ Validación RUT (formato + DV) -->
+        <small class="text-red-500" *ngIf="intentoGuardar && !isRutValido((estudianteSeleccionado?.rut || ''))">
+          RUT inválido. Revisa el dígito verificador.
+        </small>
       </div>
 
       <!-- ✅ MODO NUEVO -->
@@ -139,7 +148,16 @@
               [ngModelOptions]="{ standalone: true }"
               placeholder="Ej: 20.123.456-7"
               class="w-full"
+              maxlength="12"
+              inputmode="text"
+              autocomplete="off"
+              (input)="onRutInputNuevo()"
             />
+
+            <!-- ✅ Validación RUT (formato + DV) -->
+            <small class="text-red-500" *ngIf="intentoGuardar && !isRutValido((nuevoEstudiante?.rut || ''))">
+              RUT inválido. Revisa el dígito verificador.
+            </small>
           </div>
 
           <div>
@@ -246,12 +264,38 @@
 
       <div>
         <label class="block font-semibold mb-2">Teléfono</label>
-        <input pInputText formControlName="telefono" class="w-full" />
+        <input
+          pInputText
+          formControlName="telefono"
+          class="w-full"
+          placeholder="Ej: +56 12345678 o 12345678"
+          (input)="onTelefonoInput()"
+        />
+
+        <!-- ✅ Validación Teléfono -->
+        <small class="text-red-500" *ngIf="isInvalid('telefono')">
+          <ng-container *ngIf="getError('telefono')?.pattern">
+            Teléfono inválido. Debe tener 8 dígitos (y código país opcional). Ej: +56 12345678 o 12345678
+          </ng-container>
+          <ng-container *ngIf="getError('telefono')?.maxlength">
+            Teléfono demasiado largo.
+          </ng-container>
+        </small>
       </div>
 
       <div>
         <label class="block font-semibold mb-2">Correo</label>
         <input pInputText formControlName="emailContacto" class="w-full" />
+
+        <!-- ✅ Validación Correo -->
+        <small class="text-red-500" *ngIf="isInvalid('emailContacto')">
+          <ng-container *ngIf="getError('emailContacto')?.pattern">
+            Correo inválido. Ej: nombre&#64;dominio.cl
+          </ng-container>
+          <ng-container *ngIf="getError('emailContacto')?.maxlength">
+            Correo demasiado largo.
+          </ng-container>
+        </small>
       </div>
 
       <div class="col-span-2">
@@ -262,16 +306,36 @@
           class="w-full"
           placeholder="https://www.linkedin.com/in/..."
         />
+
+        <!-- ✅ Validación LinkedIn -->
+        <small class="text-red-500" *ngIf="isInvalid('linkedin')">
+          <ng-container *ngIf="getError('linkedin')?.pattern">
+            URL de LinkedIn inválida. Ej: https://www.linkedin.com/in/usuario
+          </ng-container>
+          <ng-container *ngIf="getError('linkedin')?.maxlength">
+            URL demasiado larga.
+          </ng-container>
+        </small>
       </div>
 
       <div class="col-span-2">
         <label class="block font-semibold mb-2">Dirección</label>
         <input pInputText formControlName="direccion" class="w-full" />
+
+        <!-- ✅ Validación Dirección -->
+        <small class="text-red-500" *ngIf="isInvalid('direccion') && getError('direccion')?.maxlength">
+          Dirección demasiado larga.
+        </small>
       </div>
 
       <div class="col-span-2">
         <label class="block font-semibold mb-2">Contacto Alternativo</label>
         <input pInputText formControlName="contactoAlternativo" class="w-full" />
+
+        <!-- ✅ Validación Contacto Alternativo -->
+        <small class="text-red-500" *ngIf="isInvalid('contactoAlternativo') && getError('contactoAlternativo')?.maxlength">
+          Texto demasiado largo.
+        </small>
       </div>
 
       <!-- ✅ DOCUMENTOS -->

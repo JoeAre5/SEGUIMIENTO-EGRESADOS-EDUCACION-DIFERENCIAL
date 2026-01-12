@@ -121,6 +121,17 @@ export class SeguimientoEgresadosComponent implements OnInit {
     idPlan: undefined,
   };
 
+  // ✅✅✅ VALIDACIONES (sin afectar tu UI)
+  // ✅ Teléfono: permite prefijo +CC (1–3 dígitos) opcional y luego EXACTO 8 dígitos
+  private readonly PHONE_8_REGEX = /^(\+?\d{1,3}\s?)?\d{8}$/;
+
+  // Email simple/robusto
+  private readonly EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  // LinkedIn perfil o empresa
+  private readonly LINKEDIN_REGEX =
+    /^https?:\/\/(www\.)?linkedin\.com\/(in|company)\/[A-Za-z0-9-_%]+\/?(\?.*)?$/i;
+
   constructor(
     private fb: FormBuilder,
     private router: Router,
@@ -138,6 +149,16 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.cargarPlanes(); // ✅ ✅ NUEVO
   }
 
+  // ✅✅✅ Helpers para tus mensajes en HTML (los que agregamos)
+  isInvalid(controlName: string): boolean {
+    const c = this.formulario.get(controlName);
+    return !!(c && c.invalid && (c.dirty || c.touched || this.intentoGuardar));
+  }
+
+  getError(controlName: string): any {
+    return this.formulario.get(controlName)?.errors;
+  }
+
   crearFormulario() {
     this.formulario = this.fb.group({
       fechaEgreso: [null, Validators.required],
@@ -148,13 +169,144 @@ export class SeguimientoEgresadosComponent implements OnInit {
       anioIngresoLaboral: [null],
       anioSeguimiento: [2026, Validators.required],
 
-      telefono: [''],
-      emailContacto: ['', Validators.email],
-
-      linkedin: [''],
-      direccion: [''],
-      contactoAlternativo: [''],
+      // ✅✅✅ VALIDACIONES CONTACTO (solo valida si escriben algo)
+      telefono: [
+        '',
+        [Validators.maxLength(20), Validators.pattern(this.PHONE_8_REGEX)],
+      ],
+      emailContacto: [
+        '',
+        [Validators.maxLength(120), Validators.pattern(this.EMAIL_REGEX)],
+      ],
+      linkedin: [
+        '',
+        [Validators.maxLength(200), Validators.pattern(this.LINKEDIN_REGEX)],
+      ],
+      direccion: ['', [Validators.maxLength(250)]],
+      contactoAlternativo: ['', [Validators.maxLength(120)]],
     });
+  }
+
+  // ✅✅✅ Teléfono: solo 8 dígitos + código país opcional (+CC)
+  // Se usa con (input)="onTelefonoInput()" en el HTML
+  onTelefonoInput() {
+    const c = this.formulario.get('telefono');
+    if (!c) return;
+
+    let v = (c.value ?? '').toString();
+
+    // Permitir + solo al inicio y dígitos
+    v = v.replace(/[^\d+]/g, '');
+
+    // Si hay +, solo permitir uno al inicio
+    if (v.includes('+')) {
+      v = '+' + v.replace(/\+/g, '');
+    }
+
+    if (v.startsWith('+')) {
+      const digits = v.slice(1).replace(/\D/g, '');
+      const prefijo = digits.slice(0, 3); // hasta 3 dígitos de país
+      const local = digits.slice(3).slice(0, 8); // EXACTO máx 8
+      v = '+' + prefijo + (local.length ? ' ' + local : '');
+    } else {
+      v = v.replace(/\D/g, '').slice(0, 8);
+    }
+
+    c.setValue(v, { emitEvent: false });
+  }
+
+  // ✅✅✅ RUT: cuerpo solo números (máx 8), DV 1 solo (0-9 o K). Formatea con . y -
+  private formatearRutControlado(raw: string): string {
+    let s = (raw ?? '').toString().toUpperCase();
+
+    // Solo dejamos dígitos y K (todo lo demás fuera)
+    s = s.replace(/[^0-9K]/g, '');
+
+    // Si quedó solo "K" (sin cuerpo), no es válido como entrada
+    if (s === 'K') return '';
+
+    // Tomar DV como el ÚLTIMO caracter si es dígito o K
+    const last = s.slice(-1);
+    const tieneDV = /^[0-9K]$/.test(last) && s.length >= 2;
+
+    let dv = '';
+    let cuerpoDigits = '';
+
+    if (tieneDV) {
+      dv = last;
+      // cuerpo = todo menos el DV, PERO solo dígitos
+      const sinDv = s.slice(0, -1);
+      cuerpoDigits = sinDv.replace(/\D/g, '');
+    } else {
+      // aún no hay DV: solo cuerpo numérico
+      cuerpoDigits = s.replace(/\D/g, '');
+    }
+
+    // Cuerpo máximo 8 dígitos
+    cuerpoDigits = cuerpoDigits.slice(0, 8);
+
+    if (!cuerpoDigits) return '';
+
+    // Formato con puntos
+    const cuerpoConPuntos = cuerpoDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+    // Si hay DV, se muestra (uno solo)
+    if (dv) {
+      // Si el usuario puso dv pero el cuerpo es muy corto, igual se deja, el validador real decide
+      return `${cuerpoConPuntos}-${dv}`;
+    }
+
+    return cuerpoConPuntos;
+  }
+
+  onRutInputExistente() {
+    if (!this.estudianteSeleccionado) return;
+    this.estudianteSeleccionado.rut = this.formatearRutControlado(
+      (this.estudianteSeleccionado.rut as any) ?? ''
+    );
+  }
+
+  onRutInputNuevo() {
+    this.nuevoEstudiante.rut = this.formatearRutControlado(
+      (this.nuevoEstudiante.rut as any) ?? ''
+    );
+  }
+
+  // ✅✅✅ Validación real de RUT (módulo 11) con DV numérico o K.
+  isRutValido(rutFormateado: string): boolean {
+    if (!rutFormateado) return false;
+
+    const limpio = rutFormateado
+      .toString()
+      .toUpperCase()
+      .replace(/[^0-9K]/g, '');
+
+    if (limpio.length < 2) return false;
+
+    const cuerpo = limpio.slice(0, -1);
+    const dv = limpio.slice(-1);
+
+    // cuerpo solo dígitos y largo típico (7 u 8)
+    if (!/^\d+$/.test(cuerpo)) return false;
+    if (cuerpo.length < 7 || cuerpo.length > 8) return false;
+
+    let suma = 0;
+    let multiplicador = 2;
+
+    for (let i = cuerpo.length - 1; i >= 0; i--) {
+      suma += parseInt(cuerpo[i], 10) * multiplicador;
+      multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+    }
+
+    const resto = suma % 11;
+    const dvCalc = 11 - resto;
+
+    let dvEsperado = '';
+    if (dvCalc === 11) dvEsperado = '0';
+    else if (dvCalc === 10) dvEsperado = 'K';
+    else dvEsperado = dvCalc.toString();
+
+    return dvEsperado === dv;
   }
 
   cargarEstudiantes() {
@@ -199,9 +351,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   normalizarSituacion(valor: any): string | null {
     if (!valor) return null;
     const limpio = valor.toString().trim().toLowerCase();
-    const match = this.situaciones.find(
-      (s) => s.value.toLowerCase() === limpio
-    );
+    const match = this.situaciones.find((s) => s.value.toLowerCase() === limpio);
     return match ? match.value : null;
   }
 
@@ -222,7 +372,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   // ✅ ✅ ✅ ✅ ✅ NUEVO (NO AFECTA NADA): abrir desde botón "Nuevo / Editar" LIMPIO
   abrirFormularioNuevo() {
-    this.resetFormulario();          // limpia todo (incluye estudianteSeleccionado)
+    this.resetFormulario(); // limpia todo (incluye estudianteSeleccionado)
     this.modoEstudiante = 'existente';
     this.drawerFormulario = true;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -261,15 +411,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
       egresado?.idEstudiante ??
       null;
 
-    // Si por alguna razón no viene idEstudiante, fallback a lo que venga
     if (!id) {
       this.estudianteSeleccionado = egresado?.Estudiante ?? null;
-      // intentar rellenar igual
       setTimeout(() => this.onEstudianteChange(), 0);
       return;
     }
 
-    // Buscar el mismo estudiante dentro de la lista del dropdown (importante)
     const encontrado = this.estudiantes?.find((e) => e.idEstudiante === id);
 
     if (encontrado) {
@@ -278,7 +425,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       return;
     }
 
-    // Si todavía no estaban cargados (o no coincide), recargar estudiantes y volver a intentar
     this.estudiantesService.findAll().subscribe({
       next: (data: EstudianteDTO[]) => {
         this.estudiantes = data;
@@ -369,6 +515,22 @@ export class SeguimientoEgresadosComponent implements OnInit {
   guardar() {
     this.intentoGuardar = true;
 
+    this.formulario.markAllAsTouched();
+
+    const rutActual =
+      this.modoEstudiante === 'existente'
+        ? (this.estudianteSeleccionado?.rut ?? '')
+        : (this.nuevoEstudiante?.rut ?? '');
+
+    if (!this.isRutValido(rutActual)) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'RUT inválido',
+        detail: 'Revisa el RUT y el dígito verificador.',
+      });
+      return;
+    }
+
     if (this.modoEstudiante === 'existente' && !this.estudianteSeleccionado) {
       this.messageService.add({
         severity: 'warn',
@@ -378,7 +540,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       return;
     }
 
-    // ✅ ✅ SI ES NUEVO → validar que seleccione plan
     if (this.modoEstudiante === 'nuevo' && !this.nuevoEstudiante.idPlan) {
       this.messageService.add({
         severity: 'warn',
@@ -389,7 +550,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     }
 
     if (this.formulario.invalid) {
-      this.formulario.markAllAsTouched();
       return;
     }
 
@@ -405,6 +565,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
     obtenerEstudiante$
       .pipe(
         switchMap((estudiante: any) => {
+          this.estudianteSeleccionado = estudiante;
+
           const idEstudiante = estudiante.idEstudiante;
 
           if (this.existeSeguimiento) {
@@ -491,7 +653,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
           if (id) setTimeout(() => this.onEstudianteChange(), 300);
 
-          // ✅ ✅ ✅ CIERRE AUTOMÁTICO DEL DRAWER AL GUARDAR
           this.drawerFormulario = false;
         },
         error: (err: any) => {
@@ -499,8 +660,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
           this.messageService.add({
             severity: 'error',
             summary: 'Error al guardar',
-            detail:
-              err?.error?.message || err?.message || '❌ No se pudo guardar.',
+            detail: err?.error?.message || err?.message || '❌ No se pudo guardar.',
           });
         },
       });
@@ -560,7 +720,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.existeSeguimiento = false;
     this.modoEstudiante = 'existente';
 
-    // ✅ ✅ reset idPlan en nuevo estudiante
     this.nuevoEstudiante.idPlan = undefined;
 
     if (this.fileInput) this.fileInput.nativeElement.value = '';
@@ -630,15 +789,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   abrirEdicion(egresado: any) {
-    // ✅ ✅ ✅ si editas, SIEMPRE modo existente
     this.modoEstudiante = 'existente';
-
-    // ✅ ✅ ✅ abre drawer primero
     this.drawerFormulario = true;
-
-    // ✅ ✅ ✅ selecciona el estudiante correctamente en el dropdown y rellena
     this.seleccionarEstudianteParaEdicion(egresado);
-
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -652,7 +805,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.documentosModal = [];
   }
 
-  // ✅ BOTÓN IR AL FORMULARIO → ABRE DRAWER
   irAlFormulario() {
     this.drawerFormulario = true;
   }

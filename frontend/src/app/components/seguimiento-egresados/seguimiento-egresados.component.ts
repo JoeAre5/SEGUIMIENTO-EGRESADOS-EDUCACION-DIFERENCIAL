@@ -220,6 +220,80 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.drawerFormulario = true;
   }
 
+  // ✅ ✅ ✅ ✅ ✅ NUEVO (NO AFECTA NADA): abrir desde botón "Nuevo / Editar" LIMPIO
+  abrirFormularioNuevo() {
+    this.resetFormulario();          // limpia todo (incluye estudianteSeleccionado)
+    this.modoEstudiante = 'existente';
+    this.drawerFormulario = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ✅ ✅ ✅ ✅ ✅ NUEVO (NO AFECTA NADA): al click "Crear Estudiante Nuevo" limpia selección anterior
+  cambiarAModoNuevo() {
+    // Limpia lo que estaba seleccionado antes
+    this.estudianteSeleccionado = null;
+    this.existeSeguimiento = false;
+    this.documentosExistentes = [];
+    this.documentosSeleccionados = [];
+    this.intentoGuardar = false;
+
+    // Limpia el form (mantiene año seguimiento)
+    this.formulario.reset({ anioSeguimiento: 2026 });
+
+    // Limpia el formulario de nuevo estudiante
+    this.nuevoEstudiante = {
+      rut: '',
+      nombre: '',
+      apellido: '',
+      nombreSocial: '',
+      agnioIngreso: undefined,
+      idPlan: undefined,
+    };
+
+    // Cambia modo
+    this.modoEstudiante = 'nuevo';
+  }
+
+  // ✅ ✅ ✅ NUEVO: al editar, asegurar selección real del dropdown + rellenar
+  private seleccionarEstudianteParaEdicion(egresado: any) {
+    const id =
+      egresado?.Estudiante?.idEstudiante ??
+      egresado?.idEstudiante ??
+      null;
+
+    // Si por alguna razón no viene idEstudiante, fallback a lo que venga
+    if (!id) {
+      this.estudianteSeleccionado = egresado?.Estudiante ?? null;
+      // intentar rellenar igual
+      setTimeout(() => this.onEstudianteChange(), 0);
+      return;
+    }
+
+    // Buscar el mismo estudiante dentro de la lista del dropdown (importante)
+    const encontrado = this.estudiantes?.find((e) => e.idEstudiante === id);
+
+    if (encontrado) {
+      this.estudianteSeleccionado = encontrado;
+      setTimeout(() => this.onEstudianteChange(), 0);
+      return;
+    }
+
+    // Si todavía no estaban cargados (o no coincide), recargar estudiantes y volver a intentar
+    this.estudiantesService.findAll().subscribe({
+      next: (data: EstudianteDTO[]) => {
+        this.estudiantes = data;
+        const found2 = this.estudiantes.find((e) => e.idEstudiante === id);
+        this.estudianteSeleccionado = found2 ?? (egresado?.Estudiante ?? null);
+        setTimeout(() => this.onEstudianteChange(), 0);
+      },
+      error: (err: any) => {
+        console.error(err);
+        this.estudianteSeleccionado = egresado?.Estudiante ?? null;
+        setTimeout(() => this.onEstudianteChange(), 0);
+      },
+    });
+  }
+
   // ✅ AUTO-RELLENO AL SELECCIONAR ESTUDIANTE
   onEstudianteChange() {
     this.existeSeguimiento = false;
@@ -556,11 +630,14 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   abrirEdicion(egresado: any) {
-    this.estudianteSeleccionado = egresado.Estudiante;
-    this.onEstudianteChange();
+    // ✅ ✅ ✅ si editas, SIEMPRE modo existente
+    this.modoEstudiante = 'existente';
 
-    // ✅ ✅ ✅ ABRE DRAWER AL EDITAR
+    // ✅ ✅ ✅ abre drawer primero
     this.drawerFormulario = true;
+
+    // ✅ ✅ ✅ selecciona el estudiante correctamente en el dropdown y rellena
+    this.seleccionarEstudianteParaEdicion(egresado);
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }

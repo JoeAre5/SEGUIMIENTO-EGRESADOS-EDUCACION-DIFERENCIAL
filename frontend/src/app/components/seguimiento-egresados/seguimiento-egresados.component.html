@@ -78,7 +78,7 @@
           class="p-button-sm"
           [class.p-button-success]="modoEstudiante === 'nuevo'"
           [class.p-button-outlined]="modoEstudiante !== 'nuevo'"
-          (click)="modoEstudiante = 'nuevo'"
+          (click)="cambiarAModoNuevo()"
         >
           Crear Estudiante Nuevo
         </button>
@@ -93,6 +93,7 @@
           [(ngModel)]="estudianteSeleccionado"
           [ngModelOptions]="{ standalone: true }"
           optionLabel="nombreCompleto"
+          dataKey="idEstudiante"
           placeholder="Buscar por nombre o rut"
           [filter]="true"
           filterBy="nombreCompleto,rut"
@@ -381,7 +382,7 @@
         icon="pi pi-plus"
         label="Nuevo / Editar"
         class="p-button-sm p-button-info"
-        (click)="irAlFormulario()"
+        (click)="abrirFormularioNuevo()"
       ></button>
     </div>
 

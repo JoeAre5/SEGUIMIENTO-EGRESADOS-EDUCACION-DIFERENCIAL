@@ -735,9 +735,34 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   descargarDocumento(doc: any) {
-    const url = this.egresadosService.getDocumentoUrl(doc.url);
-    window.open(url, '_blank');
-  }
+  if (!doc?.url) return;
+
+  const filename = (doc?.nombre || 'documento').toString();
+
+  this.egresadosService.downloadDocumento(doc.url).subscribe({
+    next: (blob: Blob) => {
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename; // fuerza descarga
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(blobUrl);
+    },
+    error: (err) => {
+      console.error('❌ Error descargando documento:', err);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'No se pudo descargar el documento.',
+      });
+    },
+  });
+}
+
 
   eliminar(egresado: any) {
     this.confirmationService.confirm({

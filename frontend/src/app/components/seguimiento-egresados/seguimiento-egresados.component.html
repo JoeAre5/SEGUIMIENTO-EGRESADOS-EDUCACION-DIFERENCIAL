@@ -77,6 +77,7 @@
         </button>
       </div>
 
+      <!-- ✅ EXISTENTE: seleccionar estudiante -->
       <div class="col-span-2" *ngIf="modoEstudiante === 'existente'">
         <label class="block font-semibold mb-2">Seleccionar Estudiante *</label>
 
@@ -109,6 +110,7 @@
         </small>
       </div>
 
+      <!-- ✅ EXISTENTE: RUT -->
       <div
         class="col-span-2"
         *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado"
@@ -137,10 +139,57 @@
         </small>
       </div>
 
+      <!-- ✅ EXISTENTE: Plan (info readonly) -->
+      <div
+        class="col-span-2"
+        *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado"
+      >
+        <label class="block font-semibold mb-2">Plan actual (info)</label>
+        <input
+          pInputText
+          formControlName="planEstudios"
+          class="w-full"
+          placeholder="Se cargará automáticamente"
+          readonly
+        />
+        <small class="text-gray-500">
+          Este campo es informativo (viene del seguimiento/plan actual).
+        </small>
+      </div>
+
+      <!-- ✅✅✅ EXISTENTE: Plan editable (dropdown con planes) -->
+      <div
+        class="col-span-2"
+        *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado"
+      >
+        <label class="block font-semibold mb-2">Plan de estudios (editable) *</label>
+
+        <p-dropdown
+          [options]="planesOptions"
+          [(ngModel)]="planSeleccionadoId"
+          [ngModelOptions]="{ standalone: true }"
+          placeholder="Selecciona un plan"
+          [filter]="true"
+          filterBy="label"
+          [showClear]="true"
+          class="w-full"
+        ></p-dropdown>
+
+        <small
+          class="text-xs text-gray-500"
+          *ngIf="planOriginalId && planSeleccionadoId && planSeleccionadoId !== planOriginalId"
+        >
+          📌 Cambiarás el plan en la BD del estudiante al guardar.
+        </small>
+
+        <small class="text-red-500" *ngIf="intentoGuardar && !planSeleccionadoId">
+          Debes seleccionar un plan.
+        </small>
+      </div>
+
+      <!-- ✅ NUEVO: crear estudiante -->
       <div class="col-span-2" *ngIf="modoEstudiante === 'nuevo'">
-        <h3 class="text-lg font-bold text-sky-700 mt-2">
-          🆕 Nuevo Estudiante
-        </h3>
+        <h3 class="text-lg font-bold text-sky-700 mt-2">🆕 Nuevo Estudiante</h3>
 
         <div class="grid grid-cols-2 gap-6 mt-4">
           <div>
@@ -199,6 +248,10 @@
               [showClear]="true"
               class="w-full"
             ></p-dropdown>
+
+            <small class="text-red-500" *ngIf="intentoGuardar && !nuevoEstudiante.idPlan">
+              Debes seleccionar un plan.
+            </small>
           </div>
 
           <div class="col-span-2">
@@ -214,6 +267,7 @@
         </div>
       </div>
 
+      <!-- ✅ Seguimiento -->
       <div>
         <label class="block font-semibold mb-2">Fecha de Egreso *</label>
         <p-calendar
@@ -223,10 +277,7 @@
           class="w-full"
         ></p-calendar>
 
-        <small
-          class="text-red-500"
-          *ngIf="formHasError('anioSeguimientoMenorQueEgreso')"
-        >
+        <small class="text-red-500" *ngIf="formHasError('anioSeguimientoMenorQueEgreso')">
           Año de seguimiento no puede ser menor que el año de egreso.
         </small>
       </div>
@@ -383,9 +434,7 @@
       </div>
 
       <div class="col-span-2 mt-2" *ngIf="documentosExistentes.length > 0">
-        <h3 class="text-lg font-bold text-sky-700 mb-2">
-          📎 Documentos existentes
-        </h3>
+        <h3 class="text-lg font-bold text-sky-700 mb-2">📎 Documentos existentes</h3>
 
         <p-table [value]="documentosExistentes" class="p-datatable-sm">
           <ng-template pTemplate="header">
@@ -586,7 +635,6 @@
         'emailContacto'
       ]"
     >
-      <!-- ✅✅✅ HEADER PREMIUM (COLOR + CONTRASTE) -->
       <ng-template pTemplate="header">
         <tr class="text-sm bg-sky-700 text-white shadow-md">
           <th
@@ -789,7 +837,6 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Donut: Situación -->
       <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
         <div class="flex items-center justify-between mb-3">
           <p class="font-semibold text-gray-700">Distribución por situación</p>
@@ -805,7 +852,6 @@
         </div>
       </div>
 
-      <!-- Donut: Documentos -->
       <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
         <div class="flex items-center justify-between mb-3">
           <p class="font-semibold text-gray-700">Egresados con documentos</p>
@@ -821,7 +867,6 @@
         </div>
       </div>
 
-      <!-- Donut: % por Año Seguimiento -->
       <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
         <div class="flex items-center justify-between mb-3">
           <p class="font-semibold text-gray-700">% por año (seguimiento)</p>
@@ -919,6 +964,7 @@
   </div>
 </p-dialog>
 
+<!-- ✅ MODAL DOCUMENTOS -->
 <p-dialog
   [(visible)]="modalDocsVisible"
   [modal]="true"

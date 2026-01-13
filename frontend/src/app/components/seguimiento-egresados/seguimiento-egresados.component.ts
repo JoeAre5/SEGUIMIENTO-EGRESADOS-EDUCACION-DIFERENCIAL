@@ -11,7 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 
-// ✅ NUEVO: animaciones Angular
+// ✅ Animaciones Angular
 import {
   trigger,
   transition,
@@ -19,6 +19,7 @@ import {
   animate,
   query,
   stagger,
+  animateChild,
 } from '@angular/animations';
 
 import { CardModule } from 'primeng/card';
@@ -30,27 +31,29 @@ import { ButtonModule } from 'primeng/button';
 import { ToastModule } from 'primeng/toast';
 import { MessageService, ConfirmationService } from 'primeng/api';
 
-import { TableModule, Table } from 'primeng/table'; // ✅ + Table
+import { TableModule, Table } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { SidebarModule } from 'primeng/sidebar';
 
-// ✅ NUEVO: charts
+// ✅ Charts
 import { ChartModule } from 'primeng/chart';
 
 import {
   EgresadosService,
   UpdateEgresadoDto,
 } from '../../services/egresados.service';
+
 import {
   EstudiantesService,
   EstudianteDTO,
   CreateEstudianteDTO,
+  UpdateEstudianteDTO,
 } from '../../services/estudiantes.service';
 
-import { switchMap, of } from 'rxjs';
+import { switchMap, of, Observable } from 'rxjs';
 
 interface PlanDTO {
   idPlan: number;
@@ -80,23 +83,28 @@ interface PlanDTO {
     ConfirmDialogModule,
     DialogModule,
     SidebarModule,
-    ChartModule, // ✅ NUEVO
+    ChartModule,
   ],
   templateUrl: './seguimiento-egresados.component.html',
   styleUrls: ['./seguimiento-egresados.component.css'],
-  // ✅ NUEVO: triggers que estás usando en el HTML (para que no desaparezca nada)
   animations: [
     trigger('pageEnter', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(10px)' }),
-        animate('320ms ease-out', style({ opacity: 1, transform: 'translateY(0)' })),
+        animate(
+          '320ms ease-out',
+          style({ opacity: 1, transform: 'translateY(0)' })
+        ),
       ]),
     ]),
 
     trigger('fadeHeader', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(-6px)' }),
-        animate('260ms ease-out', style({ opacity: 1, transform: 'translateY(0)' })),
+        animate(
+          '260ms ease-out',
+          style({ opacity: 1, transform: 'translateY(0)' })
+        ),
       ]),
     ]),
 
@@ -112,22 +120,26 @@ interface PlanDTO {
     trigger('cardItem', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(8px) scale(0.98)' }),
-        animate('260ms ease-out', style({ opacity: 1, transform: 'translateY(0) scale(1)' })),
+        animate(
+          '260ms ease-out',
+          style({ opacity: 1, transform: 'translateY(0) scale(1)' })
+        ),
       ]),
     ]),
 
     trigger('sidebarStagger', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateX(10px)' }),
-        animate('220ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
+        animate(
+          '220ms ease-out',
+          style({ opacity: 1, transform: 'translateX(0)' })
+        ),
       ]),
     ]),
   ],
 })
 export class SeguimientoEgresadosComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
-
-  // ✅ Puedes dejarlo aunque el resumen sea global (no afecta)
   @ViewChild('dt') dt!: Table;
 
   formulario!: FormGroup;
@@ -182,7 +194,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
   drawerFormulario: boolean = false;
 
   planes: PlanDTO[] = [];
-  planesOptions: any[] = [];
+  planesOptions: { label: string; value: number }[] = [];
+
+  // ✅ NUEVO: plan editable del EXISTENTE
+  public planSeleccionadoId: number | null = null;
+
+  // ✅ IMPORTANTE: debe ser PUBLIC para usarse en el template
+  public planOriginalId: number | null = null;
 
   situaciones = [
     { label: 'Trabajando', value: 'Trabajando' },
@@ -218,7 +236,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
   rutDuplicadoExistente = false;
   anioIngresoInvalidoNuevo = false;
 
-  // ✅ Tarjetas arriba de la tabla (GLOBAL)
   stats = {
     total: 0,
     trabajando: 0,
@@ -227,10 +244,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
     otro: 0,
   };
 
-  // ✅ NUEVO: charts (donuts + % por año)
   donutSituacionData: any;
   donutDocsData: any;
-  donutAnioData: any; // % egresados por año (anioSeguimiento)
+  donutAnioData: any;
   donutOptions: any;
 
   constructor(
@@ -269,6 +285,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
   crearFormulario() {
     this.formulario = this.fb.group(
       {
+        // ✅ Campo informativo (readonly)
+        planEstudios: [{ value: '', disabled: true }],
+
         fechaEgreso: [null, Validators.required],
         situacionActual: [null, Validators.required],
         empresa: [''],
@@ -494,10 +513,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
       next: (data: any[]) => {
         this.egresados = data;
 
-        // ✅ GLOBAL: siempre con todos los registros (no depende de filtros/búsqueda)
         this.recalcularStats(this.egresados);
-
-        // ✅ NUEVO: charts globales
         this.actualizarChartsGlobal(this.egresados);
 
         this.loading = false;
@@ -524,11 +540,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.drawerFormulario = false;
   }
 
-  nuevoSeguimiento() {
-    this.resetFormulario();
-    this.drawerFormulario = true;
-  }
-
   abrirFormularioNuevo() {
     this.resetFormulario();
     this.modoEstudiante = 'existente';
@@ -547,7 +558,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.rutDuplicadoExistente = false;
     this.anioIngresoInvalidoNuevo = false;
 
+    // ✅ reset plan
+    this.planSeleccionadoId = null;
+    this.planOriginalId = null;
+
     this.formulario.reset({ anioSeguimiento: 2026 });
+    this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
 
     this.nuevoEstudiante = {
       rut: '',
@@ -559,6 +575,18 @@ export class SeguimientoEgresadosComponent implements OnInit {
     };
 
     this.modoEstudiante = 'nuevo';
+  }
+
+  private construirPlanTextoDesdePlan(plan: any): string {
+    if (!plan) return '';
+    const titulo = plan?.titulo ?? '';
+    const codigo = plan?.codigo ?? '';
+    const agnio = plan?.agnio ?? '';
+    const partes: string[] = [];
+    if (titulo) partes.push(titulo);
+    if (agnio !== '' && agnio !== null && agnio !== undefined) partes.push(`Año: ${agnio}`);
+    if (codigo !== '' && codigo !== null && codigo !== undefined) partes.push(`Código: ${codigo}`);
+    return partes.join(' • ');
   }
 
   private seleccionarEstudianteParaEdicion(egresado: any) {
@@ -601,8 +629,16 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.documentosExistentes = [];
     this.rutDuplicadoExistente = false;
 
+    // ✅ reset de plan editable
+    this.planSeleccionadoId = null;
+    this.planOriginalId = null;
+
+    // ✅ limpia planEstudios (info)
+    this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+
     if (!this.estudianteSeleccionado?.idEstudiante) {
       this.formulario.reset({ anioSeguimiento: 2026 });
+      this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
       return;
     }
 
@@ -612,10 +648,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
       next: (egresado: any) => {
         const eg = egresado?.data ? egresado.data : egresado;
 
+        // ✅ si no hay seguimiento, igual podrías querer setear plan desde estudiante (si lo tuvieras en DTO)
         if (!eg || Object.keys(eg).length === 0) {
           this.existeSeguimiento = false;
           this.documentosExistentes = [];
           this.formulario.reset({ anioSeguimiento: 2026 });
+          this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
           return;
         }
 
@@ -623,7 +661,19 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
         const fechaDate = eg.fechaEgreso ? new Date(eg.fechaEgreso) : null;
 
+        // ✅ toma plan actual desde egresado.Estudiante.Plan (lo que te devuelve backend)
+        const plan = eg?.Estudiante?.Plan ?? null;
+        const planTexto = this.construirPlanTextoDesdePlan(plan);
+
+        // ✅ idPlan para dropdown editable
+        const idPlan = plan?.idPlan ?? eg?.Estudiante?.idPlan ?? null;
+
+        this.planOriginalId = idPlan ? Number(idPlan) : null;
+        this.planSeleccionadoId = this.planOriginalId;
+
         this.formulario.patchValue({
+          planEstudios: planTexto,
+
           fechaEgreso: fechaDate,
           situacionActual: this.normalizarSituacion(eg.situacionActual),
           empresa: eg.empresa ?? '',
@@ -650,6 +700,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         this.existeSeguimiento = false;
         this.documentosExistentes = [];
         this.formulario.reset({ anioSeguimiento: 2026 });
+        this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
       },
     });
   }
@@ -665,6 +716,20 @@ export class SeguimientoEgresadosComponent implements OnInit {
   limpiarInputArchivos() {
     this.documentosSeleccionados = [];
     if (this.fileInput) this.fileInput.nativeElement.value = '';
+  }
+
+  // ✅ NUEVO: actualizar el plan del estudiante si cambió (con tu backend actual PATCH /estudiantes/:id)
+  private actualizarPlanSiCambia$(idEstudiante: number): Observable<any> {
+    const nuevoIdPlan = this.planSeleccionadoId ? Number(this.planSeleccionadoId) : null;
+
+    // si no hay selección (por seguridad) -> no hace nada
+    if (!nuevoIdPlan) return of(null);
+
+    // si no cambió -> no hace nada
+    if (this.planOriginalId && nuevoIdPlan === Number(this.planOriginalId)) return of(null);
+
+    const dto: UpdateEstudianteDTO = { idPlan: nuevoIdPlan };
+    return this.estudiantesService.update(idEstudiante, dto);
   }
 
   guardar() {
@@ -733,6 +798,16 @@ export class SeguimientoEgresadosComponent implements OnInit {
       return;
     }
 
+    // ✅ si es EXISTENTE: exigir plan seleccionado
+    if (this.modoEstudiante === 'existente' && !this.planSeleccionadoId) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Falta Plan',
+        detail: 'Debes seleccionar un plan de estudios.',
+      });
+      return;
+    }
+
     if (this.formulario.invalid) return;
 
     const obtenerEstudiante$ =
@@ -748,54 +823,63 @@ export class SeguimientoEgresadosComponent implements OnInit {
       .pipe(
         switchMap((estudiante: any) => {
           this.estudianteSeleccionado = estudiante;
-
           const idEstudiante = estudiante.idEstudiante;
 
-          if (this.existeSeguimiento) {
-            if (this.documentosSeleccionados.length === 0) {
-              const dto: UpdateEgresadoDto = {
-                ...this.formulario.value,
-                fechaEgreso: this.formulario.value.fechaEgreso
-                  ? new Date(this.formulario.value.fechaEgreso).toISOString().split('T')[0]
-                  : undefined,
-              };
+          // ✅ 1) actualizar plan en BD (si cambió)
+          return this.actualizarPlanSiCambia$(idEstudiante).pipe(
+            // ✅ 2) luego guarda/actualiza seguimiento (con o sin docs)
+            switchMap(() => {
+              if (this.existeSeguimiento) {
+                if (this.documentosSeleccionados.length === 0) {
+                  const dto: UpdateEgresadoDto = {
+                    ...this.formulario.value,
+                    fechaEgreso: this.formulario.value.fechaEgreso
+                      ? new Date(this.formulario.value.fechaEgreso)
+                          .toISOString()
+                          .split('T')[0]
+                      : undefined,
+                  };
 
-              return this.egresadosService.updateByEstudiante(idEstudiante, dto);
-            }
+                  return this.egresadosService.updateByEstudiante(idEstudiante, dto);
+                }
 
-            const formData = new FormData();
+                const formData = new FormData();
+                const fecha = this.formulario.value.fechaEgreso;
+                const fechaFormateada = new Date(fecha).toISOString().split('T')[0];
+                formData.append('fechaEgreso', fechaFormateada);
 
-            const fecha = this.formulario.value.fechaEgreso;
-            const fechaFormateada = new Date(fecha).toISOString().split('T')[0];
-            formData.append('fechaEgreso', fechaFormateada);
+                Object.entries(this.formulario.value).forEach(([key, value]) => {
+                  if (key !== 'fechaEgreso' && value !== null && value !== undefined && value !== '') {
+                    formData.append(key, value.toString());
+                  }
+                });
 
-            Object.entries(this.formulario.value).forEach(([key, value]) => {
-              if (key !== 'fechaEgreso' && value !== null && value !== undefined && value !== '') {
-                formData.append(key, value.toString());
+                this.documentosSeleccionados.forEach((file) =>
+                  formData.append('documentos', file)
+                );
+
+                return this.egresadosService.updateWithFilesByEstudiante(idEstudiante, formData);
               }
-            });
 
-            this.documentosSeleccionados.forEach((file) => formData.append('documentos', file));
+              // ✅ crear seguimiento
+              const formData = new FormData();
+              formData.append('idEstudiante', idEstudiante.toString());
 
-            return this.egresadosService.updateWithFilesByEstudiante(idEstudiante, formData);
-          }
+              const fecha = this.formulario.value.fechaEgreso;
+              const fechaFormateada = new Date(fecha).toISOString().split('T')[0];
+              formData.append('fechaEgreso', fechaFormateada);
 
-          const formData = new FormData();
-          formData.append('idEstudiante', idEstudiante.toString());
+              Object.entries(this.formulario.value).forEach(([key, value]) => {
+                if (key !== 'fechaEgreso' && value !== null && value !== undefined && value !== '') {
+                  formData.append(key, value.toString());
+                }
+              });
 
-          const fecha = this.formulario.value.fechaEgreso;
-          const fechaFormateada = new Date(fecha).toISOString().split('T')[0];
-          formData.append('fechaEgreso', fechaFormateada);
+              this.documentosSeleccionados.forEach((file) => formData.append('documentos', file));
 
-          Object.entries(this.formulario.value).forEach(([key, value]) => {
-            if (key !== 'fechaEgreso' && value !== null && value !== undefined && value !== '') {
-              formData.append(key, value.toString());
-            }
-          });
-
-          this.documentosSeleccionados.forEach((file) => formData.append('documentos', file));
-
-          return this.egresadosService.createWithFiles(formData);
+              return this.egresadosService.createWithFiles(formData);
+            })
+          );
         })
       )
       .subscribe({
@@ -804,7 +888,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
             severity: 'success',
             summary: 'Guardado',
             detail: this.existeSeguimiento
-              ? '✅ Seguimiento actualizado + documentos agregados.'
+              ? '✅ Seguimiento actualizado (y plan actualizado si cambió).'
               : '✅ Seguimiento creado correctamente.',
           });
 
@@ -874,12 +958,18 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   resetFormulario() {
     this.formulario.reset({ anioSeguimiento: 2026 });
+    this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+
     this.documentosSeleccionados = [];
     this.documentosExistentes = [];
     this.estudianteSeleccionado = null;
     this.intentoGuardar = false;
     this.existeSeguimiento = false;
     this.modoEstudiante = 'existente';
+
+    // ✅ reset plan editable
+    this.planSeleccionadoId = null;
+    this.planOriginalId = null;
 
     this.rutDuplicadoNuevo = false;
     this.rutDuplicadoExistente = false;
@@ -989,15 +1079,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.modalDocsVisible = true;
   }
 
-  cerrarModalDocumentos() {
-    this.modalDocsVisible = false;
-    this.documentosModal = [];
-  }
-
-  irAlFormulario() {
-    this.drawerFormulario = true;
-  }
-
   onRangoFiltroChange(dt: any, field: string, tipo: 'min' | 'max', valor: any) {
     if (!dt) return;
 
@@ -1014,9 +1095,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     dt.filter([min, max], field, 'between');
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // ✅ Estadísticas GLOBAL para tarjetas
-  // ──────────────────────────────────────────────────────────────────────────
   private normalizarSituacionStats(valor: any): string {
     return (valor ?? '').toString().trim().toLowerCase();
   }
@@ -1045,22 +1123,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.stats = { total, trabajando, cesante, estudiando, otro };
   }
 
-  // ✅ Se deja por compatibilidad, pero NO afecta filtros: siempre recalcula GLOBAL
-  onTableFilter() {
-    this.recalcularStats(this.egresados);
-    this.actualizarChartsGlobal(this.egresados);
-  }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // ✅ NUEVO: Charts GLOBAL (donuts)
-  //   - Situación
-  //   - Documentos (con/sin)
-  //   - % por Año (anioSeguimiento) -> top años
-  // ──────────────────────────────────────────────────────────────────────────
   private actualizarChartsGlobal(lista: any[]) {
     const arr = Array.isArray(lista) ? lista : [];
 
-    // Options premium
     this.donutOptions = {
       responsive: true,
       maintainAspectRatio: false,
@@ -1074,7 +1139,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       },
     };
 
-    // Donut: Situación
     this.donutSituacionData = {
       labels: ['Trabajando', 'Cesante', 'Estudiando', 'Otro'],
       datasets: [
@@ -1093,7 +1157,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       ],
     };
 
-    // Donut: Documentos (con/sin)
     const conDocs = arr.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
     const sinDocs = arr.length - conDocs;
 
@@ -1110,7 +1173,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       ],
     };
 
-    // Donut: % egresados por Año (anioSeguimiento)
     const conteoPorAnio = new Map<number, number>();
     for (const x of arr) {
       const yRaw = x?.anioSeguimiento;
@@ -1119,8 +1181,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
       conteoPorAnio.set(y, (conteoPorAnio.get(y) ?? 0) + 1);
     }
 
-    const pares = Array.from(conteoPorAnio.entries()).sort((a, b) => b[0] - a[0]); // año desc
-
+    const pares = Array.from(conteoPorAnio.entries()).sort((a, b) => b[0] - a[0]);
     const top = pares.slice(0, 6);
     const otros = pares.slice(6);
 
@@ -1136,7 +1197,15 @@ export class SeguimientoEgresadosComponent implements OnInit {
     const total = arr.length || 1;
     const porcentajes = countsAnios.map((c) => Math.round((c / total) * 100));
 
-    const palette = ['#0F766E', '#2563EB', '#7C3AED', '#DB2777', '#EA580C', '#16A34A', '#64748B'];
+    const palette = [
+      '#0F766E',
+      '#2563EB',
+      '#7C3AED',
+      '#DB2777',
+      '#EA580C',
+      '#16A34A',
+      '#64748B',
+    ];
 
     this.donutAnioData = {
       labels: labelsAnios.map((l, idx) => `${l} (${porcentajes[idx]}%)`),
@@ -1152,6 +1221,3 @@ export class SeguimientoEgresadosComponent implements OnInit {
     };
   }
 }
-
-// ✅ helper requerido por animateChild() en cardsStagger
-import { animateChild } from '@angular/animations';

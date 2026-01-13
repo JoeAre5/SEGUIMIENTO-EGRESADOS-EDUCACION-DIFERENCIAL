@@ -82,7 +82,21 @@ export class EgresadosService {
       include: {
         documentos: true,
         Estudiante: {
-          select: { rut: true, nombreCompleto: true },
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            // ✅ Plan de estudios (automático)
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
         },
       },
       orderBy: { idEgresado: 'desc' },
@@ -98,7 +112,21 @@ export class EgresadosService {
       include: {
         documentos: true,
         Estudiante: {
-          select: { rut: true, nombreCompleto: true },
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            // ✅ Plan de estudios (automático)
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
         },
       },
     });
@@ -215,7 +243,21 @@ export class EgresadosService {
       include: {
         documentos: true,
         Estudiante: {
-          select: { rut: true, nombreCompleto: true },
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            // ✅ Plan de estudios (automático)
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
         },
       },
     });

@@ -69,7 +69,7 @@ interface PlanDTO {
     SidebarModule,
   ],
   templateUrl: './seguimiento-egresados.component.html',
-  styleUrl: './seguimiento-egresados.component.css',
+  styleUrls: ['./seguimiento-egresados.component.css'], // ✅ estándar Angular
 })
 export class SeguimientoEgresadosComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
@@ -91,14 +91,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
   modalDocsVisible = false;
   documentosModal: any[] = [];
 
-  // ✅✅✅ Modal de filtros (para el botón "Filtros" del listado)
+  // ✅ Modal de filtros
   modalFiltrosVisible: boolean = false;
 
-  // ✅✅✅ Valores temporales de filtros (para rangos tipo between)
-  // Ej: filtroValores['sueldo'] = { min: 100000, max: 900000 }
+  // ✅ Valores temporales de filtros (between)
   filtroValores: Record<string, any> = {};
 
-  // ✅✅✅ Config de filtros (se renderiza en HTML con *ngFor -> no es manual)
+  // ✅ Config filtros (render en HTML)
   filtrosConfig = [
     { label: 'Situación', field: 'situacionActual', type: 'dropdown' },
 
@@ -117,12 +116,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
       placeholderMax: 'Hasta',
     },
 
-    {
-      label: 'Empresa',
-      field: 'empresa',
-      type: 'text',
-      placeholder: 'Ej: Google',
-    },
+    { label: 'Empresa', field: 'empresa', type: 'text', placeholder: 'Ej: Google' },
     { label: 'Cargo', field: 'cargo', type: 'text', placeholder: 'Ej: Ingeniero' },
 
     {
@@ -133,18 +127,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
       placeholderMax: 'Max',
     },
 
-    {
-      label: 'Teléfono',
-      field: 'telefono',
-      type: 'text',
-      placeholder: 'Ej: +56 9 12345678',
-    },
-    {
-      label: 'Email',
-      field: 'emailContacto',
-      type: 'text',
-      placeholder: 'Ej: nombre@dominio.cl',
-    },
+    { label: 'Teléfono', field: 'telefono', type: 'text', placeholder: 'Ej: +56 9 12345678' },
+    { label: 'Email', field: 'emailContacto', type: 'text', placeholder: 'Ej: nombre@dominio.cl' },
   ];
 
   drawerFormulario: boolean = false;
@@ -229,7 +213,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         cargo: [''],
         sueldo: [null],
 
-        // ✅ Año ingreso laboral: SOLO rango lógico (sin relación con año seguimiento)
+        // ✅ Año ingreso laboral: SOLO rango lógico
         anioIngresoLaboral: [
           null,
           [
@@ -263,7 +247,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
         contactoAlternativo: ['', [Validators.maxLength(120)]],
       },
       {
-        // ✅ Validaciones cruzadas
         validators: [this.validarReglasCruzadas()],
       }
     );
@@ -283,14 +266,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
       if (!fecha) return null;
 
       const anioEgreso = new Date(fecha).getFullYear();
-
       const errors: any = {};
 
       if (anioSeg && anioSeg < anioEgreso) {
         errors.anioSeguimientoMenorQueEgreso = true;
       }
 
-      // ✅ si el usuario escribió año ingreso laboral, debe ser >= año egreso
       if (
         anioIngresoLab !== null &&
         anioIngresoLab !== undefined &&
@@ -353,16 +334,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return (rut ?? '').toString().toUpperCase().replace(/[^0-9K]/g, '');
   }
 
-  private existeRutEnEstudiantes(
-    rut: string,
-    excluirIdEstudiante?: number | null
-  ): boolean {
+  private existeRutEnEstudiantes(rut: string, excluirIdEstudiante?: number | null): boolean {
     const objetivo = this.normalizarRut(rut);
     if (!objetivo || objetivo.length < 2) return false;
 
     return (this.estudiantes ?? []).some((e) => {
-      if (excluirIdEstudiante && e.idEstudiante === excluirIdEstudiante)
-        return false;
+      if (excluirIdEstudiante && e.idEstudiante === excluirIdEstudiante) return false;
       return this.normalizarRut(e.rut) === objetivo;
     });
   }
@@ -520,8 +497,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   private seleccionarEstudianteParaEdicion(egresado: any) {
-    const id =
-      egresado?.Estudiante?.idEstudiante ?? egresado?.idEstudiante ?? null;
+    const id = egresado?.Estudiante?.idEstudiante ?? egresado?.idEstudiante ?? null;
 
     if (!id) {
       this.estudianteSeleccionado = egresado?.Estudiante ?? null;
@@ -692,9 +668,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
       return;
     }
 
-    if (this.formulario.invalid) {
-      return;
-    }
+    if (this.formulario.invalid) return;
 
     const obtenerEstudiante$ =
       this.modoEstudiante === 'existente'
@@ -717,9 +691,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
               const dto: UpdateEgresadoDto = {
                 ...this.formulario.value,
                 fechaEgreso: this.formulario.value.fechaEgreso
-                  ? new Date(this.formulario.value.fechaEgreso)
-                      .toISOString()
-                      .split('T')[0]
+                  ? new Date(this.formulario.value.fechaEgreso).toISOString().split('T')[0]
                   : undefined,
               };
 
@@ -733,24 +705,14 @@ export class SeguimientoEgresadosComponent implements OnInit {
             formData.append('fechaEgreso', fechaFormateada);
 
             Object.entries(this.formulario.value).forEach(([key, value]) => {
-              if (
-                key !== 'fechaEgreso' &&
-                value !== null &&
-                value !== undefined &&
-                value !== ''
-              ) {
+              if (key !== 'fechaEgreso' && value !== null && value !== undefined && value !== '') {
                 formData.append(key, value.toString());
               }
             });
 
-            this.documentosSeleccionados.forEach((file) =>
-              formData.append('documentos', file)
-            );
+            this.documentosSeleccionados.forEach((file) => formData.append('documentos', file));
 
-            return this.egresadosService.updateWithFilesByEstudiante(
-              idEstudiante,
-              formData
-            );
+            return this.egresadosService.updateWithFilesByEstudiante(idEstudiante, formData);
           }
 
           const formData = new FormData();
@@ -761,19 +723,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
           formData.append('fechaEgreso', fechaFormateada);
 
           Object.entries(this.formulario.value).forEach(([key, value]) => {
-            if (
-              key !== 'fechaEgreso' &&
-              value !== null &&
-              value !== undefined &&
-              value !== ''
-            ) {
+            if (key !== 'fechaEgreso' && value !== null && value !== undefined && value !== '') {
               formData.append(key, value.toString());
             }
           });
 
-          this.documentosSeleccionados.forEach((file) =>
-            formData.append('documentos', file)
-          );
+          this.documentosSeleccionados.forEach((file) => formData.append('documentos', file));
 
           return this.egresadosService.createWithFiles(formData);
         })
@@ -832,7 +787,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
             if (this.modalDocsVisible && this.documentosModal.length === 0) {
               this.modalDocsVisible = false;
-
               this.messageService.add({
                 severity: 'info',
                 summary: 'Sin documentos',
@@ -950,7 +904,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   formatCLP(valor: number): string {
-    // Se deja tal cual tu lógica para "no afectar nada"
+    // ✅ se mantiene tu lógica “tal cual”
     if (!valor) return '-';
     return valor.toLocaleString('es-CL');
   }
@@ -981,11 +935,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   /**
-   * ✅ NUEVO: Maneja cambios en filtros tipo rango (between) desde el modal,
-   * evitando lógica compleja en el template (Angular no permite spreads/asignaciones con ';').
+   * ✅ NECESARIO para el HTML:
+   * Maneja cambios en filtros tipo rango (between) desde el modal,
+   * evitando lógica compleja en el template.
    */
   onRangoFiltroChange(dt: any, field: string, tipo: 'min' | 'max', valor: any) {
-    // PrimeNG InputNumber suele entregar number | null
+    if (!dt) return;
+
     const v = valor === '' || valor === undefined ? null : valor;
 
     this.filtroValores[field] = {

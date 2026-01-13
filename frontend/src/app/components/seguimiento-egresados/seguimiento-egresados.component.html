@@ -468,7 +468,12 @@
           Limpiar
         </button>
 
-        <button pButton type="button" class="p-button-success" (click)="guardar()">
+        <button
+          pButton
+          type="button"
+          class="p-button-success"
+          (click)="guardar()"
+        >
           Guardar
         </button>
       </div>
@@ -478,6 +483,39 @@
 
 <!-- ✅ TABLA DE EGRESADOS -->
 <div class="m-10 bg-white p-8 shadow-lg rounded-md">
+  <!-- ✅✅✅ Tarjetas resumen arriba de la tabla (COLORES SÓLIDOS) -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div class="rounded-xl border border-sky-800 bg-sky-800 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Total Egresados</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.total }}</p>
+      <p class="text-xs text-white/80">registros</p>
+    </div>
+
+    <div class="rounded-xl border border-emerald-700 bg-emerald-700 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Trabajando</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.trabajando }}</p>
+      <p class="text-xs text-white/80">activos</p>
+    </div>
+
+    <div class="rounded-xl border border-rose-600 bg-rose-600 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Cesante</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.cesante }}</p>
+      <p class="text-xs text-white/80">sin trabajo</p>
+    </div>
+
+    <div class="rounded-xl border border-cyan-700 bg-cyan-700 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Estudiando</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.estudiando }}</p>
+      <p class="text-xs text-white/80">en formación</p>
+    </div>
+
+    <div class="rounded-xl border border-amber-600 bg-amber-600 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Otro</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.otro }}</p>
+      <p class="text-xs text-white/80">otros casos</p>
+    </div>
+  </div>
+
   <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
     <div class="flex items-center gap-3">
       <h2 class="text-xl font-bold text-sky-700">Listado de Egresados</h2>
@@ -521,7 +559,7 @@
     </span>
   </div>
 
-  <!-- ✅✅✅ CAMBIO CLAVE: altura real para que scrollHeight="flex" funcione -->
+  <!-- ✅✅✅ altura real para que scrollHeight="flex" funcione -->
   <div class="overflow-x-auto rounded-xl border border-gray-200 p-fluid h-[720px]">
     <p-table
       #dt
@@ -548,26 +586,62 @@
         'emailContacto'
       ]"
     >
+      <!-- ✅✅✅ HEADER PREMIUM (COLOR + CONTRASTE) -->
       <ng-template pTemplate="header">
-        <tr class="text-sm">
-          <th class="sticky top-0 bg-white z-30 w-[260px]" style="left: 0px;">
+        <tr class="text-sm bg-sky-700 text-white shadow-md">
+          <th
+            class="sticky top-0 z-30 w-[260px] bg-sky-700 text-white font-semibold border-b-4 border-sky-300"
+            style="left: 0px;"
+          >
             Estudiante
           </th>
 
-          <th class="sticky top-0 bg-white z-30 w-[140px]" style="left: 260px;">
+          <th
+            class="sticky top-0 z-30 w-[140px] bg-sky-700 text-white font-semibold border-b-4 border-sky-300"
+            style="left: 260px;"
+          >
             RUT
           </th>
 
-          <th class="sticky top-0 bg-white z-10 w-[160px]">Situación</th>
-          <th class="sticky top-0 bg-white z-10 w-[160px]">Año Seguimiento</th>
-          <th class="sticky top-0 bg-white z-10 w-[180px]">Año Ingreso Laboral</th>
-          <th class="sticky top-0 bg-white z-10 w-[170px]">Empresa</th>
-          <th class="sticky top-0 bg-white z-10 w-[170px]">Cargo</th>
-          <th class="sticky top-0 bg-white z-10 w-[150px] text-center">Sueldo</th>
-          <th class="sticky top-0 bg-white z-10 w-[140px] text-center">Teléfono</th>
-          <th class="sticky top-0 bg-white z-10 w-[190px] text-center">Email</th>
-          <th class="sticky top-0 bg-white z-10 w-[140px] text-center">Archivos</th>
-          <th class="sticky top-0 bg-white z-10 w-[120px] text-center">Acciones</th>
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[160px]">
+            Situación
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[160px]">
+            Año Seguimiento
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[180px]">
+            Año Ingreso Laboral
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[170px]">
+            Empresa
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[170px]">
+            Cargo
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[150px] text-center">
+            Sueldo
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[140px] text-center">
+            Teléfono
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[190px] text-center">
+            Email
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[140px] text-center">
+            Archivos
+          </th>
+
+          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[120px] text-center">
+            Acciones
+          </th>
         </tr>
       </ng-template>
 
@@ -705,6 +779,64 @@
         </tr>
       </ng-template>
     </p-table>
+  </div>
+
+  <!-- ✅✅✅ ESTADÍSTICAS (DONUTS) ABAJO DE LA TABLA -->
+  <div class="mt-8">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-bold text-sky-700">📊 Estadísticas</h3>
+      <span class="text-xs text-gray-500">Basado en todos los registros</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Donut: Situación -->
+      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
+        <div class="flex items-center justify-between mb-3">
+          <p class="font-semibold text-gray-700">Distribución por situación</p>
+          <span class="text-xs text-gray-500">Global</span>
+        </div>
+
+        <div class="h-[260px]">
+          <p-chart
+            type="doughnut"
+            [data]="donutSituacionData"
+            [options]="donutOptions"
+          ></p-chart>
+        </div>
+      </div>
+
+      <!-- Donut: Documentos -->
+      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
+        <div class="flex items-center justify-between mb-3">
+          <p class="font-semibold text-gray-700">Egresados con documentos</p>
+          <span class="text-xs text-gray-500">Con / Sin</span>
+        </div>
+
+        <div class="h-[260px]">
+          <p-chart
+            type="doughnut"
+            [data]="donutDocsData"
+            [options]="donutOptions"
+          ></p-chart>
+        </div>
+      </div>
+
+      <!-- Donut: % por Año Seguimiento -->
+      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
+        <div class="flex items-center justify-between mb-3">
+          <p class="font-semibold text-gray-700">% por año (seguimiento)</p>
+          <span class="text-xs text-gray-500">Top años</span>
+        </div>
+
+        <div class="h-[260px]">
+          <p-chart
+            type="doughnut"
+            [data]="donutAnioData"
+            [options]="donutOptions"
+          ></p-chart>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 

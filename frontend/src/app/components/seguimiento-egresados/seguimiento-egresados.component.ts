@@ -11,6 +11,16 @@ import {
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 
+// ✅ NUEVO: animaciones Angular
+import {
+  trigger,
+  transition,
+  style,
+  animate,
+  query,
+  stagger,
+} from '@angular/animations';
+
 import { CardModule } from 'primeng/card';
 import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
@@ -20,12 +30,15 @@ import { ButtonModule } from 'primeng/button';
 import { ToastModule } from 'primeng/toast';
 import { MessageService, ConfirmationService } from 'primeng/api';
 
-import { TableModule } from 'primeng/table';
+import { TableModule, Table } from 'primeng/table'; // ✅ + Table
 import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { SidebarModule } from 'primeng/sidebar';
+
+// ✅ NUEVO: charts
+import { ChartModule } from 'primeng/chart';
 
 import {
   EgresadosService,
@@ -67,12 +80,55 @@ interface PlanDTO {
     ConfirmDialogModule,
     DialogModule,
     SidebarModule,
+    ChartModule, // ✅ NUEVO
   ],
   templateUrl: './seguimiento-egresados.component.html',
-  styleUrls: ['./seguimiento-egresados.component.css'], // ✅ estándar Angular
+  styleUrls: ['./seguimiento-egresados.component.css'],
+  // ✅ NUEVO: triggers que estás usando en el HTML (para que no desaparezca nada)
+  animations: [
+    trigger('pageEnter', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(10px)' }),
+        animate('320ms ease-out', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+    ]),
+
+    trigger('fadeHeader', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(-6px)' }),
+        animate('260ms ease-out', style({ opacity: 1, transform: 'translateY(0)' })),
+      ]),
+    ]),
+
+    trigger('cardsStagger', [
+      transition(':enter', [
+        query('@cardItem', stagger(70, animateChild()), { optional: true }),
+      ]),
+      transition('* => *', [
+        query('@cardItem', stagger(70, animateChild()), { optional: true }),
+      ]),
+    ]),
+
+    trigger('cardItem', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateY(8px) scale(0.98)' }),
+        animate('260ms ease-out', style({ opacity: 1, transform: 'translateY(0) scale(1)' })),
+      ]),
+    ]),
+
+    trigger('sidebarStagger', [
+      transition(':enter', [
+        style({ opacity: 0, transform: 'translateX(10px)' }),
+        animate('220ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
+      ]),
+    ]),
+  ],
 })
 export class SeguimientoEgresadosComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+
+  // ✅ Puedes dejarlo aunque el resumen sea global (no afecta)
+  @ViewChild('dt') dt!: Table;
 
   formulario!: FormGroup;
 
@@ -91,16 +147,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
   modalDocsVisible = false;
   documentosModal: any[] = [];
 
-  // ✅ Modal de filtros
   modalFiltrosVisible: boolean = false;
-
-  // ✅ Valores temporales de filtros (between)
   filtroValores: Record<string, any> = {};
 
-  // ✅ Config filtros (render en HTML)
   filtrosConfig = [
     { label: 'Situación', field: 'situacionActual', type: 'dropdown' },
-
     {
       label: 'Año Seguimiento',
       field: 'anioSeguimiento',
@@ -115,10 +166,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
       placeholderMin: 'Desde',
       placeholderMax: 'Hasta',
     },
-
     { label: 'Empresa', field: 'empresa', type: 'text', placeholder: 'Ej: Google' },
     { label: 'Cargo', field: 'cargo', type: 'text', placeholder: 'Ej: Ingeniero' },
-
     {
       label: 'Sueldo (CLP)',
       field: 'sueldo',
@@ -126,7 +175,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       placeholderMin: 'Min',
       placeholderMax: 'Max',
     },
-
     { label: 'Teléfono', field: 'telefono', type: 'text', placeholder: 'Ej: +56 9 12345678' },
     { label: 'Email', field: 'emailContacto', type: 'text', placeholder: 'Ej: nombre@dominio.cl' },
   ];
@@ -159,7 +207,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
   private readonly LINKEDIN_REGEX =
     /^https?:\/\/(www\.)?linkedin\.com\/(in|company)\/[A-Za-z0-9-_%]+\/?(\?.*)?$/i;
 
-  // ✅ Años lógicos
   readonly CURRENT_YEAR = new Date().getFullYear();
   readonly MIN_ANIO_INGRESO = 1980;
   readonly MAX_ANIO_INGRESO = this.CURRENT_YEAR;
@@ -170,6 +217,21 @@ export class SeguimientoEgresadosComponent implements OnInit {
   rutDuplicadoNuevo = false;
   rutDuplicadoExistente = false;
   anioIngresoInvalidoNuevo = false;
+
+  // ✅ Tarjetas arriba de la tabla (GLOBAL)
+  stats = {
+    total: 0,
+    trabajando: 0,
+    cesante: 0,
+    estudiando: 0,
+    otro: 0,
+  };
+
+  // ✅ NUEVO: charts (donuts + % por año)
+  donutSituacionData: any;
+  donutDocsData: any;
+  donutAnioData: any; // % egresados por año (anioSeguimiento)
+  donutOptions: any;
 
   constructor(
     private fb: FormBuilder,
@@ -213,7 +275,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
         cargo: [''],
         sueldo: [null],
 
-        // ✅ Año ingreso laboral: SOLO rango lógico
         anioIngresoLaboral: [
           null,
           [
@@ -252,9 +313,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     );
   }
 
-  // ✅ Reglas cruzadas:
-  // 1) Año seguimiento >= año egreso
-  // 2) Año ingreso laboral >= año egreso (si se ingresó)
   private validarReglasCruzadas(): ValidatorFn {
     return (control: AbstractControl) => {
       const group = control as FormGroup;
@@ -435,6 +493,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.egresadosService.findAll().subscribe({
       next: (data: any[]) => {
         this.egresados = data;
+
+        // ✅ GLOBAL: siempre con todos los registros (no depende de filtros/búsqueda)
+        this.recalcularStats(this.egresados);
+
+        // ✅ NUEVO: charts globales
+        this.actualizarChartsGlobal(this.egresados);
+
         this.loading = false;
       },
       error: (err: any) => {
@@ -904,7 +969,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   formatCLP(valor: number): string {
-    // ✅ se mantiene tu lógica “tal cual”
     if (!valor) return '-';
     return valor.toLocaleString('es-CL');
   }
@@ -934,11 +998,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.drawerFormulario = true;
   }
 
-  /**
-   * ✅ NECESARIO para el HTML:
-   * Maneja cambios en filtros tipo rango (between) desde el modal,
-   * evitando lógica compleja en el template.
-   */
   onRangoFiltroChange(dt: any, field: string, tipo: 'min' | 'max', valor: any) {
     if (!dt) return;
 
@@ -954,4 +1013,145 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
     dt.filter([min, max], field, 'between');
   }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // ✅ Estadísticas GLOBAL para tarjetas
+  // ──────────────────────────────────────────────────────────────────────────
+  private normalizarSituacionStats(valor: any): string {
+    return (valor ?? '').toString().trim().toLowerCase();
+  }
+
+  private recalcularStats(lista: any[]) {
+    const arr = Array.isArray(lista) ? lista : [];
+
+    const total = arr.length;
+
+    const trabajando = arr.filter(
+      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'trabajando'
+    ).length;
+
+    const cesante = arr.filter(
+      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'cesante'
+    ).length;
+
+    const estudiando = arr.filter(
+      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'estudiando'
+    ).length;
+
+    const otro = arr.filter(
+      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'otro'
+    ).length;
+
+    this.stats = { total, trabajando, cesante, estudiando, otro };
+  }
+
+  // ✅ Se deja por compatibilidad, pero NO afecta filtros: siempre recalcula GLOBAL
+  onTableFilter() {
+    this.recalcularStats(this.egresados);
+    this.actualizarChartsGlobal(this.egresados);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // ✅ NUEVO: Charts GLOBAL (donuts)
+  //   - Situación
+  //   - Documentos (con/sin)
+  //   - % por Año (anioSeguimiento) -> top años
+  // ──────────────────────────────────────────────────────────────────────────
+  private actualizarChartsGlobal(lista: any[]) {
+    const arr = Array.isArray(lista) ? lista : [];
+
+    // Options premium
+    this.donutOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { usePointStyle: true, boxWidth: 8 },
+        },
+        tooltip: { enabled: true },
+      },
+    };
+
+    // Donut: Situación
+    this.donutSituacionData = {
+      labels: ['Trabajando', 'Cesante', 'Estudiando', 'Otro'],
+      datasets: [
+        {
+          data: [
+            this.stats.trabajando,
+            this.stats.cesante,
+            this.stats.estudiando,
+            this.stats.otro,
+          ],
+          backgroundColor: ['#047857', '#E11D48', '#0E7490', '#D97706'],
+          hoverBackgroundColor: ['#059669', '#F43F5E', '#0891B2', '#F59E0B'],
+          borderColor: '#ffffff',
+          borderWidth: 2,
+        },
+      ],
+    };
+
+    // Donut: Documentos (con/sin)
+    const conDocs = arr.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
+    const sinDocs = arr.length - conDocs;
+
+    this.donutDocsData = {
+      labels: ['Con documentos', 'Sin documentos'],
+      datasets: [
+        {
+          data: [conDocs, sinDocs],
+          backgroundColor: ['#0369A1', '#CBD5E1'],
+          hoverBackgroundColor: ['#0284C7', '#E2E8F0'],
+          borderColor: '#ffffff',
+          borderWidth: 2,
+        },
+      ],
+    };
+
+    // Donut: % egresados por Año (anioSeguimiento)
+    const conteoPorAnio = new Map<number, number>();
+    for (const x of arr) {
+      const yRaw = x?.anioSeguimiento;
+      const y = typeof yRaw === 'number' ? yRaw : parseInt(yRaw, 10);
+      if (!Number.isFinite(y)) continue;
+      conteoPorAnio.set(y, (conteoPorAnio.get(y) ?? 0) + 1);
+    }
+
+    const pares = Array.from(conteoPorAnio.entries()).sort((a, b) => b[0] - a[0]); // año desc
+
+    const top = pares.slice(0, 6);
+    const otros = pares.slice(6);
+
+    const labelsAnios = top.map(([anio]) => anio.toString());
+    const countsAnios = top.map(([, c]) => c);
+
+    if (otros.length > 0) {
+      const sumOtros = otros.reduce((acc, [, c]) => acc + c, 0);
+      labelsAnios.push('Otros');
+      countsAnios.push(sumOtros);
+    }
+
+    const total = arr.length || 1;
+    const porcentajes = countsAnios.map((c) => Math.round((c / total) * 100));
+
+    const palette = ['#0F766E', '#2563EB', '#7C3AED', '#DB2777', '#EA580C', '#16A34A', '#64748B'];
+
+    this.donutAnioData = {
+      labels: labelsAnios.map((l, idx) => `${l} (${porcentajes[idx]}%)`),
+      datasets: [
+        {
+          data: countsAnios,
+          backgroundColor: labelsAnios.map((_, i) => palette[i % palette.length]),
+          hoverBackgroundColor: labelsAnios.map((_, i) => palette[i % palette.length]),
+          borderColor: '#ffffff',
+          borderWidth: 2,
+        },
+      ],
+    };
+  }
 }
+
+// ✅ helper requerido por animateChild() en cardsStagger
+import { animateChild } from '@angular/animations';

@@ -91,6 +91,62 @@ export class SeguimientoEgresadosComponent implements OnInit {
   modalDocsVisible = false;
   documentosModal: any[] = [];
 
+  // ✅✅✅ Modal de filtros (para el botón "Filtros" del listado)
+  modalFiltrosVisible: boolean = false;
+
+  // ✅✅✅ Valores temporales de filtros (para rangos tipo between)
+  // Ej: filtroValores['sueldo'] = { min: 100000, max: 900000 }
+  filtroValores: Record<string, any> = {};
+
+  // ✅✅✅ Config de filtros (se renderiza en HTML con *ngFor -> no es manual)
+  filtrosConfig = [
+    { label: 'Situación', field: 'situacionActual', type: 'dropdown' },
+
+    {
+      label: 'Año Seguimiento',
+      field: 'anioSeguimiento',
+      type: 'range-number',
+      placeholderMin: 'Desde',
+      placeholderMax: 'Hasta',
+    },
+    {
+      label: 'Año Ingreso Laboral',
+      field: 'anioIngresoLaboral',
+      type: 'range-number',
+      placeholderMin: 'Desde',
+      placeholderMax: 'Hasta',
+    },
+
+    {
+      label: 'Empresa',
+      field: 'empresa',
+      type: 'text',
+      placeholder: 'Ej: Google',
+    },
+    { label: 'Cargo', field: 'cargo', type: 'text', placeholder: 'Ej: Ingeniero' },
+
+    {
+      label: 'Sueldo (CLP)',
+      field: 'sueldo',
+      type: 'range-number',
+      placeholderMin: 'Min',
+      placeholderMax: 'Max',
+    },
+
+    {
+      label: 'Teléfono',
+      field: 'telefono',
+      type: 'text',
+      placeholder: 'Ej: +56 9 12345678',
+    },
+    {
+      label: 'Email',
+      field: 'emailContacto',
+      type: 'text',
+      placeholder: 'Ej: nombre@dominio.cl',
+    },
+  ];
+
   drawerFormulario: boolean = false;
 
   planes: PlanDTO[] = [];
@@ -173,7 +229,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         cargo: [''],
         sueldo: [null],
 
-        // ✅✅✅ Año ingreso laboral: SOLO rango lógico (sin relación con año seguimiento)
+        // ✅ Año ingreso laboral: SOLO rango lógico (sin relación con año seguimiento)
         anioIngresoLaboral: [
           null,
           [
@@ -207,13 +263,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
         contactoAlternativo: ['', [Validators.maxLength(120)]],
       },
       {
-        // ✅✅✅ Validaciones cruzadas (SIN relación ingreso laboral vs seguimiento)
+        // ✅ Validaciones cruzadas
         validators: [this.validarReglasCruzadas()],
       }
     );
   }
 
-  // ✅✅✅ Reglas cruzadas:
+  // ✅ Reglas cruzadas:
   // 1) Año seguimiento >= año egreso
   // 2) Año ingreso laboral >= año egreso (si se ingresó)
   private validarReglasCruzadas(): ValidatorFn {
@@ -894,6 +950,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   formatCLP(valor: number): string {
+    // Se deja tal cual tu lógica para "no afectar nada"
     if (!valor) return '-';
     return valor.toLocaleString('es-CL');
   }
@@ -921,5 +978,24 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   irAlFormulario() {
     this.drawerFormulario = true;
+  }
+
+  /**
+   * ✅ NUEVO: Maneja cambios en filtros tipo rango (between) desde el modal,
+   * evitando lógica compleja en el template (Angular no permite spreads/asignaciones con ';').
+   */
+  onRangoFiltroChange(dt: any, field: string, tipo: 'min' | 'max', valor: any) {
+    // PrimeNG InputNumber suele entregar number | null
+    const v = valor === '' || valor === undefined ? null : valor;
+
+    this.filtroValores[field] = {
+      ...(this.filtroValores[field] || {}),
+      [tipo]: v,
+    };
+
+    const min = this.filtroValores[field]?.min ?? null;
+    const max = this.filtroValores[field]?.max ?? null;
+
+    dt.filter([min, max], field, 'between');
   }
 }

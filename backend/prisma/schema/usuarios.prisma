@@ -13,4 +13,5 @@ enum ROLE {
   CoordinadorPractica
   Secretario
   Docente
+  Estudiante
 }

@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 model Egresado {
   idEgresado   Int @id @default(autoincrement())
   idEstudiante Int @unique
@@ -36,3 +37,6 @@ model DocumentoEgresado {
 
   @@index([idEgresado])
 }
+=======
+
+>>>>>>> Stashed changes

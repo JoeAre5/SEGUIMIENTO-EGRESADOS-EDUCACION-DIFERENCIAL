@@ -1,6 +1,6 @@
 model PracticaTomada {
   fechaInicio          DateTime         @db.Date
-  fechaTermino         DateTime?        @db.Date
+  fechaTermino         DateTime         @default(now()) @db.Date
   resultadoDiagnostico Json
   resultado            EstadoAprobacion @default(APROBADO)
   idPlan               Int

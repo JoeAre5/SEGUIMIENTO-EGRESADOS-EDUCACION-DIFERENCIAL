@@ -70,25 +70,18 @@ export class EgresadosService {
     idEstudiante: number,
     dto: UpdateEgresadoDto
   ): Observable<any> {
-    return this.http.patch<any>(
-      `${this.apiUrl}/estudiante/${idEstudiante}`,
-      dto
-    );
+    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, dto);
   }
 
   /* ===========================
    ✅ UPDATE CON ARCHIVOS ✅
    ✅ PATCH /egresados/estudiante/:idEstudiante
-   ✅ Sirve para agregar documentos sin borrar los anteriores
   =========================== */
   updateWithFilesByEstudiante(
     idEstudiante: number,
     formData: FormData
   ): Observable<any> {
-    return this.http.patch<any>(
-      `${this.apiUrl}/estudiante/${idEstudiante}`,
-      formData
-    );
+    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, formData);
   }
 
   /* ===========================
@@ -120,5 +113,41 @@ export class EgresadosService {
   =========================== */
   deleteDocumento(idDocumento: number): Observable<any> {
     return this.http.delete<any>(`${this.apiUrl}/documento/${idDocumento}`);
+  }
+
+  /* ===========================
+   ✅ LISTAR PLANES DE ESTUDIO ✅
+   ✅ GET /planes-de-estudio
+  =========================== */
+  getPlanesEstudio(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiFilesUrl}/planes-de-estudio`);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // ✅ NUEVO: ENDPOINTS PARA ESTUDIANTE (token)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * ✅ GET /egresados/mi-seguimiento
+   * Retorna el egresado del estudiante autenticado (por token).
+   */
+  getMiSeguimiento(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/mi-seguimiento`);
+  }
+
+  /**
+   * ✅ PATCH /egresados/mi-seguimiento
+   * Actualiza SOLO TEXTO del seguimiento del estudiante autenticado.
+   */
+  updateMiSeguimiento(dto: UpdateEgresadoDto): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/mi-seguimiento`, dto);
+  }
+
+  /**
+   * ✅ PATCH /egresados/mi-seguimiento/files
+   * Actualiza seguimiento + agrega archivos (sin borrar anteriores).
+   */
+  updateMiSeguimientoFiles(formData: FormData): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/mi-seguimiento/files`, formData);
   }
 }

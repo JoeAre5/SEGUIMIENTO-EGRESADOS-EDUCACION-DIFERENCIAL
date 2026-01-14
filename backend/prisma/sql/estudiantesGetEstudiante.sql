@@ -1,13 +1,17 @@
-SELECT distinct
-    e."nombreCompleto",
-    e."rut",
-    e."agnioIngreso",
-    p."titulo" as "plan",
-    avg("notaFinal") over (partition by e."rut") as promedio
+SELECT
+  e."nombreCompleto",
+  e."rut",
+  e."agnioIngreso",
+  p."titulo" AS "plan",
+  (
+    SELECT AVG(c."notaFinal")
+    FROM "Cursacion" c
+    WHERE c."idEstudiante" = e."idEstudiante"
+  ) AS "promedio"
 FROM "Estudiante" e
-JOIN "Cursacion" c ON e."idEstudiante" = c."idEstudiante"
 JOIN "Plan" p ON e."idPlan" = p."idPlan"
-WHERE e."idEstudiante" = $1;
+WHERE e."idEstudiante" = $1
+LIMIT 1;
 
 --MIGRADO A NUEVO MODELO
 

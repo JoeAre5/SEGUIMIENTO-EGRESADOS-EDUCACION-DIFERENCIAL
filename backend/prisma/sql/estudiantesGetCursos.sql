@@ -1,18 +1,20 @@
 SELECT
-    a."idAsignatura",
-    a."codigo",
-    a."nombre",
-    a."areaFormacion",
-    c."agnio",
-    c."semestreRelativo",
-    c."numIntento",
-    c."notaFinal",
-    "Estudiante"."rut"
+  a."idAsignatura",
+  a."codigo",
+  a."nombre",
+  a."areaFormacion",
+  c."agnio",
+  c."semestreRelativo",
+  c."numIntento",
+  c."notaFinal"
 FROM "Cursacion" c
-         JOIN "Asignatura" a using ("idPlan","idAsignatura")
-         JOIN "Estudiante" using ("idEstudiante")
-WHERE "rut" = $1
-ORDER BY "agnio", "semestreRelativo" DESC
+JOIN "Estudiante" e ON e."idEstudiante" = c."idEstudiante"
+JOIN "Asignatura" a
+  ON a."idPlan" = c."idPlan"
+ AND a."idAsignatura" = c."idAsignatura"
+WHERE e."rut" = $1
+ORDER BY c."agnio" DESC, c."semestreRelativo" DESC;
+
 
 --MIGRADO A NUEVO MODELO
 

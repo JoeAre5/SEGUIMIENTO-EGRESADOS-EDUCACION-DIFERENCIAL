@@ -84,8 +84,14 @@ export class SeguimientoEgresadosComponent implements OnInit {
   modalDocsVisible = false;
   documentosModal: any[] = [];
 
-  // ✅ Drawer / Sidebar (solo variable lista si luego lo usas)
+  // ✅ Drawer / Sidebar
   drawerFormulario: boolean = false;
+
+  // ─────────────────────────────────────────────
+  // ✅ NUEVO: modo “ESTUDIANTE”
+  // ─────────────────────────────────────────────
+  esEstudiante: boolean = false; // si true: solo ve su formulario
+  estudianteIdToken: number | null = null;
 
   situaciones = [
     { label: 'Trabajando', value: 'Trabajando' },
@@ -117,8 +123,139 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // ✅ Detectar rol desde token (sin depender de otros servicios)
+    this.detectarModoEstudianteDesdeToken();
+
+    if (this.esEstudiante) {
+      // ✅ Estudiante: solo cargar su seguimiento
+      this.drawerFormulario = true; // opcional: para que se vea el formulario directo si usas sidebar
+      this.cargarMiSeguimiento();
+      return;
+    }
+
+    // ✅ Otros roles: mantener comportamiento actual
     this.cargarEgresados();
     this.cargarEstudiantes();
+  }
+
+  // ─────────────────────────────────────────────
+  // ✅ NUEVO: token helpers (no afecta lo existente)
+  // ─────────────────────────────────────────────
+
+  private detectarModoEstudianteDesdeToken() {
+    try {
+      const token = sessionStorage.getItem('token');
+      if (!token) return;
+
+      const payload = this.decodeJwtPayload(token);
+      const role = payload?.role;
+
+      this.esEstudiante = role === 'ESTUDIANTE';
+
+      // tu AuthService agrega estudianteId al token
+      const estudianteId = payload?.estudianteId;
+      this.estudianteIdToken =
+        typeof estudianteId === 'number' ? estudianteId : null;
+    } catch {
+      // si falla, no bloqueamos nada
+      this.esEstudiante = false;
+      this.estudianteIdToken = null;
+    }
+  }
+
+  private decodeJwtPayload(token: string): any | null {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+
+    return JSON.parse(jsonPayload);
+  }
+
+  // ✅ Cargar seguimiento del estudiante autenticado
+  private cargarMiSeguimiento() {
+    this.loading = true;
+    this.existeSeguimiento = false;
+    this.documentosExistentes = [];
+    this.formulario.reset({ anioSeguimiento: 2026 });
+
+    this.egresadosService.getMiSeguimiento().subscribe({
+      next: (egresado: any) => {
+        // viene directo el egresado (o {} si no existe, según tu backend)
+        const eg = egresado?.data ? egresado.data : egresado;
+
+        // Si backend retorna null o {}, lo tratamos como “no existe”
+        if (!eg || Object.keys(eg).length === 0) {
+          this.existeSeguimiento = false;
+          this.loading = false;
+
+          this.messageService.add({
+            severity: 'info',
+            summary: 'Seguimiento',
+            detail:
+              '📌 Aún no tienes seguimiento creado. Completa el formulario y guarda.',
+          });
+          return;
+        }
+
+        this.existeSeguimiento = true;
+
+        const fechaDate = eg.fechaEgreso ? new Date(eg.fechaEgreso) : null;
+
+        this.formulario.patchValue({
+          fechaEgreso: fechaDate,
+          situacionActual: this.normalizarSituacion(eg.situacionActual),
+          empresa: eg.empresa ?? '',
+          cargo: eg.cargo ?? '',
+          sueldo: eg.sueldo ?? null,
+          anioIngresoLaboral: eg.anioIngresoLaboral ?? null,
+          anioSeguimiento: eg.anioSeguimiento ?? 2026,
+          telefono: eg.telefono ?? '',
+          emailContacto: eg.emailContacto ?? '',
+          linkedin: eg.linkedin ?? '',
+          direccion: eg.direccion ?? '',
+          contactoAlternativo: eg.contactoAlternativo ?? '',
+        });
+
+        this.documentosExistentes = eg.documentos || [];
+
+        // ✅ opcional: mostrar datos del estudiante en el dropdown (aunque el estudiante no debe elegir)
+        if (eg?.Estudiante) {
+          this.estudianteSeleccionado = {
+            idEstudiante: this.estudianteIdToken ?? 0,
+            nombreCompleto: eg.Estudiante.nombreCompleto,
+            rut: eg.Estudiante.rut,
+            agnioIngreso: eg.Estudiante?.agnioIngreso,
+          };
+          this.modoEstudiante = 'existente';
+        }
+
+        this.loading = false;
+
+        this.messageService.add({
+          severity: 'success',
+          summary: 'Datos cargados',
+          detail: '✅ Tu seguimiento fue cargado correctamente.',
+        });
+      },
+      error: (err: any) => {
+        console.error('❌ ERROR MI SEGUIMIENTO:', err);
+        this.loading = false;
+
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: '❌ No se pudo cargar tu seguimiento (token o permisos).',
+        });
+      },
+    });
   }
 
   crearFormulario() {
@@ -172,6 +309,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   // ✅ AUTO-RELLENO AL SELECCIONAR ESTUDIANTE
   onEstudianteChange() {
+    // ✅ si es estudiante, NO debe usar este flujo (ya usa miSeguimiento)
+    if (this.esEstudiante) return;
+
     this.existeSeguimiento = false;
     this.documentosExistentes = [];
 
@@ -244,6 +384,105 @@ export class SeguimientoEgresadosComponent implements OnInit {
   // ✅ Guardar sin duplicar y con archivos en PATCH
   guardar() {
     this.intentoGuardar = true;
+
+    // ─────────────────────────────────────────────
+    // ✅ NUEVO: flujo ESTUDIANTE (solo su propio seguimiento)
+    // ─────────────────────────────────────────────
+    if (this.esEstudiante) {
+      if (this.formulario.invalid) {
+        this.formulario.markAllAsTouched();
+        return;
+      }
+
+      // si NO hay archivos -> PATCH texto
+      if (this.documentosSeleccionados.length === 0) {
+        const dto: UpdateEgresadoDto = {
+          ...this.formulario.value,
+          fechaEgreso: this.formulario.value.fechaEgreso
+            ? new Date(this.formulario.value.fechaEgreso)
+                .toISOString()
+                .split('T')[0]
+            : undefined,
+        };
+
+        this.egresadosService.updateMiSeguimiento(dto).subscribe({
+          next: () => {
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Guardado',
+              detail: '✅ Tu seguimiento fue actualizado correctamente.',
+            });
+            this.limpiarInputArchivos();
+            this.cargarMiSeguimiento();
+          },
+          error: (err: any) => {
+            console.error('❌ ERROR GUARDAR MI SEGUIMIENTO:', err);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error al guardar',
+              detail:
+                err?.error?.message || err?.message || '❌ No se pudo guardar.',
+            });
+          },
+        });
+
+        return;
+      }
+
+      // si HAY archivos -> PATCH files
+      const formData = new FormData();
+
+      const fecha = this.formulario.value.fechaEgreso;
+      const fechaFormateada = fecha
+        ? new Date(fecha).toISOString().split('T')[0]
+        : '';
+
+      if (fechaFormateada) {
+        formData.append('fechaEgreso', fechaFormateada);
+      }
+
+      Object.entries(this.formulario.value).forEach(([key, value]) => {
+        if (
+          key !== 'fechaEgreso' &&
+          value !== null &&
+          value !== undefined &&
+          value !== ''
+        ) {
+          formData.append(key, value.toString());
+        }
+      });
+
+      this.documentosSeleccionados.forEach((file) =>
+        formData.append('documentos', file)
+      );
+
+      this.egresadosService.updateMiSeguimientoFiles(formData).subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Guardado',
+            detail: '✅ Seguimiento actualizado + documentos agregados.',
+          });
+          this.limpiarInputArchivos();
+          this.cargarMiSeguimiento();
+        },
+        error: (err: any) => {
+          console.error('❌ ERROR GUARDAR MI SEGUIMIENTO FILES:', err);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error al guardar',
+            detail:
+              err?.error?.message || err?.message || '❌ No se pudo guardar.',
+          });
+        },
+      });
+
+      return;
+    }
+
+    // ─────────────────────────────────────────────
+    // ✅ FLUJO ORIGINAL (NO ESTUDIANTE): se mantiene intacto
+    // ─────────────────────────────────────────────
 
     if (this.modoEstudiante === 'existente' && !this.estudianteSeleccionado) {
       this.messageService.add({
@@ -389,7 +628,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
               detail: '✅ Documento eliminado correctamente.',
             });
 
-            this.cargarEgresados();
+            // ✅ si es estudiante, recarga su seguimiento; si no, recarga tabla
+            if (this.esEstudiante) this.cargarMiSeguimiento();
+            else this.cargarEgresados();
 
             if (this.modalDocsVisible && this.documentosModal.length === 0) {
               this.modalDocsVisible = false;
@@ -426,6 +667,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   volverMenu() {
+    // ✅ si es estudiante, no debería ir a /menu
+    if (this.esEstudiante) {
+      this.router.navigateByUrl('/seguimiento-egresados');
+      return;
+    }
     this.router.navigateByUrl('/menu');
   }
 
@@ -440,6 +686,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   eliminar(egresado: any) {
+    // ✅ estudiante no debería eliminar registros completos desde frontend
+    if (this.esEstudiante) return;
+
     this.confirmationService.confirm({
       message: `¿Seguro que deseas eliminar el seguimiento de ${egresado.Estudiante?.nombreCompleto}?`,
       header: 'Confirmar eliminación',
@@ -489,6 +738,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   abrirEdicion(egresado: any) {
+    // ✅ estudiante no debería editar desde tabla
+    if (this.esEstudiante) return;
+
     this.estudianteSeleccionado = egresado.Estudiante;
     this.onEstudianteChange();
     window.scrollTo({ top: 0, behavior: 'smooth' });

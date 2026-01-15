@@ -1,29 +1,33 @@
 model Egresado {
-  idEgresado          Int       @id @default(autoincrement())
-  idEstudiante        Int       @unique
+  idEgresado   Int @id @default(autoincrement())
+  idEstudiante Int @unique
 
-  // Datos del seguimiento
-  fechaEgreso         DateTime  @db.Date
-  situacionActual     String
+  // ✅ ya NO obligatoria
+  fechaEgreso DateTime? @db.Date
+
+  // ✅ solo opciones en DTO (BD puede quedar opcional)
+  situacionActual     String?
+  situacionActualOtro String?
+
+  // (resto de tus campos existentes)
   empresa             String?
   cargo               String?
   sueldo              Int?
+  nivelRentas         String?
   anioIngresoLaboral  Int?
-  anioSeguimiento     Int       @default(2026)
+  anioSeguimiento     Int?
 
-  // ✅ Datos de contacto (Opción B)
   telefono            String?
   emailContacto       String?
   direccion           String?
   linkedin            String?
   contactoAlternativo String?
 
-  // Documentos asociados
-  documentos          DocumentoEgresado[]
-
-  // Relación 1 a 1 con Estudiante
-  Estudiante          Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
+  documentos DocumentoEgresado[]
+  Estudiante Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
 }
+
+
 
 model DocumentoEgresado {
   idDocumento   Int      @id @default(autoincrement())

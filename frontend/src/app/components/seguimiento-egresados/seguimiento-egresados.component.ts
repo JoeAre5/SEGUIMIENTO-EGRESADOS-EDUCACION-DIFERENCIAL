@@ -38,6 +38,9 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
 import { SidebarModule } from 'primeng/sidebar';
 
+// ✅ RadioButtons (nuevo)
+import { RadioButtonModule } from 'primeng/radiobutton';
+
 // ✅ Charts
 import { ChartModule } from 'primeng/chart';
 
@@ -84,6 +87,7 @@ interface PlanDTO {
     DialogModule,
     SidebarModule,
     ChartModule,
+    RadioButtonModule, // ✅ necesario para <p-radioButton>
   ],
   templateUrl: './seguimiento-egresados.component.html',
   styleUrls: ['./seguimiento-egresados.component.css'],
@@ -180,6 +184,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
     },
     { label: 'Empresa', field: 'empresa', type: 'text', placeholder: 'Ej: Google' },
     { label: 'Cargo', field: 'cargo', type: 'text', placeholder: 'Ej: Ingeniero' },
+    // ⚠️ mantenemos sueldo en filtros/tabla para no romper nada existente
     {
       label: 'Sueldo (CLP)',
       field: 'sueldo',
@@ -202,11 +207,19 @@ export class SeguimientoEgresadosComponent implements OnInit {
   // ✅ IMPORTANTE: debe ser PUBLIC para usarse en el template
   public planOriginalId: number | null = null;
 
+  // ✅ Situaciones (solo 3 como pediste)
   situaciones = [
     { label: 'Trabajando', value: 'Trabajando' },
     { label: 'Cesante', value: 'Cesante' },
-    { label: 'Estudiando', value: 'Estudiando' },
     { label: 'Otro', value: 'Otro' },
+  ];
+
+  // ✅ Nivel de rentas (radios)
+  nivelRentasOpciones = [
+    'Sueldo mínimo ($500.000)',
+    'Entre $500.001 y $1.000.000',
+    'Entre $1.000.001 y $1.500.000',
+    'Más de $1.500.001',
   ];
 
   intentoGuardar: boolean = false;
@@ -240,7 +253,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     total: 0,
     trabajando: 0,
     cesante: 0,
-    estudiando: 0,
     otro: 0,
   };
 
@@ -289,10 +301,21 @@ export class SeguimientoEgresadosComponent implements OnInit {
         planEstudios: [{ value: '', disabled: true }],
 
         fechaEgreso: [null, Validators.required],
+
+        // ✅ ahora radios: Trabajando / Cesante / Otro
         situacionActual: [null, Validators.required],
+
+        // ✅ si situacionActual=Otro, se exige
+        situacionActualOtro: [''],
+
         empresa: [''],
         cargo: [''],
+
+        // ⚠️ mantenemos sueldo para no romper compatibilidad (tabla/filtros/back)
         sueldo: [null],
+
+        // ✅ NUEVO: nivel de rentas (radios)
+        nivelRentas: [null, Validators.required],
 
         anioIngresoLaboral: [
           null,
@@ -330,6 +353,21 @@ export class SeguimientoEgresadosComponent implements OnInit {
         validators: [this.validarReglasCruzadas()],
       }
     );
+
+    // ✅ Regla: si situacionActual != Otro => limpiar y quitar required
+    this.formulario.get('situacionActual')?.valueChanges.subscribe((v) => {
+      const otroCtrl = this.formulario.get('situacionActualOtro');
+      if (!otroCtrl) return;
+
+      if (v === 'Otro') {
+        otroCtrl.setValidators([Validators.required, Validators.maxLength(120)]);
+      } else {
+        otroCtrl.clearValidators();
+        otroCtrl.setValue('', { emitEvent: false });
+      }
+
+      otroCtrl.updateValueAndValidity({ emitEvent: false });
+    });
   }
 
   private validarReglasCruzadas(): ValidatorFn {
@@ -648,7 +686,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       next: (egresado: any) => {
         const eg = egresado?.data ? egresado.data : egresado;
 
-        // ✅ si no hay seguimiento, igual podrías querer setear plan desde estudiante (si lo tuvieras en DTO)
         if (!eg || Object.keys(eg).length === 0) {
           this.existeSeguimiento = false;
           this.documentosExistentes = [];
@@ -661,11 +698,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
         const fechaDate = eg.fechaEgreso ? new Date(eg.fechaEgreso) : null;
 
-        // ✅ toma plan actual desde egresado.Estudiante.Plan (lo que te devuelve backend)
         const plan = eg?.Estudiante?.Plan ?? null;
         const planTexto = this.construirPlanTextoDesdePlan(plan);
 
-        // ✅ idPlan para dropdown editable
         const idPlan = plan?.idPlan ?? eg?.Estudiante?.idPlan ?? null;
 
         this.planOriginalId = idPlan ? Number(idPlan) : null;
@@ -676,11 +711,17 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
           fechaEgreso: fechaDate,
           situacionActual: this.normalizarSituacion(eg.situacionActual),
+          situacionActualOtro: eg.situacionActualOtro ?? '',
+
           empresa: eg.empresa ?? '',
           cargo: eg.cargo ?? '',
-          sueldo: eg.sueldo ?? null,
+
+          sueldo: eg.sueldo ?? null, // compat
+          nivelRentas: eg.nivelRentas ?? null,
+
           anioIngresoLaboral: eg.anioIngresoLaboral ?? null,
           anioSeguimiento: eg.anioSeguimiento ?? 2026,
+
           telefono: eg.telefono ?? '',
           emailContacto: eg.emailContacto ?? '',
           linkedin: eg.linkedin ?? '',
@@ -722,10 +763,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   private actualizarPlanSiCambia$(idEstudiante: number): Observable<any> {
     const nuevoIdPlan = this.planSeleccionadoId ? Number(this.planSeleccionadoId) : null;
 
-    // si no hay selección (por seguridad) -> no hace nada
     if (!nuevoIdPlan) return of(null);
-
-    // si no cambió -> no hace nada
     if (this.planOriginalId && nuevoIdPlan === Number(this.planOriginalId)) return of(null);
 
     const dto: UpdateEstudianteDTO = { idPlan: nuevoIdPlan };
@@ -798,7 +836,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       return;
     }
 
-    // ✅ si es EXISTENTE: exigir plan seleccionado
     if (this.modoEstudiante === 'existente' && !this.planSeleccionadoId) {
       this.messageService.add({
         severity: 'warn',
@@ -825,9 +862,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
           this.estudianteSeleccionado = estudiante;
           const idEstudiante = estudiante.idEstudiante;
 
-          // ✅ 1) actualizar plan en BD (si cambió)
           return this.actualizarPlanSiCambia$(idEstudiante).pipe(
-            // ✅ 2) luego guarda/actualiza seguimiento (con o sin docs)
             switchMap(() => {
               if (this.existeSeguimiento) {
                 if (this.documentosSeleccionados.length === 0) {
@@ -861,7 +896,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
                 return this.egresadosService.updateWithFilesByEstudiante(idEstudiante, formData);
               }
 
-              // ✅ crear seguimiento
               const formData = new FormData();
               formData.append('idEstudiante', idEstudiante.toString());
 
@@ -967,7 +1001,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.existeSeguimiento = false;
     this.modoEstudiante = 'existente';
 
-    // ✅ reset plan editable
     this.planSeleccionadoId = null;
     this.planOriginalId = null;
 
@@ -1051,10 +1084,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
         return 'success';
       case 'Cesante':
         return 'danger';
-      case 'Estudiando':
-        return 'info';
       default:
-        return 'warning';
+        return 'warning'; // Otro
     }
   }
 
@@ -1112,15 +1143,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
       (x) => this.normalizarSituacionStats(x?.situacionActual) === 'cesante'
     ).length;
 
-    const estudiando = arr.filter(
-      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'estudiando'
-    ).length;
-
     const otro = arr.filter(
       (x) => this.normalizarSituacionStats(x?.situacionActual) === 'otro'
     ).length;
 
-    this.stats = { total, trabajando, cesante, estudiando, otro };
+    this.stats = { total, trabajando, cesante, otro };
   }
 
   private actualizarChartsGlobal(lista: any[]) {
@@ -1140,17 +1167,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
     };
 
     this.donutSituacionData = {
-      labels: ['Trabajando', 'Cesante', 'Estudiando', 'Otro'],
+      labels: ['Trabajando', 'Cesante', 'Otro'],
       datasets: [
         {
-          data: [
-            this.stats.trabajando,
-            this.stats.cesante,
-            this.stats.estudiando,
-            this.stats.otro,
-          ],
-          backgroundColor: ['#047857', '#E11D48', '#0E7490', '#D97706'],
-          hoverBackgroundColor: ['#059669', '#F43F5E', '#0891B2', '#F59E0B'],
+          data: [this.stats.trabajando, this.stats.cesante, this.stats.otro],
+          backgroundColor: ['#047857', '#E11D48', '#D97706'],
+          hoverBackgroundColor: ['#059669', '#F43F5E', '#F59E0B'],
           borderColor: '#ffffff',
           borderWidth: 2,
         },

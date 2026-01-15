@@ -14,10 +14,10 @@ export class EgresadosService {
   private parseFecha(fecha: string): Date {
     if (!fecha) return undefined;
 
-    // si ya viene ISO completo
+    // Si viene ISO completo (con T) lo parsea directo
     if (fecha.includes('T')) return new Date(fecha);
 
-    // si viene tipo 2020-05-20
+    // Si viene como "YYYY-MM-DD", lo convierte a ISO con hora 00:00
     return new Date(`${fecha}T00:00:00.000Z`);
   }
 
@@ -28,12 +28,14 @@ export class EgresadosService {
     dto.idEstudiante = Number(dto.idEstudiante);
     dto.fechaEgreso = dto.fechaEgreso?.toString();
 
-    const fechaConvertida = this.parseFecha(dto.fechaEgreso);
+    // ✅ fechaEgreso ya NO es obligatoria
+    const fechaConvertida = dto.fechaEgreso ? this.parseFecha(dto.fechaEgreso) : null;
 
     const existe = await this.prisma.egresado.findUnique({
       where: { idEstudiante: dto.idEstudiante },
     });
 
+    // ✅ Si ya existe, actualiza por estudiante (sin duplicar)
     if (existe) {
       return this.updateByEstudiante(dto.idEstudiante, dto as any, archivos);
     }
@@ -43,15 +45,18 @@ export class EgresadosService {
         idEstudiante: dto.idEstudiante,
         fechaEgreso: fechaConvertida,
         situacionActual: dto.situacionActual,
+        // ✅ Nuevo: si no es "Otro", queda null
+        situacionActualOtro:
+          dto.situacionActual === 'Otro' ? (dto as any).situacionActualOtro ?? null : null,
+
         empresa: dto.empresa || null,
         cargo: dto.cargo || null,
         sueldo: dto.sueldo ? Number(dto.sueldo) : null,
+        nivelRentas: (dto as any).nivelRentas ?? null,
         anioIngresoLaboral: dto.anioIngresoLaboral
           ? Number(dto.anioIngresoLaboral)
           : null,
-        anioSeguimiento: dto.anioSeguimiento
-          ? Number(dto.anioSeguimiento)
-          : null,
+        anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null,
         telefono: dto.telefono || null,
         emailContacto: dto.emailContacto || null,
         direccion: dto.direccion || null,
@@ -107,8 +112,10 @@ export class EgresadosService {
     ✅ GET ONE (por idEstudiante)
   =========================== */
   async findOne(idEstudiante: number) {
-    return this.prisma.egresado.findUnique({
-      where: { idEstudiante: Number(idEstudiante) },
+    idEstudiante = Number(idEstudiante);
+
+    const egresado = await this.prisma.egresado.findUnique({
+      where: { idEstudiante },
       include: {
         documentos: true,
         Estudiante: {
@@ -116,7 +123,6 @@ export class EgresadosService {
             rut: true,
             nombreCompleto: true,
             idPlan: true,
-            // ✅ Plan de estudios (automático)
             Plan: {
               select: {
                 idPlan: true,
@@ -130,6 +136,9 @@ export class EgresadosService {
         },
       },
     });
+
+    if (!egresado) throw new NotFoundException('Egresado no encontrado');
+    return egresado;
   }
 
   /* ===========================
@@ -155,14 +164,32 @@ export class EgresadosService {
     // ✅ Construimos solo lo que venga en dto
     const dataUpdate: any = {
       ...(fechaConvertida ? { fechaEgreso: fechaConvertida } : {}),
+
+      // ✅ Si llega situacionActual, actualizamos y controlamos situacionActualOtro
       ...(dto.situacionActual !== undefined
-        ? { situacionActual: dto.situacionActual }
+        ? {
+            situacionActual: dto.situacionActual,
+            situacionActualOtro:
+              dto.situacionActual === 'Otro'
+                ? (dto as any).situacionActualOtro ?? null
+                : null,
+          }
         : {}),
+
+      // ✅ Si llega solo situacionActualOtro (y no llega situacionActual), lo permitimos
+      ...(dto.situacionActualOtro !== undefined && dto.situacionActual === undefined
+        ? { situacionActualOtro: (dto as any).situacionActualOtro ?? null }
+        : {}),
+
       ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
       ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
       ...(dto.sueldo !== undefined
         ? { sueldo: dto.sueldo ? Number(dto.sueldo) : null }
         : {}),
+      ...((dto as any).nivelRentas !== undefined
+        ? { nivelRentas: (dto as any).nivelRentas }
+        : {}),
+        
       ...(dto.anioIngresoLaboral !== undefined
         ? {
             anioIngresoLaboral: dto.anioIngresoLaboral
@@ -172,15 +199,11 @@ export class EgresadosService {
         : {}),
       ...(dto.anioSeguimiento !== undefined
         ? {
-            anioSeguimiento: dto.anioSeguimiento
-              ? Number(dto.anioSeguimiento)
-              : null,
+            anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null,
           }
         : {}),
       ...(dto.telefono !== undefined ? { telefono: dto.telefono } : {}),
-      ...(dto.emailContacto !== undefined
-        ? { emailContacto: dto.emailContacto }
-        : {}),
+      ...(dto.emailContacto !== undefined ? { emailContacto: dto.emailContacto } : {}),
       ...(dto.direccion !== undefined ? { direccion: dto.direccion } : {}),
       ...(dto.linkedin !== undefined ? { linkedin: dto.linkedin } : {}),
       ...(dto.contactoAlternativo !== undefined
@@ -193,7 +216,7 @@ export class EgresadosService {
       data: dataUpdate,
     });
 
-    // ✅ Guardar nuevos documentos sin borrar anteriores
+    // ✅ Adjuntar documentos nuevos (si vienen)
     if (archivos && archivos.length > 0) {
       const docs = archivos.map((f) => ({
         nombre: f.originalname,
@@ -208,8 +231,7 @@ export class EgresadosService {
   }
 
   /* ===========================
-    ✅ ✅ ✅ DELETE DOCUMENTO INDIVIDUAL (NUEVO)
-    ✅ DELETE /egresados/documento/:idDocumento
+    ✅ DELETE DOCUMENTO POR ID
   =========================== */
   async deleteDocumento(idDocumento: number) {
     idDocumento = Number(idDocumento);
@@ -226,9 +248,8 @@ export class EgresadosService {
       // ✅ convierte "/documents/egresados/file.pdf" → "documents/egresados/file.pdf"
       const rutaRelativa = doc.url.replace('/documents/', 'documents/');
       const ruta = join(process.cwd(), rutaRelativa);
-
       await unlink(ruta);
-    } catch (err: any) {
+    } catch (err) {
       console.warn('⚠️ No se pudo eliminar el archivo físico:', err.message);
     }
 
@@ -247,7 +268,6 @@ export class EgresadosService {
             rut: true,
             nombreCompleto: true,
             idPlan: true,
-            // ✅ Plan de estudios (automático)
             Plan: {
               select: {
                 idPlan: true,

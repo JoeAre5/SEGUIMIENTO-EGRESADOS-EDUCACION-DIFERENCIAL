@@ -30,6 +30,70 @@ export class EgresadosService {
     return s.length ? s : null;
   }
 
+  /* ============================================================
+    ✅ MINE: devuelve seguimiento del autenticado (si existe)
+    - Si no existe, retorna null (para formulario vacío sin 404)
+  ============================================================ */
+  async findMine(idEstudiante: number) {
+    const id = Number(idEstudiante);
+    if (!id || Number.isNaN(id)) return null;
+
+    const egresado = await this.prisma.egresado.findUnique({
+      where: { idEstudiante: id },
+      include: {
+        documentos: true,
+        Estudiante: {
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // 👇 si no hay seguimiento aún, no es error
+    return egresado ?? null;
+  }
+
+  /* ============================================================
+    ✅ MINE: upsert del autenticado (crea si no existe, si existe actualiza)
+    - Reutiliza create() y updateByEstudiante() para no romper lógica
+  ============================================================ */
+  async upsertMine(
+    idEstudiante: number,
+    dto: CreateEgresadoDto | UpdateEgresadoDto,
+    archivos: Express.Multer.File[],
+  ) {
+    const id = Number(idEstudiante);
+    if (!id || Number.isNaN(id)) {
+      // aquí NO uso ForbiddenException para no cambiar imports,
+      // pero puedes cambiarlo a Forbidden/Unauthorized si prefieres.
+      throw new NotFoundException('No se pudo identificar al egresado autenticado');
+    }
+
+    const existe = await this.prisma.egresado.findUnique({
+      where: { idEstudiante: id },
+    });
+
+    if (existe) {
+      return this.updateByEstudiante(id, dto as any, archivos);
+    }
+
+    // Si no existe, creamos (pero forzamos idEstudiante)
+    const dtoCreate: any = { ...(dto as any), idEstudiante: id };
+    return this.create(dtoCreate, archivos);
+  }
+
   /* ===========================
     ✅ CREATE (o update si existe)
   =========================== */

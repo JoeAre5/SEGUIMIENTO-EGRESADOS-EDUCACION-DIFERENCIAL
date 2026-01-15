@@ -58,6 +58,9 @@ import {
 
 import { switchMap, of, Observable } from 'rxjs';
 
+// ✅ NUEVO (sin romper nada): roles para detectar EGRESADO desde JWT
+import { Roles } from '../../models/login.dto';
+
 interface PlanDTO {
   idPlan: number;
   codigo: number;
@@ -165,6 +168,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   modalFiltrosVisible: boolean = false;
   filtroValores: Record<string, any> = {};
+
+  // ✅ NUEVO (sin afectar nada): modo EGRESADO
+  // 🔧 FIX: NO usar (Roles as any) porque Roles es const enum
+  public EGRESADO = 'Egresado';
+  public isEgresado: boolean = false;
+  private idEstudianteToken: number | null = null;
 
   // ✅ Opciones para filtro de NIVEL RENTAS
   nivelesRentasOptions = [
@@ -315,9 +324,75 @@ export class SeguimientoEgresadosComponent implements OnInit {
     private confirmationService: ConfirmationService
   ) {
     this.crearFormulario();
+
+    // ✅ NUEVO: detectar rol desde JWT guardado (sin cambiar tu flujo)
+    const token =
+      localStorage.getItem('access_token') ||
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('access_token') ||
+      sessionStorage.getItem('token');
+
+    const payload = this.decodeJwt(token);
+    const role = payload?.role;
+    this.idEstudianteToken =
+      payload?.idEstudiante !== undefined && payload?.idEstudiante !== null
+        ? Number(payload.idEstudiante)
+        : null;
+
+    // 🔧 acepta ambos por compatibilidad
+    this.isEgresado = role === this.EGRESADO || role === 'EGRESADO';
+  }
+
+  // ✅ NUEVO: helper JWT (no toca nada existente)
+  private decodeJwt(token: string | null): any {
+    if (!token) return null;
+    try {
+      const payloadPart = token.split('.')[1];
+      const base64 = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+      const json = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
   }
 
   ngOnInit(): void {
+    // ✅ Si es EGRESADO: NO cargamos listados/dash/estudiantes para la vista.
+    //    Solo cargamos su seguimiento (auto-relleno) y planes (para texto de plan).
+    if (this.isEgresado) {
+      this.loading = true;
+      this.modoEstudiante = 'existente';
+      this.drawerFormulario = true; // abre directo el formulario (si tu HTML lo usa)
+
+      this.cargarPlanes();
+      this.cargarMiSeguimiento();
+
+      // charts config igual por si tu HTML los referencia (no rompe)
+      this.chartOptionsCohorte = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { usePointStyle: true, boxWidth: 8 },
+          },
+          tooltip: { enabled: true },
+        },
+        scales: {
+          x: { ticks: { autoSkip: false } },
+          y: { beginAtZero: true },
+        },
+      };
+
+      return;
+    }
+
+    // ✅ comportamiento actual (NO se cambia)
     this.cargarEgresados();
     this.cargarEstudiantes();
     this.cargarPlanes();
@@ -338,6 +413,112 @@ export class SeguimientoEgresadosComponent implements OnInit {
         y: { beginAtZero: true },
       },
     };
+  }
+
+  // ✅ NUEVO: carga “mi” seguimiento (sin afectar el resto)
+  private cargarMiSeguimiento() {
+    // Si tu frontend service ya tiene getMine() úsalo.
+    // Si aún no lo agregas, usamos findOneByEstudiante con el idEstudiante DEL TOKEN (no del usuario).
+    const id = this.idEstudianteToken;
+
+    if (!id || Number.isNaN(id)) {
+      this.loading = false;
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Sin vínculo',
+        detail: 'No se pudo identificar tu idEstudiante en el token.',
+      });
+      return;
+    }
+
+    const svc: any = this.egresadosService as any;
+
+    const obs =
+      typeof svc.getMine === 'function'
+        ? svc.getMine()
+        : this.egresadosService.findOneByEstudiante(id);
+
+    obs.subscribe({
+      next: (egresado: any) => {
+        const eg = egresado?.data ? egresado.data : egresado;
+
+        // si no existe seguimiento aún, dejamos formulario vacío (sin error)
+        if (!eg || Object.keys(eg).length === 0) {
+          this.existeSeguimiento = false;
+          this.documentosExistentes = [];
+          this.formulario.reset();
+          this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+          this.loading = false;
+          return;
+        }
+
+        this.existeSeguimiento = true;
+
+        const plan = eg?.Estudiante?.Plan ?? null;
+        const planTexto = this.construirPlanTextoDesdePlan(plan);
+
+        const idPlan = plan?.idPlan ?? eg?.Estudiante?.idPlan ?? null;
+
+        this.planOriginalId = idPlan ? Number(idPlan) : null;
+        this.planSeleccionadoId = this.planOriginalId;
+
+        const anioFinCompat =
+          eg?.anioFinEstudios ??
+          (eg?.fechaEgreso ? new Date(eg.fechaEgreso).getFullYear() : null);
+
+        this.formulario.patchValue({
+          planEstudios: planTexto,
+
+          situacionActual: this.normalizarSituacion(eg.situacionActual),
+          situacionActualOtro: eg.situacionActualOtro ?? '',
+
+          empresa: eg.empresa ?? '',
+          cargo: eg.cargo ?? '',
+
+          nivelRentas: eg.nivelRentas ?? null,
+
+          viaIngreso: eg.viaIngreso ?? null,
+          viaIngresoOtro: eg.viaIngresoOtro ?? '',
+
+          anioIngresoCarrera: eg.anioIngresoCarrera ?? null,
+          anioFinEstudios: anioFinCompat,
+
+          genero: eg.genero ?? null,
+          tiempoBusquedaTrabajo: eg.tiempoBusquedaTrabajo ?? null,
+
+          sectorLaboral: eg.sectorLaboral ?? null,
+          sectorLaboralOtro: eg.sectorLaboralOtro ?? '',
+
+          tipoEstablecimiento: eg.tipoEstablecimiento ?? 'No aplica',
+          tipoEstablecimientoOtro: eg.tipoEstablecimientoOtro ?? '',
+
+          sueldo: eg.sueldo ?? null,
+          anioIngresoLaboral: eg.anioIngresoLaboral ?? null,
+
+          telefono: eg.telefono ?? '',
+          emailContacto: eg.emailContacto ?? '',
+          linkedin: eg.linkedin ?? '',
+        });
+
+        this.documentosExistentes = eg.documentos || [];
+
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Datos cargados',
+          detail: '✅ Formulario rellenado automáticamente.',
+        });
+
+        this.loading = false;
+      },
+      error: () => {
+        // si el backend responde 404 en mine, dejamos el formulario vacío
+        this.existeSeguimiento = false;
+        this.documentosExistentes = [];
+        this.formulario.reset();
+        this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+        this.loading = false;
+      },
+    });
   }
 
   isInvalid(controlName: string): boolean {
@@ -882,6 +1063,134 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.intentoGuardar = true;
     this.formulario.markAllAsTouched();
 
+    // ✅ EGRESADO: no puede crear/editar estudiantes ni seleccionar otro.
+    // Mantengo todas tus validaciones del formulario (sin tocar) y solo cambio el flujo de guardado.
+    if (this.isEgresado) {
+      if (this.formulario.invalid) return;
+
+      const svc: any = this.egresadosService as any;
+
+      const id = this.idEstudianteToken;
+
+      if (!id || Number.isNaN(id)) {
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Sin vínculo',
+          detail: 'No se pudo identificar tu idEstudiante en el token.',
+        });
+        return;
+      }
+
+      if (this.existeSeguimiento) {
+        if (this.documentosSeleccionados.length === 0) {
+          const dto: UpdateEgresadoDto = {
+            ...this.formulario.getRawValue(),
+          };
+
+          this.egresadosService.updateByEstudiante(id, dto).subscribe({
+            next: () => {
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Guardado',
+                detail: '✅ Seguimiento actualizado.',
+              });
+              this.limpiarInputArchivos();
+              this.cargarMiSeguimiento();
+              this.drawerFormulario = false;
+            },
+            error: (err: any) => {
+              console.error('❌ ERROR GUARDAR:', err);
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Error al guardar',
+                detail: err?.error?.message || err?.message || '❌ No se pudo guardar.',
+              });
+            },
+          });
+          return;
+        }
+
+        const formData = new FormData();
+
+        Object.entries(this.formulario.getRawValue()).forEach(([key, value]) => {
+          if (value !== null && value !== undefined && value !== '') {
+            formData.append(key, value.toString());
+          }
+        });
+
+        this.documentosSeleccionados.forEach((file) =>
+          formData.append('documentos', file)
+        );
+
+        const obs =
+          typeof svc.updateMineWithFiles === 'function'
+            ? svc.updateMineWithFiles(formData)
+            : this.egresadosService.updateWithFilesByEstudiante(id, formData);
+
+        obs.subscribe({
+          next: () => {
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Guardado',
+              detail: '✅ Seguimiento actualizado.',
+            });
+            this.limpiarInputArchivos();
+            this.cargarMiSeguimiento();
+            this.drawerFormulario = false;
+          },
+          error: (err: any) => {
+            console.error('❌ ERROR GUARDAR:', err);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Error al guardar',
+              detail: err?.error?.message || err?.message || '❌ No se pudo guardar.',
+            });
+          },
+        });
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('idEstudiante', id.toString());
+
+      Object.entries(this.formulario.getRawValue()).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          formData.append(key, value.toString());
+        }
+      });
+
+      this.documentosSeleccionados.forEach((file) => formData.append('documentos', file));
+
+      const obsCreate =
+        typeof svc.createMineWithFiles === 'function'
+          ? svc.createMineWithFiles(formData)
+          : this.egresadosService.createWithFiles(formData);
+
+      obsCreate.subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Guardado',
+            detail: '✅ Seguimiento creado correctamente.',
+          });
+          this.limpiarInputArchivos();
+          this.cargarMiSeguimiento();
+          this.drawerFormulario = false;
+        },
+        error: (err: any) => {
+          console.error('❌ ERROR GUARDAR:', err);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error al guardar',
+            detail: err?.error?.message || err?.message || '❌ No se pudo guardar.',
+          });
+        },
+      });
+
+      return;
+    }
+
+    // ✅ flujo actual (NO se toca)
     if (this.modoEstudiante === 'nuevo') {
       this.anioIngresoInvalidoNuevo = !this.validarAnioIngresoNuevo();
       if (this.anioIngresoInvalidoNuevo) {
@@ -1046,6 +1355,16 @@ export class SeguimientoEgresadosComponent implements OnInit {
   eliminarDocumento(doc: any) {
     if (!doc?.idDocumento) return;
 
+    // ✅ EGRESADO: no permitir eliminar docs (seguridad/UI). El backend ya bloquea por rol.
+    if (this.isEgresado) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Acción no permitida',
+        detail: 'No puedes eliminar documentos.',
+      });
+      return;
+    }
+
     this.confirmationService.confirm({
       message: `¿Seguro que deseas eliminar el documento "${doc.nombre}"?`,
       header: 'Eliminar documento',
@@ -1159,6 +1478,16 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   eliminar(egresado: any) {
+    // ✅ EGRESADO: no permitir eliminar
+    if (this.isEgresado) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Acción no permitida',
+        detail: 'No puedes eliminar seguimientos.',
+      });
+      return;
+    }
+
     this.confirmationService.confirm({
       message: `¿Seguro que deseas eliminar el seguimiento de ${egresado.Estudiante?.nombreCompleto}?`,
       header: 'Confirmar eliminación',

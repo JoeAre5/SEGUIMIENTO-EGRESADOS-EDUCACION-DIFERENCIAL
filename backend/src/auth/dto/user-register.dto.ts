@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsInt } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ROLE } from '@prisma/client';
 
@@ -13,9 +13,18 @@ export class UserRegisterDTO {
   @IsString()
   email: string;
 
-  @IsNotEmpty()
+  // ✅ AHORA opcional: si no viene, Prisma usa @default(Docente)
+  @IsOptional()
   @IsEnum(ROLE, { message: 'El rol proporcionado no es válido' })
-  role: ROLE;
+  role?: ROLE;
+
+  // ✅ NUEVO: para asociar Usuario EGRESADO con un estudiante
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === null || value === undefined || value === '' ? undefined : Number(value),
+  )
+  @IsInt()
+  idEstudiante?: number;
 
   @IsNotEmpty()
   @IsString()

@@ -6,7 +6,9 @@ import {
   Param,
   Patch,
   Post,
+  Req,
   UploadedFiles,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
@@ -17,8 +19,14 @@ import { EgresadosService } from './egresados.service';
 import { CreateEgresadoDto } from './dto/create-egresado.dto';
 import { UpdateEgresadoDto } from './dto/update-egresado.dto';
 
+// ✅ Guards
+import { AuthGuard } from '@nestjs/passport';
+import { Roles } from 'src/auth/roles.decorator';
+import { RolesGuard } from 'src/auth/roles.guard';
+
 @ApiTags('egresados')
 @Controller('egresados')
+@UseGuards(AuthGuard('jwt'), RolesGuard) // ✅ seguridad base para TODO el controller
 export class EgresadosController {
   constructor(private readonly egresadosService: EgresadosService) {}
 
@@ -33,10 +41,69 @@ export class EgresadosController {
     },
   });
 
+  // ============================================================
+  // ✅ EGRESADO: GET /egresados/mine
+  // Devuelve el seguimiento del egresado autenticado (si existe)
+  // ============================================================
+  @Get('mine')
+  @Roles('EGRESADO')
+  getMine(@Req() req: any) {
+    // El backend decide "quién es" por token, no por URL
+    return this.egresadosService.findOne(Number(req.user.idEstudiante));
+  }
+
+  // ============================================================
+  // ✅ EGRESADO: POST /egresados/mine (con docs)
+  // Crea (o upsert) el suyo. NO acepta idEstudiante desde frontend.
+  // ============================================================
+  @Post('mine')
+  @Roles('EGRESADO')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('documentos', 10, {
+      storage: EgresadosController.storage,
+    }),
+  )
+  createMine(
+    @Req() req: any,
+    @Body() dto: CreateEgresadoDto,
+    @UploadedFiles() archivos: Express.Multer.File[],
+  ) {
+    // ✅ ignoramos cualquier idEstudiante que venga del cliente
+    dto.idEstudiante = Number(req.user.idEstudiante);
+
+    return this.egresadosService.create(dto, archivos);
+  }
+
+  // ============================================================
+  // ✅ EGRESADO: PATCH /egresados/mine (con o sin docs)
+  // Actualiza SOLO el suyo. No hay forma de pasar idEstudiante.
+  // ============================================================
+  @Patch('mine')
+  @Roles('EGRESADO')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('documentos', 10, {
+      storage: EgresadosController.storage,
+    }),
+  )
+  updateMine(
+    @Req() req: any,
+    @Body() dto: UpdateEgresadoDto,
+    @UploadedFiles() archivos: Express.Multer.File[],
+  ) {
+    return this.egresadosService.updateByEstudiante(
+      Number(req.user.idEstudiante),
+      dto,
+      archivos,
+    );
+  }
+
   // ==========================
   // POST /egresados (con docs)
   // ==========================
   @Post()
+  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
@@ -58,6 +125,7 @@ export class EgresadosController {
   // ✅ GET /egresados/dashboard/cohortes
   // ==========================
   @Get('dashboard/cohortes')
+  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
   getDashboardCohortes() {
     return this.egresadosService.getDashboardCohortes();
   }
@@ -66,6 +134,7 @@ export class EgresadosController {
   // GET /egresados
   // ==========================
   @Get()
+  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
   findAll() {
     return this.egresadosService.findAll();
   }
@@ -74,6 +143,7 @@ export class EgresadosController {
   // GET /egresados/estudiante/:idEstudiante
   // ==========================
   @Get('estudiante/:idEstudiante')
+  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
   findOne(@Param('idEstudiante') idEstudiante: string) {
     return this.egresadosService.findOne(Number(idEstudiante));
   }
@@ -82,6 +152,7 @@ export class EgresadosController {
   // PATCH /egresados/estudiante/:idEstudiante (con o sin docs)
   // ==========================
   @Patch('estudiante/:idEstudiante')
+  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
@@ -95,13 +166,18 @@ export class EgresadosController {
   ) {
     // ✅ si viene multipart/form-data, todo viene string.
     // el service se encarga de parsear fecha y números.
-    return this.egresadosService.updateByEstudiante(Number(idEstudiante), dto, archivos);
+    return this.egresadosService.updateByEstudiante(
+      Number(idEstudiante),
+      dto,
+      archivos,
+    );
   }
 
   // ==========================
   // DELETE /egresados/documento/:idDocumento
   // ==========================
   @Delete('documento/:idDocumento')
+  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO (por seguridad)
   deleteDocumento(@Param('idDocumento') idDocumento: string) {
     return this.egresadosService.deleteDocumento(Number(idDocumento));
   }
@@ -110,6 +186,7 @@ export class EgresadosController {
   // DELETE /egresados/:idEgresado
   // ==========================
   @Delete(':idEgresado')
+  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
   delete(@Param('idEgresado') idEgresado: string) {
     return this.egresadosService.delete(Number(idEgresado));
   }

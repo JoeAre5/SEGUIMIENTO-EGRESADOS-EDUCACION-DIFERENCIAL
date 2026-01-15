@@ -17,7 +17,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: { sub: number; username: string; email: string }) {
+  async validate(payload: {
+    sub: number;
+    username: string;
+    email: string;
+    role?: string;
+    idEstudiante?: number | null;
+  }) {
     const user: Usuario = await this.prisma.usuario.findUnique({
       where: {
         id: payload.sub,
@@ -26,6 +32,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     delete user.hashedPassword;
 
-    return user;
+    // ✅ Sin romper nada: devolvemos el usuario como antes,
+    // pero garantizando que en req.user existan role e idEstudiante (si vienen en el token).
+    return {
+      ...user,
+      role: (user as any).role ?? payload.role,
+      idEstudiante: (user as any).idEstudiante ?? payload.idEstudiante ?? null,
+    };
   }
 }

@@ -21,8 +21,26 @@
   </div>
 </div>
 
-<!-- ✅ DRAWER / SIDEBAR FORMULARIO -->
+<!-- ==========================================================
+✅ EGRESADO: FORMULARIO EN PANTALLA PRINCIPAL
+========================================================== -->
+<div class="m-10 bg-white p-8 shadow-lg rounded-md" *ngIf="isEgresado">
+  <div class="flex justify-between items-center mb-4">
+    <h2 class="text-xl font-bold text-sky-700">
+      📄 Formulario Seguimiento Egresados
+    </h2>
+  </div>
+
+  <div id="formulario-egresados" class="bg-white p-2">
+    <ng-container *ngTemplateOutlet="formularioTemplate"></ng-container>
+  </div>
+</div>
+
+<!-- ==========================================================
+✅ OTROS ROLES: SIDEBAR/DRAWER COMO ANTES
+========================================================== -->
 <p-sidebar
+  *ngIf="!isEgresado"
   [(visible)]="drawerFormulario"
   position="right"
   [baseZIndex]="10000"
@@ -45,698 +63,655 @@
   </div>
 
   <div id="formulario-egresados" class="bg-white p-2">
-    <form [formGroup]="formulario" class="grid grid-cols-2 gap-6">
-      <div class="col-span-2">
-        <h2 class="text-xl font-bold text-sky-700">Información General</h2>
-        <hr class="my-3" />
-      </div>
-
-      <div class="col-span-2 flex gap-4 items-center mb-2">
-        <label class="font-semibold">Modo:</label>
-
-        <button
-          pButton
-          type="button"
-          class="p-button-sm"
-          [class.p-button-info]="modoEstudiante === 'existente'"
-          [class.p-button-outlined]="modoEstudiante !== 'existente'"
-          (click)="modoEstudiante = 'existente'"
-        >
-          Seleccionar Estudiante
-        </button>
-
-        <button
-          pButton
-          type="button"
-          class="p-button-sm"
-          [class.p-button-success]="modoEstudiante === 'nuevo'"
-          [class.p-button-outlined]="modoEstudiante !== 'nuevo'"
-          (click)="cambiarAModoNuevo()"
-        >
-          Crear Estudiante Nuevo
-        </button>
-      </div>
-
-      <!-- ✅ EXISTENTE: seleccionar estudiante -->
-      <div class="col-span-2" *ngIf="modoEstudiante === 'existente'">
-        <label class="block font-semibold mb-2">Seleccionar Estudiante *</label>
-
-        <p-dropdown
-          [options]="estudiantes"
-          [(ngModel)]="estudianteSeleccionado"
-          [ngModelOptions]="{ standalone: true }"
-          optionLabel="nombreCompleto"
-          dataKey="idEstudiante"
-          placeholder="Buscar por nombre o rut"
-          [filter]="true"
-          filterBy="nombreCompleto,rut"
-          [showClear]="true"
-          class="w-full"
-          (onChange)="onEstudianteChange()"
-        >
-          <ng-template let-estudiante pTemplate="item">
-            <div class="flex flex-col">
-              <span class="font-bold">{{ estudiante.nombreCompleto }}</span>
-              <small class="text-gray-500">{{ estudiante.rut }}</small>
-            </div>
-          </ng-template>
-        </p-dropdown>
-
-        <small
-          class="text-red-500"
-          *ngIf="intentoGuardar && !estudianteSeleccionado"
-        >
-          Debes seleccionar un estudiante.
-        </small>
-      </div>
-
-      <!-- ✅ EXISTENTE: RUT -->
-      <div
-        class="col-span-2"
-        *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado"
-      >
-        <label class="block font-semibold mb-2">RUT *</label>
-        <input
-          pInputText
-          [(ngModel)]="estudianteSeleccionado.rut"
-          [ngModelOptions]="{ standalone: true }"
-          placeholder="Ej: 20.123.456-7"
-          class="w-full"
-          maxlength="12"
-          inputmode="text"
-          autocomplete="off"
-          (input)="onRutInputExistente()"
-        />
-
-        <small
-          class="text-red-500"
-          *ngIf="intentoGuardar && !isRutValido((estudianteSeleccionado?.rut || ''))"
-        >
-          RUT inválido. Revisa el dígito verificador.
-        </small>
-      </div>
-
-      <!-- ✅ EXISTENTE: Plan (info readonly) -->
-      <div
-        class="col-span-2"
-        *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado"
-      >
-        <label class="block font-semibold mb-2">Plan actual (info)</label>
-        <input
-          pInputText
-          formControlName="planEstudios"
-          class="w-full"
-          placeholder="Se cargará automáticamente"
-          readonly
-        />
-        <small class="text-gray-500">
-          Este campo es informativo (viene del seguimiento/plan actual).
-        </small>
-      </div>
-
-      <!-- ✅✅✅ EXISTENTE: Plan editable -->
-      <div
-        class="col-span-2"
-        *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado"
-      >
-        <label class="block font-semibold mb-2">Plan de estudios (editable) *</label>
-
-        <p-dropdown
-          [options]="planesOptions"
-          [(ngModel)]="planSeleccionadoId"
-          [ngModelOptions]="{ standalone: true }"
-          placeholder="Selecciona un plan"
-          [filter]="true"
-          filterBy="label"
-          [showClear]="true"
-          class="w-full"
-        ></p-dropdown>
-
-        <small
-          class="text-xs text-gray-500"
-          *ngIf="
-            planOriginalId &&
-            planSeleccionadoId &&
-            planSeleccionadoId !== planOriginalId
-          "
-        >
-          📌 Cambiarás el plan en la BD del estudiante al guardar.
-        </small>
-
-        <small
-          class="text-red-500"
-          *ngIf="intentoGuardar && !planSeleccionadoId"
-        >
-          Debes seleccionar un plan.
-        </small>
-      </div>
-
-      <!-- ✅ NUEVO: crear estudiante -->
-      <div class="col-span-2" *ngIf="modoEstudiante === 'nuevo'">
-        <h3 class="text-lg font-bold text-sky-700 mt-2">🆕 Nuevo Estudiante</h3>
-
-        <div class="grid grid-cols-2 gap-6 mt-4">
-          <div>
-            <label class="block font-semibold mb-2">RUT *</label>
-            <input
-              pInputText
-              [(ngModel)]="nuevoEstudiante.rut"
-              [ngModelOptions]="{ standalone: true }"
-              placeholder="Ej: 20.123.456-7"
-              class="w-full"
-              maxlength="12"
-              inputmode="text"
-              autocomplete="off"
-              (input)="onRutInputNuevo()"
-            />
-
-            <small
-              class="text-red-500"
-              *ngIf="intentoGuardar && !isRutValido((nuevoEstudiante?.rut || ''))"
-            >
-              RUT inválido. Revisa el dígito verificador.
-            </small>
-          </div>
-
-          <div>
-            <label class="block font-semibold mb-2">Año ingreso *</label>
-            <p-inputNumber
-              [(ngModel)]="nuevoEstudiante.agnioIngreso"
-              [ngModelOptions]="{ standalone: true }"
-              class="w-full"
-              [useGrouping]="false"
-            ></p-inputNumber>
-          </div>
-
-          <div>
-            <label class="block font-semibold mb-2">Nombre *</label>
-            <input
-              pInputText
-              [(ngModel)]="nuevoEstudiante.nombre"
-              [ngModelOptions]="{ standalone: true }"
-              placeholder="Ej: Juan"
-              class="w-full"
-            />
-          </div>
-
-          <div>
-            <label class="block font-semibold mb-2">Plan de Estudios *</label>
-
-            <p-dropdown
-              [options]="planesOptions"
-              [(ngModel)]="nuevoEstudiante.idPlan"
-              [ngModelOptions]="{ standalone: true }"
-              placeholder="Selecciona un plan"
-              [filter]="true"
-              filterBy="label"
-              [showClear]="true"
-              class="w-full"
-            ></p-dropdown>
-
-            <small
-              class="text-red-500"
-              *ngIf="intentoGuardar && !nuevoEstudiante.idPlan"
-            >
-              Debes seleccionar un plan.
-            </small>
-          </div>
-
-          <div class="col-span-2">
-            <label class="block font-semibold mb-2">Apellido *</label>
-            <input
-              pInputText
-              [(ngModel)]="nuevoEstudiante.apellido"
-              [ngModelOptions]="{ standalone: true }"
-              placeholder="Ej: Pérez"
-              class="w-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- ✅ Seguimiento (ENCUESTA: solo año fin estudios) -->
-      <div>
-        <label class="block font-semibold mb-2">Año fin de estudios *</label>
-        <p-inputNumber
-          formControlName="anioFinEstudios"
-          class="w-full"
-          [useGrouping]="false"
-          placeholder="Ej: 2024"
-        ></p-inputNumber>
-
-        <small class="text-red-500" *ngIf="isInvalid('anioFinEstudios')">
-          <ng-container *ngIf="getError('anioFinEstudios')?.required">
-            Debes indicar el año de finalización.
-          </ng-container>
-          <ng-container *ngIf="getError('anioFinEstudios')?.min">
-            Año demasiado bajo.
-          </ng-container>
-          <ng-container *ngIf="getError('anioFinEstudios')?.max">
-            Año demasiado alto.
-          </ng-container>
-        </small>
-      </div>
-
-      <div>
-        <label class="block font-semibold mb-2">Situación Actual *</label>
-        <p-dropdown
-          formControlName="situacionActual"
-          [options]="situaciones"
-          placeholder="Seleccionar"
-          class="w-full"
-        ></p-dropdown>
-      </div>
-
-      <!-- ✅ si es Otro, pedir detalle -->
-      <div
-        class="col-span-2"
-        *ngIf="formulario.get('situacionActual')?.value === 'Otro'"
-      >
-        <label class="block font-semibold mb-2">Especifica (Otro) *</label>
-        <input
-          pInputText
-          formControlName="situacionActualOtro"
-          class="w-full"
-          placeholder="Ej: emprendimiento, licencia, etc."
-        />
-        <small class="text-red-500" *ngIf="formHasError('situacionActualOtroRequerido')">
-          Debes especificar la situación.
-        </small>
-      </div>
-
-      <div>
-        <label class="block font-semibold mb-2">Empresa</label>
-        <input pInputText formControlName="empresa" class="w-full" />
-      </div>
-
-      <div>
-        <label class="block font-semibold mb-2">Cargo</label>
-        <input pInputText formControlName="cargo" class="w-full" />
-      </div>
-
-      <!-- ✅ Nivel de rentas (radios) -->
-      <div class="col-span-2">
-        <label class="font-bold block mb-2">
-          Nivel de Rentas <span class="text-red-500">*</span>
-        </label>
-
-        <div class="flex flex-column gap-2">
-          <div class="flex align-items-center gap-2">
-            <p-radioButton
-              name="nivelRentas"
-              inputId="nr_1"
-              [value]="'Sueldo mínimo ($500.000)'"
-              formControlName="nivelRentas"
-            ></p-radioButton>
-            <label for="nr_1">Sueldo mínimo ($500.000)</label>
-          </div>
-
-          <div class="flex align-items-center gap-2">
-            <p-radioButton
-              name="nivelRentas"
-              inputId="nr_2"
-              [value]="'Entre $500.001 y $1.000.000'"
-              formControlName="nivelRentas"
-            ></p-radioButton>
-            <label for="nr_2">Entre $500.001 y $1.000.000</label>
-          </div>
-
-          <div class="flex align-items-center gap-2">
-            <p-radioButton
-              name="nivelRentas"
-              inputId="nr_3"
-              [value]="'Entre $1.000.001 y $1.500.000'"
-              formControlName="nivelRentas"
-            ></p-radioButton>
-            <label for="nr_3">Entre $1.000.001 y $1.500.000</label>
-          </div>
-
-          <div class="flex align-items-center gap-2">
-            <p-radioButton
-              name="nivelRentas"
-              inputId="nr_4"
-              [value]="'Más de $1.500.001'"
-              formControlName="nivelRentas"
-            ></p-radioButton>
-            <label for="nr_4">Más de $1.500.001</label>
-          </div>
-        </div>
-
-        <small
-          class="p-error"
-          *ngIf="
-            formulario.get('nivelRentas')?.touched &&
-            formulario.get('nivelRentas')?.invalid
-          "
-        >
-          Debes seleccionar un nivel de rentas.
-        </small>
-      </div>
-
-      <div>
-        <label class="block font-semibold mb-2">Año Ingreso Laboral</label>
-        <p-inputNumber
-          formControlName="anioIngresoLaboral"
-          class="w-full"
-          [useGrouping]="false"
-          placeholder="Ej: 2024"
-        ></p-inputNumber>
-
-        <small class="text-red-500" *ngIf="isInvalid('anioIngresoLaboral')">
-          <ng-container *ngIf="getError('anioIngresoLaboral')?.min">
-            Año ingreso laboral demasiado bajo.
-          </ng-container>
-          <ng-container *ngIf="getError('anioIngresoLaboral')?.max">
-            Año ingreso laboral demasiado alto.
-          </ng-container>
-        </small>
-
-        <small
-          class="text-red-500"
-          *ngIf="formHasError('anioIngresoLaboralMenorQueFin')"
-        >
-          Año ingreso laboral debe ser mayor o igual al año fin de estudios.
-        </small>
-      </div>
-
-      <!-- ✅✅✅ NUEVO BLOQUE: Datos adicionales (preguntas del formulario) -->
-      <div class="col-span-2 mt-6">
-        <h2 class="text-xl font-bold text-sky-700">Datos adicionales</h2>
-        <hr class="my-3" />
-      </div>
-
-      <!-- Vía de ingreso -->
-      <div class="col-span-2">
-        <label class="block font-semibold mb-2">Vía de ingreso</label>
-        <p-dropdown
-          formControlName="viaIngreso"
-          [options]="viasIngreso"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Seleccionar"
-          class="w-full"
-        ></p-dropdown>
-
-        <div class="mt-2" *ngIf="formulario.get('viaIngreso')?.value === 'Otro'">
-          <label class="block font-semibold mb-2">Especifica (vía de ingreso)</label>
-          <input pInputText formControlName="viaIngresoOtro" class="w-full" />
-          <small class="text-red-500" *ngIf="formHasError('viaIngresoOtroRequerido')">
-            Debes especificar la vía de ingreso.
-          </small>
-        </div>
-      </div>
-
-      <!-- Periodo estudios -->
-      <div>
-        <label class="block font-semibold mb-2">Año ingreso a carrera</label>
-        <p-inputNumber
-          formControlName="anioIngresoCarrera"
-          class="w-full"
-          [useGrouping]="false"
-          placeholder="Ej: 2020"
-        ></p-inputNumber>
-        <small class="text-red-500" *ngIf="formHasError('anioIngresoCarreraMayorQueFin')">
-          Año ingreso a carrera no puede ser mayor que el año fin de estudios.
-        </small>
-      </div>
-
-      <div>
-        <!-- ✅ anioFinEstudios ya está arriba, aquí no va duplicado -->
-        <label class="block font-semibold mb-2">Año fin de estudios *</label>
-        <p-inputNumber
-          formControlName="anioFinEstudios"
-          class="w-full"
-          [useGrouping]="false"
-          placeholder="Ej: 2024"
-        ></p-inputNumber>
-      </div>
-
-      <!-- Género -->
-      <div>
-        <label class="block font-semibold mb-2">Género</label>
-        <p-dropdown
-          formControlName="genero"
-          [options]="generos"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Seleccionar"
-          class="w-full"
-        ></p-dropdown>
-      </div>
-
-      <!-- Tiempo búsqueda trabajo -->
-      <div>
-        <label class="block font-semibold mb-2">Tiempo en encontrar trabajo</label>
-        <p-dropdown
-          formControlName="tiempoBusquedaTrabajo"
-          [options]="tiemposBusquedaTrabajo"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Seleccionar"
-          class="w-full"
-        ></p-dropdown>
-      </div>
-
-      <!-- Sector laboral -->
-      <div class="col-span-2">
-        <label class="block font-semibold mb-2">Sector laboral</label>
-        <p-dropdown
-          formControlName="sectorLaboral"
-          [options]="sectoresLaborales"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Seleccionar"
-          class="w-full"
-        ></p-dropdown>
-
-        <div class="mt-2" *ngIf="formulario.get('sectorLaboral')?.value === 'Otro'">
-          <label class="block font-semibold mb-2">Especifica (sector)</label>
-          <input pInputText formControlName="sectorLaboralOtro" class="w-full" />
-          <small class="text-red-500" *ngIf="formHasError('sectorLaboralOtroRequerido')">
-            Debes especificar el sector.
-          </small>
-        </div>
-      </div>
-
-      <!-- Tipo establecimiento -->
-      <div class="col-span-2">
-        <label class="block font-semibold mb-2">Tipo de establecimiento (si aplica)</label>
-        <p-dropdown
-          formControlName="tipoEstablecimiento"
-          [options]="tipoEstablecimiento"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Seleccionar"
-          class="w-full"
-        ></p-dropdown>
-
-        <div class="mt-2" *ngIf="formulario.get('tipoEstablecimiento')?.value === 'Otro'">
-          <label class="block font-semibold mb-2">Especifica (establecimiento)</label>
-          <input pInputText formControlName="tipoEstablecimientoOtro" class="w-full" />
-          <small class="text-red-500" *ngIf="formHasError('tipoEstablecimientoOtroRequerido')">
-            Debes especificar el tipo de establecimiento.
-          </small>
-        </div>
-      </div>
-
-      <!-- ✅ Datos de Contacto -->
-      <div class="col-span-2 mt-6">
-        <h2 class="text-xl font-bold text-sky-700">Datos de Contacto</h2>
-        <hr class="my-3" />
-      </div>
-
-      <div>
-        <label class="block font-semibold mb-2">Teléfono</label>
-        <input
-          pInputText
-          formControlName="telefono"
-          class="w-full"
-          placeholder="Ej: +56 12345678 o 12345678"
-          (input)="onTelefonoInput()"
-        />
-
-        <small class="text-red-500" *ngIf="isInvalid('telefono')">
-          <ng-container *ngIf="getError('telefono')?.pattern">
-            Teléfono inválido. Debe tener 8 dígitos (y código país opcional). Ej:
-            +56 12345678 o 12345678
-          </ng-container>
-          <ng-container *ngIf="getError('telefono')?.maxlength">
-            Teléfono demasiado largo.
-          </ng-container>
-        </small>
-      </div>
-
-      <div>
-        <label class="block font-semibold mb-2">Correo</label>
-        <input pInputText formControlName="emailContacto" class="w-full" />
-
-        <small class="text-red-500" *ngIf="isInvalid('emailContacto')">
-          <ng-container *ngIf="getError('emailContacto')?.pattern">
-            Correo inválido. Ej: nombre&#64;dominio.cl
-          </ng-container>
-          <ng-container *ngIf="getError('emailContacto')?.maxlength">
-            Correo demasiado largo.
-          </ng-container>
-        </small>
-      </div>
-
-      <div class="col-span-2">
-        <label class="block font-semibold mb-2">LinkedIn</label>
-        <input
-          pInputText
-          formControlName="linkedin"
-          class="w-full"
-          placeholder="https://www.linkedin.com/in/..."
-        />
-
-        <small class="text-red-500" *ngIf="isInvalid('linkedin')">
-          <ng-container *ngIf="getError('linkedin')?.pattern">
-            URL de LinkedIn inválida. Ej: https://www.linkedin.com/in/usuario
-          </ng-container>
-          <ng-container *ngIf="getError('linkedin')?.maxlength">
-            URL demasiado larga.
-          </ng-container>
-        </small>
-      </div>
-
-      <div class="col-span-2 mt-6">
-        <h2 class="text-xl font-bold text-sky-700">Documentos</h2>
-        <hr class="my-3" />
-      </div>
-
-      <div class="col-span-2 mt-2" *ngIf="documentosExistentes.length > 0">
-        <h3 class="text-lg font-bold text-sky-700 mb-2">📎 Documentos existentes</h3>
-
-        <p-table [value]="documentosExistentes" class="p-datatable-sm">
-          <ng-template pTemplate="header">
-            <tr>
-              <th>Nombre</th>
-              <th style="width: 180px;">Acciones</th>
-            </tr>
-          </ng-template>
-
-          <ng-template pTemplate="body" let-doc>
-            <tr>
-              <td>{{ doc.nombre }}</td>
-              <td class="flex gap-2">
-                <button
-                  pButton
-                  icon="pi pi-eye"
-                  class="p-button-rounded p-button-sm p-button-secondary"
-                  pTooltip="Ver"
-                  (click)="verDocumento(doc)"
-                ></button>
-
-                <button
-                  pButton
-                  icon="pi pi-download"
-                  class="p-button-rounded p-button-sm p-button-info"
-                  pTooltip="Descargar"
-                  (click)="descargarDocumento(doc)"
-                ></button>
-
-                <button
-                  pButton
-                  icon="pi pi-trash"
-                  class="p-button-rounded p-button-sm p-button-danger"
-                  pTooltip="Eliminar"
-                  (click)="eliminarDocumento(doc)"
-                ></button>
-              </td>
-            </tr>
-          </ng-template>
-        </p-table>
-      </div>
-
-      <div class="col-span-2">
-        <input
-          #fileInput
-          type="file"
-          multiple
-          (change)="onFileSelected($event)"
-          class="block w-full border border-gray-300 p-2 rounded-md"
-        />
-
-        <div *ngIf="documentosSeleccionados.length > 0" class="mt-3">
-          <div class="flex justify-between items-center">
-            <p class="font-semibold text-gray-600">
-              Archivos seleccionados ({{ documentosSeleccionados.length }})
-            </p>
-            <button
-              pButton
-              type="button"
-              label="Quitar"
-              icon="pi pi-times"
-              class="p-button-text p-button-danger p-button-sm"
-              (click)="limpiarInputArchivos()"
-            ></button>
-          </div>
-
-          <ul class="mt-2 text-gray-600 text-sm list-disc pl-6">
-            <li *ngFor="let f of documentosSeleccionados">{{ f.name }}</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="col-span-2 flex justify-end gap-4 mt-8">
-        <button
-          pButton
-          type="button"
-          class="p-button-warning"
-          (click)="resetFormulario()"
-        >
-          Limpiar
-        </button>
-
-        <button
-          pButton
-          type="button"
-          class="p-button-success"
-          (click)="guardar()"
-        >
-          Guardar
-        </button>
-      </div>
-    </form>
+    <ng-container *ngTemplateOutlet="formularioTemplate"></ng-container>
   </div>
 </p-sidebar>
 
+<!-- ==========================================================
+✅ TEMPLATE ÚNICO: FORMULARIO (ES TU MISMO FORMULARIO)
+========================================================== -->
+<ng-template #formularioTemplate>
+  <form [formGroup]="formulario" class="grid grid-cols-2 gap-6">
+    <div class="col-span-2">
+      <h2 class="text-xl font-bold text-sky-700">Información General</h2>
+      <hr class="my-3" />
+    </div>
+
+    <!-- ✅ NUEVO: si es EGRESADO, ocultar botones de modo -->
+    <div class="col-span-2 flex gap-4 items-center mb-2" *ngIf="!isEgresado">
+      <label class="font-semibold">Modo:</label>
+
+      <button
+        pButton
+        type="button"
+        class="p-button-sm"
+        [class.p-button-info]="modoEstudiante === 'existente'"
+        [class.p-button-outlined]="modoEstudiante !== 'existente'"
+        (click)="modoEstudiante = 'existente'"
+      >
+        Seleccionar Estudiante
+      </button>
+
+      <button
+        pButton
+        type="button"
+        class="p-button-sm"
+        [class.p-button-success]="modoEstudiante === 'nuevo'"
+        [class.p-button-outlined]="modoEstudiante !== 'nuevo'"
+        (click)="cambiarAModoNuevo()"
+      >
+        Crear Estudiante Nuevo
+      </button>
+    </div>
+
+    <!-- ✅ EXISTENTE: seleccionar estudiante -->
+    <div class="col-span-2" *ngIf="!isEgresado && modoEstudiante === 'existente'">
+      <label class="block font-semibold mb-2">Seleccionar Estudiante *</label>
+
+      <p-dropdown
+        [options]="estudiantes"
+        [(ngModel)]="estudianteSeleccionado"
+        [ngModelOptions]="{ standalone: true }"
+        optionLabel="nombreCompleto"
+        dataKey="idEstudiante"
+        placeholder="Buscar por nombre o rut"
+        [filter]="true"
+        filterBy="nombreCompleto,rut"
+        [showClear]="true"
+        class="w-full"
+        (onChange)="onEstudianteChange()"
+      >
+        <ng-template let-estudiante pTemplate="item">
+          <div class="flex flex-col">
+            <span class="font-bold">{{ estudiante.nombreCompleto }}</span>
+            <small class="text-gray-500">{{ estudiante.rut }}</small>
+          </div>
+        </ng-template>
+      </p-dropdown>
+
+      <small class="text-red-500" *ngIf="intentoGuardar && !estudianteSeleccionado">
+        Debes seleccionar un estudiante.
+      </small>
+    </div>
+
+    <!-- ✅ EXISTENTE: RUT -->
+    <div
+      class="col-span-2"
+      *ngIf="!isEgresado && modoEstudiante === 'existente' && estudianteSeleccionado"
+    >
+      <label class="block font-semibold mb-2">RUT *</label>
+      <input
+        pInputText
+        [(ngModel)]="estudianteSeleccionado.rut"
+        [ngModelOptions]="{ standalone: true }"
+        placeholder="Ej: 20.123.456-7"
+        class="w-full"
+        maxlength="12"
+        inputmode="text"
+        autocomplete="off"
+        (input)="onRutInputExistente()"
+      />
+
+      <small
+        class="text-red-500"
+        *ngIf="intentoGuardar && !isRutValido((estudianteSeleccionado?.rut || ''))"
+      >
+        RUT inválido. Revisa el dígito verificador.
+      </small>
+    </div>
+
+    <!-- ✅ EXISTENTE: Plan (info readonly) -->
+    <div class="col-span-2" *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado">
+      <label class="block font-semibold mb-2">Plan actual (info)</label>
+      <input
+        pInputText
+        formControlName="planEstudios"
+        class="w-full"
+        placeholder="Se cargará automáticamente"
+        readonly
+      />
+      <small class="text-gray-500">
+        Este campo es informativo (viene del seguimiento/plan actual).
+      </small>
+    </div>
+
+    <!-- ✅✅✅ EXISTENTE: Plan editable -->
+    <div class="col-span-2" *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado">
+      <label class="block font-semibold mb-2">Plan de estudios (editable) *</label>
+
+      <p-dropdown
+        [options]="planesOptions"
+        [(ngModel)]="planSeleccionadoId"
+        [ngModelOptions]="{ standalone: true }"
+        placeholder="Selecciona un plan"
+        [filter]="true"
+        filterBy="label"
+        [showClear]="true"
+        class="w-full"
+      ></p-dropdown>
+
+      <small
+        class="text-xs text-gray-500"
+        *ngIf="planOriginalId && planSeleccionadoId && planSeleccionadoId !== planOriginalId"
+      >
+        📌 Cambiarás el plan en la BD del estudiante al guardar.
+      </small>
+
+      <small class="text-red-500" *ngIf="intentoGuardar && !planSeleccionadoId">
+        Debes seleccionar un plan.
+      </small>
+    </div>
+
+    <!-- ✅ NUEVO: crear estudiante -->
+    <div class="col-span-2" *ngIf="!isEgresado && modoEstudiante === 'nuevo'">
+      <h3 class="text-lg font-bold text-sky-700 mt-2">🆕 Nuevo Estudiante</h3>
+
+      <div class="grid grid-cols-2 gap-6 mt-4">
+        <div>
+          <label class="block font-semibold mb-2">RUT *</label>
+          <input
+            pInputText
+            [(ngModel)]="nuevoEstudiante.rut"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Ej: 20.123.456-7"
+            class="w-full"
+            maxlength="12"
+            inputmode="text"
+            autocomplete="off"
+            (input)="onRutInputNuevo()"
+          />
+
+          <small class="text-red-500" *ngIf="intentoGuardar && !isRutValido((nuevoEstudiante?.rut || ''))">
+            RUT inválido. Revisa el dígito verificador.
+          </small>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-2">Año ingreso *</label>
+          <p-inputNumber
+            [(ngModel)]="nuevoEstudiante.agnioIngreso"
+            [ngModelOptions]="{ standalone: true }"
+            class="w-full"
+            [useGrouping]="false"
+          ></p-inputNumber>
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-2">Nombre *</label>
+          <input
+            pInputText
+            [(ngModel)]="nuevoEstudiante.nombre"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Ej: Juan"
+            class="w-full"
+          />
+        </div>
+
+        <div>
+          <label class="block font-semibold mb-2">Plan de Estudios *</label>
+
+          <p-dropdown
+            [options]="planesOptions"
+            [(ngModel)]="nuevoEstudiante.idPlan"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Selecciona un plan"
+            [filter]="true"
+            filterBy="label"
+            [showClear]="true"
+            class="w-full"
+          ></p-dropdown>
+
+          <small class="text-red-500" *ngIf="intentoGuardar && !nuevoEstudiante.idPlan">
+            Debes seleccionar un plan.
+          </small>
+        </div>
+
+        <div class="col-span-2">
+          <label class="block font-semibold mb-2">Apellido *</label>
+          <input
+            pInputText
+            [(ngModel)]="nuevoEstudiante.apellido"
+            [ngModelOptions]="{ standalone: true }"
+            placeholder="Ej: Pérez"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ Seguimiento (ENCUESTA: solo año fin estudios) -->
+    <div>
+      <label class="block font-semibold mb-2">Año fin de estudios *</label>
+      <p-inputNumber
+        formControlName="anioFinEstudios"
+        class="w-full"
+        [useGrouping]="false"
+        placeholder="Ej: 2024"
+      ></p-inputNumber>
+
+      <small class="text-red-500" *ngIf="isInvalid('anioFinEstudios')">
+        <ng-container *ngIf="getError('anioFinEstudios')?.required">
+          Debes indicar el año de finalización.
+        </ng-container>
+        <ng-container *ngIf="getError('anioFinEstudios')?.min">Año demasiado bajo.</ng-container>
+        <ng-container *ngIf="getError('anioFinEstudios')?.max">Año demasiado alto.</ng-container>
+      </small>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-2">Situación Actual *</label>
+      <p-dropdown
+        formControlName="situacionActual"
+        [options]="situaciones"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <!-- ✅ si es Otro, pedir detalle -->
+    <div class="col-span-2" *ngIf="formulario.get('situacionActual')?.value === 'Otro'">
+      <label class="block font-semibold mb-2">Especifica (Otro) *</label>
+      <input
+        pInputText
+        formControlName="situacionActualOtro"
+        class="w-full"
+        placeholder="Ej: emprendimiento, licencia, etc."
+      />
+      <small class="text-red-500" *ngIf="formHasError('situacionActualOtroRequerido')">
+        Debes especificar la situación.
+      </small>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-2">Empresa</label>
+      <input pInputText formControlName="empresa" class="w-full" />
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-2">Cargo</label>
+      <input pInputText formControlName="cargo" class="w-full" />
+    </div>
+
+    <!-- ✅ Nivel de rentas (radios) -->
+    <div class="col-span-2">
+      <label class="font-bold block mb-2">
+        Nivel de Rentas <span class="text-red-500">*</span>
+      </label>
+
+      <div class="flex flex-column gap-2">
+        <div class="flex align-items-center gap-2">
+          <p-radioButton
+            name="nivelRentas"
+            inputId="nr_1"
+            [value]="'Sueldo mínimo ($500.000)'"
+            formControlName="nivelRentas"
+          ></p-radioButton>
+          <label for="nr_1">Sueldo mínimo ($500.000)</label>
+        </div>
+
+        <div class="flex align-items-center gap-2">
+          <p-radioButton
+            name="nivelRentas"
+            inputId="nr_2"
+            [value]="'Entre $500.001 y $1.000.000'"
+            formControlName="nivelRentas"
+          ></p-radioButton>
+          <label for="nr_2">Entre $500.001 y $1.000.000</label>
+        </div>
+
+        <div class="flex align-items-center gap-2">
+          <p-radioButton
+            name="nivelRentas"
+            inputId="nr_3"
+            [value]="'Entre $1.000.001 y $1.500.000'"
+            formControlName="nivelRentas"
+          ></p-radioButton>
+          <label for="nr_3">Entre $1.000.001 y $1.500.000</label>
+        </div>
+
+        <div class="flex align-items-center gap-2">
+          <p-radioButton
+            name="nivelRentas"
+            inputId="nr_4"
+            [value]="'Más de $1.500.001'"
+            formControlName="nivelRentas"
+          ></p-radioButton>
+          <label for="nr_4">Más de $1.500.001</label>
+        </div>
+      </div>
+
+      <small
+        class="p-error"
+        *ngIf="formulario.get('nivelRentas')?.touched && formulario.get('nivelRentas')?.invalid"
+      >
+        Debes seleccionar un nivel de rentas.
+      </small>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-2">Año Ingreso Laboral</label>
+      <p-inputNumber
+        formControlName="anioIngresoLaboral"
+        class="w-full"
+        [useGrouping]="false"
+        placeholder="Ej: 2024"
+      ></p-inputNumber>
+
+      <small class="text-red-500" *ngIf="isInvalid('anioIngresoLaboral')">
+        <ng-container *ngIf="getError('anioIngresoLaboral')?.min">
+          Año ingreso laboral demasiado bajo.
+        </ng-container>
+        <ng-container *ngIf="getError('anioIngresoLaboral')?.max">
+          Año ingreso laboral demasiado alto.
+        </ng-container>
+      </small>
+
+      <small class="text-red-500" *ngIf="formHasError('anioIngresoLaboralMenorQueFin')">
+        Año ingreso laboral debe ser mayor o igual al año fin de estudios.
+      </small>
+    </div>
+
+    <!-- ✅✅✅ NUEVO BLOQUE: Datos adicionales (preguntas del formulario) -->
+    <div class="col-span-2 mt-6">
+      <h2 class="text-xl font-bold text-sky-700">Datos adicionales</h2>
+      <hr class="my-3" />
+    </div>
+
+    <!-- Vía de ingreso -->
+    <div class="col-span-2">
+      <label class="block font-semibold mb-2">Vía de ingreso</label>
+      <p-dropdown
+        formControlName="viaIngreso"
+        [options]="viasIngreso"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+
+      <div class="mt-2" *ngIf="formulario.get('viaIngreso')?.value === 'Otro'">
+        <label class="block font-semibold mb-2">Especifica (vía de ingreso)</label>
+        <input pInputText formControlName="viaIngresoOtro" class="w-full" />
+        <small class="text-red-500" *ngIf="formHasError('viaIngresoOtroRequerido')">
+          Debes especificar la vía de ingreso.
+        </small>
+      </div>
+    </div>
+
+    <!-- Periodo estudios -->
+    <div>
+      <label class="block font-semibold mb-2">Año ingreso a carrera</label>
+      <p-inputNumber
+        formControlName="anioIngresoCarrera"
+        class="w-full"
+        [useGrouping]="false"
+        placeholder="Ej: 2020"
+      ></p-inputNumber>
+      <small class="text-red-500" *ngIf="formHasError('anioIngresoCarreraMayorQueFin')">
+        Año ingreso a carrera no puede ser mayor que el año fin de estudios.
+      </small>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-2">Año fin de estudios *</label>
+      <p-inputNumber
+        formControlName="anioFinEstudios"
+        class="w-full"
+        [useGrouping]="false"
+        placeholder="Ej: 2024"
+      ></p-inputNumber>
+    </div>
+
+    <!-- Género -->
+    <div>
+      <label class="block font-semibold mb-2">Género</label>
+      <p-dropdown
+        formControlName="genero"
+        [options]="generos"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <!-- Tiempo búsqueda trabajo -->
+    <div>
+      <label class="block font-semibold mb-2">Tiempo en encontrar trabajo</label>
+      <p-dropdown
+        formControlName="tiempoBusquedaTrabajo"
+        [options]="tiemposBusquedaTrabajo"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <!-- Sector laboral -->
+    <div class="col-span-2">
+      <label class="block font-semibold mb-2">Sector laboral</label>
+      <p-dropdown
+        formControlName="sectorLaboral"
+        [options]="sectoresLaborales"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+
+      <div class="mt-2" *ngIf="formulario.get('sectorLaboral')?.value === 'Otro'">
+        <label class="block font-semibold mb-2">Especifica (sector)</label>
+        <input pInputText formControlName="sectorLaboralOtro" class="w-full" />
+        <small class="text-red-500" *ngIf="formHasError('sectorLaboralOtroRequerido')">
+          Debes especificar el sector.
+        </small>
+      </div>
+    </div>
+
+    <!-- Tipo establecimiento -->
+    <div class="col-span-2">
+      <label class="block font-semibold mb-2">Tipo de establecimiento (si aplica)</label>
+      <p-dropdown
+        formControlName="tipoEstablecimiento"
+        [options]="tipoEstablecimiento"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+
+      <div class="mt-2" *ngIf="formulario.get('tipoEstablecimiento')?.value === 'Otro'">
+        <label class="block font-semibold mb-2">Especifica (establecimiento)</label>
+        <input pInputText formControlName="tipoEstablecimientoOtro" class="w-full" />
+        <small class="text-red-500" *ngIf="formHasError('tipoEstablecimientoOtroRequerido')">
+          Debes especificar el tipo de establecimiento.
+        </small>
+      </div>
+    </div>
+
+    <!-- ✅ Datos de Contacto -->
+    <div class="col-span-2 mt-6">
+      <h2 class="text-xl font-bold text-sky-700">Datos de Contacto</h2>
+      <hr class="my-3" />
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-2">Teléfono</label>
+      <input
+        pInputText
+        formControlName="telefono"
+        class="w-full"
+        placeholder="Ej: +56 12345678 o 12345678"
+        (input)="onTelefonoInput()"
+      />
+
+      <small class="text-red-500" *ngIf="isInvalid('telefono')">
+        <ng-container *ngIf="getError('telefono')?.pattern">
+          Teléfono inválido. Debe tener 8 dígitos (y código país opcional). Ej:
+          +56 12345678 o 12345678
+        </ng-container>
+        <ng-container *ngIf="getError('telefono')?.maxlength">Teléfono demasiado largo.</ng-container>
+      </small>
+    </div>
+
+    <div>
+      <label class="block font-semibold mb-2">Correo</label>
+      <input pInputText formControlName="emailContacto" class="w-full" />
+
+      <small class="text-red-500" *ngIf="isInvalid('emailContacto')">
+        <ng-container *ngIf="getError('emailContacto')?.pattern">
+          Correo inválido. Ej: nombre&#64;dominio.cl
+        </ng-container>
+        <ng-container *ngIf="getError('emailContacto')?.maxlength">Correo demasiado largo.</ng-container>
+      </small>
+    </div>
+
+    <div class="col-span-2">
+      <label class="block font-semibold mb-2">LinkedIn</label>
+      <input
+        pInputText
+        formControlName="linkedin"
+        class="w-full"
+        placeholder="https://www.linkedin.com/in/..."
+      />
+
+      <small class="text-red-500" *ngIf="isInvalid('linkedin')">
+        <ng-container *ngIf="getError('linkedin')?.pattern">
+          URL de LinkedIn inválida. Ej: https://www.linkedin.com/in/usuario
+        </ng-container>
+        <ng-container *ngIf="getError('linkedin')?.maxlength">URL demasiado larga.</ng-container>
+      </small>
+    </div>
+
+    <div class="col-span-2 mt-6">
+      <h2 class="text-xl font-bold text-sky-700">Documentos</h2>
+      <hr class="my-3" />
+    </div>
+
+    <div class="col-span-2 mt-2" *ngIf="documentosExistentes.length > 0">
+      <h3 class="text-lg font-bold text-sky-700 mb-2">📎 Documentos existentes</h3>
+
+      <p-table [value]="documentosExistentes" class="p-datatable-sm">
+        <ng-template pTemplate="header">
+          <tr>
+            <th>Nombre</th>
+            <th style="width: 180px;">Acciones</th>
+          </tr>
+        </ng-template>
+
+        <ng-template pTemplate="body" let-doc>
+          <tr>
+            <td>{{ doc.nombre }}</td>
+            <td class="flex gap-2">
+              <button
+                pButton
+                icon="pi pi-eye"
+                class="p-button-rounded p-button-sm p-button-secondary"
+                pTooltip="Ver"
+                (click)="verDocumento(doc)"
+              ></button>
+
+              <button
+                pButton
+                icon="pi pi-download"
+                class="p-button-rounded p-button-sm p-button-info"
+                pTooltip="Descargar"
+                (click)="descargarDocumento(doc)"
+              ></button>
+
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-rounded p-button-sm p-button-danger"
+                pTooltip="Eliminar"
+                (click)="eliminarDocumento(doc)"
+                *ngIf="!isEgresado"
+              ></button>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+
+    <div class="col-span-2">
+      <input
+        #fileInput
+        type="file"
+        multiple
+        (change)="onFileSelected($event)"
+        class="block w-full border border-gray-300 p-2 rounded-md"
+      />
+
+      <div *ngIf="documentosSeleccionados.length > 0" class="mt-3">
+        <div class="flex justify-between items-center">
+          <p class="font-semibold text-gray-600">
+            Archivos seleccionados ({{ documentosSeleccionados.length }})
+          </p>
+          <button
+            pButton
+            type="button"
+            label="Quitar"
+            icon="pi pi-times"
+            class="p-button-text p-button-danger p-button-sm"
+            (click)="limpiarInputArchivos()"
+          ></button>
+        </div>
+
+        <ul class="mt-2 text-gray-600 text-sm list-disc pl-6">
+          <li *ngFor="let f of documentosSeleccionados">{{ f.name }}</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col-span-2 flex justify-end gap-4 mt-8">
+      <button pButton type="button" class="p-button-warning" (click)="resetFormulario()">
+        Limpiar
+      </button>
+
+      <button pButton type="button" class="p-button-success" (click)="guardar()">
+        Guardar
+      </button>
+    </div>
+  </form>
+</ng-template>
+
 <!-- ✅ TABLA DE EGRESADOS -->
-<div class="m-10 bg-white p-8 shadow-lg rounded-md">
+<div class="m-10 bg-white p-8 shadow-lg rounded-md" *ngIf="!isEgresado">
+  <!-- (TODO ESTE BLOQUE QUEDA IGUAL) -->
+
   <!-- ✅✅✅ Tarjetas resumen arriba de la tabla -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-  <div class="rounded-xl border border-sky-800 bg-sky-800 p-4 shadow-sm">
-    <p class="text-xs text-white/90 font-semibold">Total Egresados</p>
-    <p class="text-2xl font-extrabold text-white">{{ stats.total }}</p>
-    <p class="text-xs text-white/80">registros</p>
-  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div class="rounded-xl border border-sky-800 bg-sky-800 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Total Egresados</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.total }}</p>
+      <p class="text-xs text-white/80">registros</p>
+    </div>
 
-  <div class="rounded-xl border border-emerald-700 bg-emerald-700 p-4 shadow-sm">
-    <p class="text-xs text-white/90 font-semibold">Trabajando</p>
-    <p class="text-2xl font-extrabold text-white">{{ stats.trabajando }}</p>
-    <p class="text-xs text-white/80">activos</p>
-  </div>
+    <div class="rounded-xl border border-emerald-700 bg-emerald-700 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Trabajando</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.trabajando }}</p>
+      <p class="text-xs text-white/80">activos</p>
+    </div>
 
-  <div class="rounded-xl border border-rose-600 bg-rose-600 p-4 shadow-sm">
-    <p class="text-xs text-white/90 font-semibold">Cesante</p>
-    <p class="text-2xl font-extrabold text-white">{{ stats.cesante }}</p>
-    <p class="text-xs text-white/80">sin trabajo</p>
-  </div>
+    <div class="rounded-xl border border-rose-600 bg-rose-600 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Cesante</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.cesante }}</p>
+      <p class="text-xs text-white/80">sin trabajo</p>
+    </div>
 
-  <div class="rounded-xl border border-amber-600 bg-amber-600 p-4 shadow-sm">
-    <p class="text-xs text-white/90 font-semibold">Otro</p>
-    <p class="text-2xl font-extrabold text-white">{{ stats.otro }}</p>
-    <p class="text-xs text-white/80">otros casos</p>
-  </div>
+    <div class="rounded-xl border border-amber-600 bg-amber-600 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Otro</p>
+      <p class="text-2xl font-extrabold text-white">{{ stats.otro }}</p>
+      <p class="text-xs text-white/80">otros casos</p>
+    </div>
 
-  <!-- ✅ CAMBIO: esta tarjeta ahora tiene color del sistema -->
-  <div class="rounded-xl border border-indigo-700 bg-indigo-700 p-4 shadow-sm">
-    <p class="text-xs text-white/90 font-semibold">Año fin estudios</p>
-    <p class="text-2xl font-extrabold text-white">—</p>
-    <p class="text-xs text-white/80">en tabla</p>
+    <div class="rounded-xl border border-indigo-700 bg-indigo-700 p-4 shadow-sm">
+      <p class="text-xs text-white/90 font-semibold">Año fin estudios</p>
+      <p class="text-2xl font-extrabold text-white">—</p>
+      <p class="text-xs text-white/80">en tabla</p>
+    </div>
   </div>
-</div>
-
 
   <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
     <div class="flex items-center gap-3">
@@ -784,191 +759,190 @@
   <!-- ✅ scroll horizontal como antes -->
   <div class="overflow-x-auto rounded-xl border border-gray-200 p-fluid h-[720px]">
     <p-table
-  #dt
-  [value]="egresados"
-  [paginator]="true"
-  [rows]="6"
-  [rowsPerPageOptions]="[6, 10, 20, 50]"
-  [loading]="loading"
-  [rowHover]="true"
-  [scrollable]="true"
-  scrollHeight="flex"
-  [tableStyle]="{ 'min-width': '1700px' }"
-  class="p-datatable-sm p-datatable-gridlines"
-  [showCurrentPageReport]="true"
-  currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
-  [globalFilterFields]="[
-    'Estudiante.nombreCompleto',
-    'Estudiante.rut',
-    'situacionActual',
-    'situacionActualOtro',
-    'empresa',
-    'cargo',
-    'nivelRentas',
-    'anioFinEstudios',
-    'telefono',
-    'emailContacto'
-  ]"
->
-  <ng-template pTemplate="header">
-    <tr>
-      <th>Nombre</th>
-      <th>RUT</th>
-      <th>Situación</th>
-      <th>Empresa</th>
-      <th>Cargo</th>
-      <th>Nivel de rentas</th>
-      <th>Año fin estudios</th>
-      <th>Teléfono</th>
-      <th>Correo</th>
-      <th style="width: 120px;">Documentos</th>
-      <th style="width: 140px;">Acciones</th>
-    </tr>
-  </ng-template>
+      #dt
+      [value]="egresados"
+      [paginator]="true"
+      [rows]="6"
+      [rowsPerPageOptions]="[6, 10, 20, 50]"
+      [loading]="loading"
+      [rowHover]="true"
+      [scrollable]="true"
+      scrollHeight="flex"
+      [tableStyle]="{ 'min-width': '1700px' }"
+      class="p-datatable-sm p-datatable-gridlines"
+      [showCurrentPageReport]="true"
+      currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
+      [globalFilterFields]="[
+        'Estudiante.nombreCompleto',
+        'Estudiante.rut',
+        'situacionActual',
+        'situacionActualOtro',
+        'empresa',
+        'cargo',
+        'nivelRentas',
+        'anioFinEstudios',
+        'telefono',
+        'emailContacto'
+      ]"
+    >
+      <ng-template pTemplate="header">
+        <tr>
+          <th>Nombre</th>
+          <th>RUT</th>
+          <th>Situación</th>
+          <th>Empresa</th>
+          <th>Cargo</th>
+          <th>Nivel de rentas</th>
+          <th>Año fin estudios</th>
+          <th>Teléfono</th>
+          <th>Correo</th>
+          <th style="width: 120px;">Documentos</th>
+          <th style="width: 140px;">Acciones</th>
+        </tr>
+      </ng-template>
 
-  <ng-template pTemplate="body" let-row>
-    <tr>
-      <td>
-        <p-tag
-          [value]="row?.Estudiante?.nombreCompleto || '—'"
-          severity="info"
-          [rounded]="true"
-          styleClass="text-base px-3 py-2"
-        ></p-tag>
-      </td>
+      <ng-template pTemplate="body" let-row>
+        <tr>
+          <td>
+            <p-tag
+              [value]="row?.Estudiante?.nombreCompleto || '—'"
+              severity="info"
+              [rounded]="true"
+              styleClass="text-base px-3 py-2"
+            ></p-tag>
+          </td>
 
-      <td>
-        <p-tag
-          *ngIf="row?.Estudiante?.rut; else sinRut"
-          [value]="row?.Estudiante?.rut"
-          severity="secondary"
-          [rounded]="true"
-          styleClass="text-sm px-3 py-2"
-        ></p-tag>
-        <ng-template #sinRut>—</ng-template>
-      </td>
+          <td>
+            <p-tag
+              *ngIf="row?.Estudiante?.rut; else sinRut"
+              [value]="row?.Estudiante?.rut"
+              severity="secondary"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinRut>—</ng-template>
+          </td>
 
-      <td>
-        <p-tag
-          [value]="row?.situacionActual || '—'"
-          [severity]="getSituacionSeverity(row?.situacionActual)"
-          [rounded]="true"
-          styleClass="text-base px-3 py-2"
-        ></p-tag>
+          <td>
+            <p-tag
+              [value]="row?.situacionActual || '—'"
+              [severity]="getSituacionSeverity(row?.situacionActual)"
+              [rounded]="true"
+              styleClass="text-base px-3 py-2"
+            ></p-tag>
 
-        <div
-          class="text-xs text-gray-500 mt-1"
-          *ngIf="row?.situacionActual === 'Otro' && row?.situacionActualOtro"
-        >
-          {{ row?.situacionActualOtro }}
-        </div>
-      </td>
+            <div
+              class="text-xs text-gray-500 mt-1"
+              *ngIf="row?.situacionActual === 'Otro' && row?.situacionActualOtro"
+            >
+              {{ row?.situacionActualOtro }}
+            </div>
+          </td>
 
-      <td>
-        <p-tag
-          *ngIf="row?.empresa; else sinEmpresa"
-          [value]="row?.empresa"
-          severity="info"
-          [rounded]="true"
-          styleClass="text-sm px-3 py-2"
-        ></p-tag>
-        <ng-template #sinEmpresa>—</ng-template>
-      </td>
+          <td>
+            <p-tag
+              *ngIf="row?.empresa; else sinEmpresa"
+              [value]="row?.empresa"
+              severity="info"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinEmpresa>—</ng-template>
+          </td>
 
-      <td>
-        <p-tag
-          *ngIf="row?.cargo; else sinCargo"
-          [value]="row?.cargo"
-          severity="secondary"
-          [rounded]="true"
-          styleClass="text-sm px-3 py-2"
-        ></p-tag>
-        <ng-template #sinCargo>—</ng-template>
-      </td>
+          <td>
+            <p-tag
+              *ngIf="row?.cargo; else sinCargo"
+              [value]="row?.cargo"
+              severity="secondary"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinCargo>—</ng-template>
+          </td>
 
-      <td>
-        <p-tag
-          *ngIf="row?.nivelRentas; else sinRenta"
-          [value]="row?.nivelRentas"
-          severity="info"
-          [rounded]="true"
-          styleClass="text-base px-4 py-2"
-        ></p-tag>
-        <ng-template #sinRenta>—</ng-template>
-      </td>
+          <td>
+            <p-tag
+              *ngIf="row?.nivelRentas; else sinRenta"
+              [value]="row?.nivelRentas"
+              severity="info"
+              [rounded]="true"
+              styleClass="text-base px-4 py-2"
+            ></p-tag>
+            <ng-template #sinRenta>—</ng-template>
+          </td>
 
-      <td>
-        <p-tag
-          *ngIf="row?.anioFinEstudios; else sinAnioFin"
-          [value]="row?.anioFinEstudios"
-          severity="warning"
-          [rounded]="true"
-          styleClass="text-sm px-3 py-2"
-        ></p-tag>
-        <ng-template #sinAnioFin>—</ng-template>
-      </td>
+          <td>
+            <p-tag
+              *ngIf="row?.anioFinEstudios; else sinAnioFin"
+              [value]="row?.anioFinEstudios"
+              severity="warning"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinAnioFin>—</ng-template>
+          </td>
 
-      <td>
-        <p-tag
-          *ngIf="row?.telefono; else sinTel"
-          [value]="row?.telefono"
-          severity="success"
-          [rounded]="true"
-          styleClass="text-sm px-3 py-2"
-        ></p-tag>
-        <ng-template #sinTel>—</ng-template>
-      </td>
+          <td>
+            <p-tag
+              *ngIf="row?.telefono; else sinTel"
+              [value]="row?.telefono"
+              severity="success"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinTel>—</ng-template>
+          </td>
 
-      <td>
-        <p-tag
-          *ngIf="row?.emailContacto; else sinMail"
-          [value]="row?.emailContacto"
-          severity="info"
-          [rounded]="true"
-          styleClass="text-sm px-3 py-2"
-        ></p-tag>
-        <ng-template #sinMail>—</ng-template>
-      </td>
+          <td>
+            <p-tag
+              *ngIf="row?.emailContacto; else sinMail"
+              [value]="row?.emailContacto"
+              severity="info"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinMail>—</ng-template>
+          </td>
 
-      <td class="text-center">
-        <button
-          pButton
-          icon="pi pi-file"
-          class="p-button-rounded p-button-sm p-button-secondary"
-          pTooltip="Documentos"
-          (click)="abrirModalDocumentos(row)"
-        ></button>
-      </td>
+          <td class="text-center">
+            <button
+              pButton
+              icon="pi pi-file"
+              class="p-button-rounded p-button-sm p-button-secondary"
+              pTooltip="Documentos"
+              (click)="abrirModalDocumentos(row)"
+            ></button>
+          </td>
 
-      <td class="flex gap-2 justify-center">
-        <button
-          pButton
-          icon="pi pi-pencil"
-          class="p-button-rounded p-button-sm p-button-info"
-          pTooltip="Editar"
-          (click)="abrirEdicion(row)"
-        ></button>
+          <td class="flex gap-2 justify-center">
+            <button
+              pButton
+              icon="pi pi-pencil"
+              class="p-button-rounded p-button-sm p-button-info"
+              pTooltip="Editar"
+              (click)="abrirEdicion(row)"
+            ></button>
 
-        <button
-          pButton
-          icon="pi pi-trash"
-          class="p-button-rounded p-button-sm p-button-danger"
-          pTooltip="Eliminar"
-          (click)="eliminar(row)"
-        ></button>
-      </td>
-    </tr>
-  </ng-template>
+            <button
+              pButton
+              icon="pi pi-trash"
+              class="p-button-rounded p-button-sm p-button-danger"
+              pTooltip="Eliminar"
+              (click)="eliminar(row)"
+            ></button>
+          </td>
+        </tr>
+      </ng-template>
 
-  <ng-template pTemplate="emptymessage">
-    <tr>
-      <td colspan="11" class="text-center text-gray-500 py-6">
-        No hay registros para mostrar.
-      </td>
-    </tr>
-  </ng-template>
-</p-table>
-
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="11" class="text-center text-gray-500 py-6">
+            No hay registros para mostrar.
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
   </div>
 
   <!-- ✅✅✅ DASHBOARD POR COHORTE (NUEVO) -->
@@ -998,35 +972,35 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
       <div class="rounded-xl border border-sky-800 bg-sky-800 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Total cohorte</p>
-        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte?.total ?? 0 }}</p>
+        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.total }}</p>
         <p class="text-xs text-white/80">registros</p>
       </div>
 
       <div class="rounded-xl border border-emerald-700 bg-emerald-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Trabajando</p>
-        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte?.trabajando ?? 0 }}</p>
+        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.trabajando }}</p>
         <p class="text-xs text-white/80">activos</p>
       </div>
 
       <div class="rounded-xl border border-rose-600 bg-rose-600 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Cesante</p>
-        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte?.cesante ?? 0 }}</p>
+        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.cesante }}</p>
         <p class="text-xs text-white/80">sin trabajo</p>
       </div>
 
       <div class="rounded-xl border border-amber-600 bg-amber-600 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Otro</p>
-        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte?.otro ?? 0 }}</p>
+        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.otro }}</p>
         <p class="text-xs text-white/80">otros casos</p>
       </div>
 
       <div class="rounded-xl border border-indigo-700 bg-indigo-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">% con documentos</p>
         <p class="text-2xl font-extrabold text-white">
-          {{ kpiCohorte?.porcentajeConDocs ?? 0 }}%
+          {{ kpiCohorte.porcentajeConDocs }}%
         </p>
         <p class="text-xs text-white/80">
-          ({{ kpiCohorte?.conDocs ?? 0 }}/{{ kpiCohorte?.total ?? 0 }})
+          ({{ kpiCohorte.conDocs }}/{{ kpiCohorte.total }})
         </p>
       </div>
     </div>
@@ -1125,6 +1099,7 @@
 
 <!-- ✅ MODAL FILTROS -->
 <p-dialog
+  *ngIf="!isEgresado"
   [(visible)]="modalFiltrosVisible"
   [modal]="true"
   [style]="{ width: '720px' }"
@@ -1249,6 +1224,7 @@
               class="p-button-rounded p-button-sm p-button-danger"
               pTooltip="Eliminar"
               (click)="eliminarDocumento(doc)"
+              *ngIf="!isEgresado"
             ></button>
           </td>
         </tr>

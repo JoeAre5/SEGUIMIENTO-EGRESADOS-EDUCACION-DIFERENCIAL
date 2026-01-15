@@ -61,15 +61,29 @@ export class AuthService {
     if (!passwordsMatch)
       throw new ForbiddenException('Usuario o Contraseña incorrectos');
 
-    return this.signToken(user.id, user.email, user.username, user.role);
+    // 👇 Agregamos idEstudiante al token SIN romper nada:
+    // - Si tu modelo Usuario tiene idEstudiante, se incluye.
+    // - Si no existe ese campo, quedará como null (no revienta).
+    const idEstudiante =
+      (user as unknown as { idEstudiante?: number | null }).idEstudiante ?? null;
+
+    return this.signToken(user.id, user.email, user.username, user.role, idEstudiante);
   }
 
-  async signToken(id: number, email: string, username: string, role: string) {
+  async signToken(
+    id: number,
+    email: string,
+    username: string,
+    role: string,
+    idEstudiante: number | null = null,
+  ) {
     const payload = {
       sub: id,
       username,
       email,
       role,
+      // ✅ Esto habilita /egresados/mine (backend toma req.user.idEstudiante)
+      idEstudiante,
     };
 
     const secret = this.configService.get('JWT_SECRET');

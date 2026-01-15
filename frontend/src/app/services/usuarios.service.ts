@@ -13,15 +13,31 @@ export class UsuariosService {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
+  // ✅ helper: buscar token donde realmente lo estás guardando
+  private getToken(): string | null {
+    if (!isPlatformBrowser(this.platformId)) return null;
+
+    return (
+      sessionStorage.getItem('token') ||
+      sessionStorage.getItem('access_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('access_token')
+    );
+  }
+
   public tieneRol(roles: Array<string>): boolean {
     if (!isPlatformBrowser(this.platformId)) return false;
 
-    const jwtToken = sessionStorage.getItem('token');
+    const jwtToken = this.getToken();
     if (!jwtToken) return false;
 
     try {
       const decoded_token: DecodedJWT = jwtDecode(jwtToken);
-      return roles.some((role) => decoded_token.role == role);
+
+      const userRole = (decoded_token?.role ?? '').toString().trim();
+
+      // ✅ match directo (igual a como lo tienes)
+      return roles.some((role) => userRole === role);
     } catch (e) {
       return false;
     }

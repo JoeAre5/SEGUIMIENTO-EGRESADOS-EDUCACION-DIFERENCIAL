@@ -157,12 +157,14 @@
         </small>
       </div>
 
-      <!-- ✅✅✅ EXISTENTE: Plan editable (dropdown con planes) -->
+      <!-- ✅✅✅ EXISTENTE: Plan editable -->
       <div
         class="col-span-2"
         *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado"
       >
-        <label class="block font-semibold mb-2">Plan de estudios (editable) *</label>
+        <label class="block font-semibold mb-2"
+          >Plan de estudios (editable) *</label
+        >
 
         <p-dropdown
           [options]="planesOptions"
@@ -177,12 +179,19 @@
 
         <small
           class="text-xs text-gray-500"
-          *ngIf="planOriginalId && planSeleccionadoId && planSeleccionadoId !== planOriginalId"
+          *ngIf="
+            planOriginalId &&
+            planSeleccionadoId &&
+            planSeleccionadoId !== planOriginalId
+          "
         >
           📌 Cambiarás el plan en la BD del estudiante al guardar.
         </small>
 
-        <small class="text-red-500" *ngIf="intentoGuardar && !planSeleccionadoId">
+        <small
+          class="text-red-500"
+          *ngIf="intentoGuardar && !planSeleccionadoId"
+        >
           Debes seleccionar un plan.
         </small>
       </div>
@@ -208,7 +217,10 @@
 
             <small
               class="text-red-500"
-              *ngIf="intentoGuardar && !isRutValido((nuevoEstudiante?.rut || ''))"
+              *ngIf="
+                intentoGuardar &&
+                !isRutValido((nuevoEstudiante?.rut || ''))
+              "
             >
               RUT inválido. Revisa el dígito verificador.
             </small>
@@ -249,7 +261,10 @@
               class="w-full"
             ></p-dropdown>
 
-            <small class="text-red-500" *ngIf="intentoGuardar && !nuevoEstudiante.idPlan">
+            <small
+              class="text-red-500"
+              *ngIf="intentoGuardar && !nuevoEstudiante.idPlan"
+            >
               Debes seleccionar un plan.
             </small>
           </div>
@@ -277,7 +292,10 @@
           class="w-full"
         ></p-calendar>
 
-        <small class="text-red-500" *ngIf="formHasError('anioSeguimientoMenorQueEgreso')">
+        <small
+          class="text-red-500"
+          *ngIf="formHasError('anioSeguimientoMenorQueEgreso')"
+        >
           Año de seguimiento no puede ser menor que el año de egreso.
         </small>
       </div>
@@ -293,7 +311,10 @@
       </div>
 
       <!-- ✅ si es Otro, pedir detalle -->
-      <div class="col-span-2" *ngIf="formulario.get('situacionActual')?.value === 'Otro'">
+      <div
+        class="col-span-2"
+        *ngIf="formulario.get('situacionActual')?.value === 'Otro'"
+      >
         <label class="block font-semibold mb-2">Especifica (Otro) *</label>
         <input
           pInputText
@@ -366,7 +387,10 @@
 
         <small
           class="p-error"
-          *ngIf="formulario.get('nivelRentas')?.touched && formulario.get('nivelRentas')?.invalid"
+          *ngIf="
+            formulario.get('nivelRentas')?.touched &&
+            formulario.get('nivelRentas')?.invalid
+          "
         >
           Debes seleccionar un nivel de rentas.
         </small>
@@ -499,7 +523,9 @@
       </div>
 
       <div class="col-span-2 mt-2" *ngIf="documentosExistentes.length > 0">
-        <h3 class="text-lg font-bold text-sky-700 mb-2">📎 Documentos existentes</h3>
+        <h3 class="text-lg font-bold text-sky-700 mb-2">
+          📎 Documentos existentes
+        </h3>
 
         <p-table [value]="documentosExistentes" class="p-datatable-sm">
           <ng-template pTemplate="header">
@@ -597,7 +623,7 @@
 
 <!-- ✅ TABLA DE EGRESADOS -->
 <div class="m-10 bg-white p-8 shadow-lg rounded-md">
-  <!-- ✅✅✅ Tarjetas resumen arriba de la tabla (COLORES SÓLIDOS) -->
+  <!-- ✅✅✅ Tarjetas resumen arriba de la tabla -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
     <div class="rounded-xl border border-sky-800 bg-sky-800 p-4 shadow-sm">
       <p class="text-xs text-white/90 font-semibold">Total Egresados</p>
@@ -623,7 +649,6 @@
       <p class="text-xs text-white/80">otros casos</p>
     </div>
 
-    <!-- ⭐ Tarjeta extra solo para mantener el grid de 5 sin romper tu layout -->
     <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
       <p class="text-xs text-slate-600 font-semibold">Nivel de rentas</p>
       <p class="text-2xl font-extrabold text-slate-800">—</p>
@@ -674,7 +699,7 @@
     </span>
   </div>
 
-  <!-- ✅✅✅ altura real para que scrollHeight="flex" funcione -->
+  <!-- ✅ scroll horizontal como antes -->
   <div class="overflow-x-auto rounded-xl border border-gray-200 p-fluid h-[720px]">
     <p-table
       #dt
@@ -686,7 +711,7 @@
       [rowHover]="true"
       [scrollable]="true"
       scrollHeight="flex"
-      [tableStyle]="{ 'min-width': '1200px' }"
+      [tableStyle]="{ 'min-width': '1700px' }"
       class="p-datatable-sm p-datatable-gridlines"
       [showCurrentPageReport]="true"
       currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
@@ -703,207 +728,177 @@
       ]"
     >
       <ng-template pTemplate="header">
-        <tr class="text-sm bg-sky-700 text-white shadow-md">
-          <th
-            class="sticky top-0 z-30 w-[260px] bg-sky-700 text-white font-semibold border-b-4 border-sky-300"
-            style="left: 0px;"
-          >
-            Estudiante
-          </th>
-
-          <th
-            class="sticky top-0 z-30 w-[140px] bg-sky-700 text-white font-semibold border-b-4 border-sky-300"
-            style="left: 260px;"
-          >
-            RUT
-          </th>
-
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[160px]">
-            Situación
-          </th>
-
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[160px]">
-            Año Seguimiento
-          </th>
-
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[190px]">
-            Empresa
-          </th>
-
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[190px]">
-            Cargo
-          </th>
-
-          <!-- ✅ NUEVO: Nivel de rentas -->
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[240px] text-center">
-            Nivel de Rentas
-          </th>
-
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[140px] text-center">
-            Teléfono
-          </th>
-
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[190px] text-center">
-            Email
-          </th>
-
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[140px] text-center">
-            Archivos
-          </th>
-
-          <th class="sticky top-0 z-10 bg-sky-700 text-white font-semibold border-b-4 border-sky-300 w-[120px] text-center">
-            Acciones
-          </th>
+        <tr>
+          <th>Nombre</th>
+          <th>RUT</th>
+          <th>Situación</th>
+          <th>Empresa</th>
+          <th>Cargo</th>
+          <th>Nivel de rentas</th>
+          <th>Año seguimiento</th>
+          <th>Teléfono</th>
+          <th>Correo</th>
+          <th style="width: 120px;">Documentos</th>
+          <th style="width: 140px;">Acciones</th>
         </tr>
       </ng-template>
 
-      <ng-template pTemplate="body" let-egresado let-rowIndex="rowIndex">
-        <tr class="text-sm" [ngClass]="{ 'bg-gray-50': rowIndex % 2 === 0 }">
-          <td
-            class="font-semibold text-sky-800 sticky bg-white z-20"
-            style="left: 0px; min-width: 260px;"
-          >
-            {{ egresado.Estudiante?.nombreCompleto }}
-          </td>
-
-          <td
-            class="text-gray-700 sticky bg-white z-20"
-            style="left: 260px; min-width: 140px;"
-          >
-            {{ egresado.Estudiante?.rut }}
-          </td>
-
+      <ng-template pTemplate="body" let-row>
+        <tr>
+          <!-- ✅ Nombre (azul) -->
           <td>
             <p-tag
-              [value]="egresado.situacionActual"
-              [severity]="getSituacionSeverity(egresado.situacionActual)"
+              [value]="row?.Estudiante?.nombreCompleto || '—'"
+              severity="info"
+              [rounded]="true"
+              styleClass="text-base px-3 py-2"
+            ></p-tag>
+          </td>
+
+          <!-- ✅ RUT (gris) -->
+          <td>
+            <p-tag
+              *ngIf="row?.Estudiante?.rut; else sinRut"
+              [value]="row?.Estudiante?.rut"
+              severity="secondary"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinRut>—</ng-template>
+          </td>
+
+          <!-- ✅ Situación (colores) -->
+          <td>
+            <p-tag
+              [value]="row?.situacionActual || '—'"
+              [severity]="getSituacionSeverity(row?.situacionActual)"
+              [rounded]="true"
+              styleClass="text-base px-3 py-2"
             ></p-tag>
 
-            <small
-              class="block text-xs text-gray-500 mt-1"
-              *ngIf="(egresado.situacionActual || '').toLowerCase() === 'otro' && egresado.situacionActualOtro"
+            <div
+              class="text-xs text-gray-500 mt-1"
+              *ngIf="row?.situacionActual === 'Otro' && row?.situacionActualOtro"
             >
-              {{ egresado.situacionActualOtro }}
-            </small>
+              {{ row?.situacionActualOtro }}
+            </div>
           </td>
 
-          <td class="text-gray-700">{{ egresado.anioSeguimiento }}</td>
-
-          <td class="text-center">
-            <span
-              class="inline-flex items-center whitespace-nowrap max-w-[180px] px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-[15px] font-semibold truncate border border-indigo-200"
-              [pTooltip]="egresado.empresa"
-              tooltipPosition="top"
-              [tooltipDisabled]="!(egresado.empresa && egresado.empresa.length > 18)"
-            >
-              {{ egresado.empresa || '-' }}
-            </span>
+          <!-- ✅ Empresa (azul) -->
+          <td>
+            <p-tag
+              *ngIf="row?.empresa; else sinEmpresa"
+              [value]="row?.empresa"
+              severity="info"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinEmpresa>—</ng-template>
           </td>
 
-          <td class="text-center">
-            <span
-              class="inline-flex items-center whitespace-nowrap max-w-[180px] px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-[15px] font-semibold truncate border border-amber-200"
-              [pTooltip]="egresado.cargo"
-              tooltipPosition="top"
-              [tooltipDisabled]="!(egresado.cargo && egresado.cargo.length > 18)"
-            >
-              {{ egresado.cargo || '-' }}
-            </span>
+          <!-- ✅ Cargo (gris) -->
+          <td>
+            <p-tag
+              *ngIf="row?.cargo; else sinCargo"
+              [value]="row?.cargo"
+              severity="secondary"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinCargo>—</ng-template>
           </td>
 
-          <!-- ✅ Nivel de Rentas chip -->
-          <td class="text-center">
-            <span
-              class="inline-flex items-center whitespace-nowrap max-w-[220px] px-4 py-1 rounded-full font-bold text-slate-800 text-[15px] bg-slate-50 border border-slate-200 truncate"
-              [pTooltip]="egresado.nivelRentas"
-              tooltipPosition="top"
-              [tooltipDisabled]="!(egresado.nivelRentas && egresado.nivelRentas.length > 24)"
-            >
-              {{ egresado.nivelRentas || '-' }}
-            </span>
+          <!-- ✅ Nivel de rentas (más grande, no se sale) -->
+          <td>
+            <p-tag
+              *ngIf="row?.nivelRentas; else sinRenta"
+              [value]="row?.nivelRentas"
+              severity="info"
+              [rounded]="true"
+              styleClass="text-base px-4 py-2"
+            ></p-tag>
+            <ng-template #sinRenta>—</ng-template>
           </td>
 
-          <td class="text-center">
-            <span
-              class="inline-flex items-center whitespace-nowrap px-3 py-1 rounded-full bg-cyan-50 text-cyan-700 text-[15px] font-semibold border border-cyan-200"
-            >
-              {{ egresado.telefono || '-' }}
-            </span>
+          <!-- ✅ Año seguimiento (amarillo) -->
+          <td>
+            <p-tag
+              *ngIf="row?.anioSeguimiento; else sinAnio"
+              [value]="row?.anioSeguimiento"
+              severity="warning"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinAnio>—</ng-template>
           </td>
 
-          <td class="text-center">
-            <span
-              class="inline-flex items-center whitespace-nowrap min-w-0 max-w-[260px] px-3 py-1 rounded-full bg-rose-50 text-rose-700 text-[15px] font-semibold border border-rose-200 overflow-hidden text-ellipsis"
-              [pTooltip]="egresado.emailContacto"
-              tooltipPosition="top"
-              [tooltipDisabled]="!(egresado.emailContacto && egresado.emailContacto.length > 26)"
-            >
-              {{ egresado.emailContacto || '-' }}
-            </span>
+          <!-- ✅ Teléfono (verde) -->
+          <td>
+            <p-tag
+              *ngIf="row?.telefono; else sinTel"
+              [value]="row?.telefono"
+              severity="success"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinTel>—</ng-template>
           </td>
 
+          <!-- ✅ Correo (azul) -->
+          <td>
+            <p-tag
+              *ngIf="row?.emailContacto; else sinMail"
+              [value]="row?.emailContacto"
+              severity="info"
+              [rounded]="true"
+              styleClass="text-sm px-3 py-2"
+            ></p-tag>
+            <ng-template #sinMail>—</ng-template>
+          </td>
+
+          <!-- ✅ Documentos (botón en su columna, como antes) -->
           <td class="text-center">
             <button
-              *ngIf="egresado.documentos?.length > 0"
               pButton
-              type="button"
-              class="p-button-sm p-button-text p-button-info"
-              icon="pi pi-paperclip"
-              (click)="abrirModalDocumentos(egresado)"
+              icon="pi pi-file"
+              class="p-button-rounded p-button-sm p-button-secondary"
+              pTooltip="Documentos"
+              (click)="abrirModalDocumentos(row)"
             ></button>
-
-            <span
-              *ngIf="egresado.documentos?.length > 0"
-              class="ml-2 inline-flex items-center px-2 py-1 rounded-full bg-sky-50 text-sky-700 text-xs font-semibold"
-            >
-              {{ egresado.documentos.length }}
-            </span>
-
-            <span
-              *ngIf="!egresado.documentos || egresado.documentos.length === 0"
-              class="text-gray-400 italic text-xs"
-            >
-              Sin archivo
-            </span>
           </td>
 
-          <td class="text-center">
-            <div class="flex justify-center gap-2">
-              <button
-                pButton
-                icon="pi pi-pencil"
-                class="p-button-rounded p-button-sm p-button-info"
-                pTooltip="Editar"
-                (click)="abrirEdicion(egresado)"
-              ></button>
+          <!-- ✅ Acciones -->
+          <td class="flex gap-2 justify-center">
+            <button
+              pButton
+              icon="pi pi-pencil"
+              class="p-button-rounded p-button-sm p-button-info"
+              pTooltip="Editar"
+              (click)="abrirEdicion(row)"
+            ></button>
 
-              <button
-                pButton
-                icon="pi pi-trash"
-                class="p-button-rounded p-button-sm p-button-danger"
-                pTooltip="Eliminar"
-                (click)="eliminar(egresado)"
-              ></button>
-            </div>
+            <button
+              pButton
+              icon="pi pi-trash"
+              class="p-button-rounded p-button-sm p-button-danger"
+              pTooltip="Eliminar"
+              (click)="eliminar(row)"
+            ></button>
           </td>
         </tr>
       </ng-template>
 
       <ng-template pTemplate="emptymessage">
         <tr>
-          <td colspan="11">
-            <div class="py-10 text-center text-gray-500">
-              <i class="pi pi-inbox text-3xl mb-3"></i>
-              <p class="font-semibold">No hay egresados registrados</p>
-              <p class="text-sm">Puedes crear uno desde “Nuevo / Editar”.</p>
-            </div>
+          <td colspan="11" class="text-center text-gray-500 py-6">
+            No hay registros para mostrar.
           </td>
         </tr>
       </ng-template>
     </p-table>
   </div>
 
-  <!-- ✅✅✅ ESTADÍSTICAS (DONUTS) ABAJO DE LA TABLA -->
+  <!-- ✅✅✅ ESTADÍSTICAS (DONUTS) -->
   <div class="mt-8">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-bold text-sky-700">📊 Estadísticas</h3>
@@ -970,8 +965,9 @@
     <ng-container *ngFor="let f of filtrosConfig">
       <div class="col-span-2" *ngIf="f.type === 'dropdown'">
         <label class="block font-semibold mb-2">{{ f.label }}</label>
+
         <p-dropdown
-          [options]="situaciones"
+          [options]="getDropdownOptions(f.dropdownKey)"
           optionLabel="label"
           optionValue="value"
           [showClear]="true"

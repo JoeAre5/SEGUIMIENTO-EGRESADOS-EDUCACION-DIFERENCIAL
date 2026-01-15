@@ -2,20 +2,14 @@ model Egresado {
   idEgresado   Int @id @default(autoincrement())
   idEstudiante Int @unique
 
-  // ✅ ya NO obligatoria
   fechaEgreso DateTime? @db.Date
 
-  // ✅ solo opciones en DTO (BD puede quedar opcional)
-  situacionActual     String?
-  situacionActualOtro String?
-
-  // (resto de tus campos existentes)
-  empresa             String?
-  cargo               String?
-  sueldo              Int?
-  nivelRentas         String?
-  anioIngresoLaboral  Int?
-  anioSeguimiento     Int?
+  situacionActual    String
+  empresa            String?
+  cargo              String?
+  sueldo             Int?
+  anioIngresoLaboral Int?
+  anioSeguimiento    Int     @default(2026)
 
   telefono            String?
   emailContacto       String?
@@ -23,20 +17,41 @@ model Egresado {
   linkedin            String?
   contactoAlternativo String?
 
+  situacionActualOtro String?
+  nivelRentas         String?
+
+  // ✅ NUEVOS CAMPOS DEL FORMULARIO
+  anioFinEstudios Int?
+
+  viaIngreso     String?
+  viaIngresoOtro String?
+
+  anioIngresoCarrera Int?
+
+  genero                String?
+  tiempoBusquedaTrabajo String?
+
+  sectorLaboral     String?
+  sectorLaboralOtro String?
+
+  tipoEstablecimiento     String?
+  tipoEstablecimientoOtro String?
+
+  // ✅ RELACIÓN DOCUMENTOS
   documentos DocumentoEgresado[]
+
   Estudiante Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
 }
 
-
-
 model DocumentoEgresado {
-  idDocumento   Int      @id @default(autoincrement())
-  nombre        String
-  url           String
-  fechaSubida   DateTime @default(now())
-  idEgresado    Int
+  idDocumento Int      @id @default(autoincrement())
+  nombre      String
+  url         String
+  fechaSubida DateTime @default(now())
+  idEgresado  Int
 
-  Egresado      Egresado @relation(fields: [idEgresado], references: [idEgresado])
+  // ✅ RELACIÓN INVERSA
+  Egresado Egresado @relation(fields: [idEgresado], references: [idEgresado])
 
   @@index([idEgresado])
 }

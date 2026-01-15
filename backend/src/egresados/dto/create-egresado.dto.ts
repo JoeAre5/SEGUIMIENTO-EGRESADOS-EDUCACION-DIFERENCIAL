@@ -18,6 +18,11 @@ export class CreateEgresadoDto {
   @IsString()
   fechaEgreso?: string;
 
+  // ✅ NUEVO (formulario): año de finalización (obligatorio en UI)
+  @IsNotEmpty()
+  @IsInt()
+  anioFinEstudios: number;
+
   // ✅ Solo estas 3 opciones
   @IsNotEmpty()
   @IsString()
@@ -31,7 +36,6 @@ export class CreateEgresadoDto {
   @MaxLength(120)
   situacionActualOtro?: string;
 
-  // (Los siguientes quedan opcionales por ahora; luego los vamos ajustando al nuevo formulario)
   @IsOptional()
   @IsString()
   empresa?: string;
@@ -42,7 +46,8 @@ export class CreateEgresadoDto {
 
   @IsOptional()
   sueldo?: number;
-  
+
+  // ✅ requerido en UI (pero lo dejamos como estaba: opcional en DTO)
   @IsOptional()
   @IsString()
   @IsIn([
@@ -52,6 +57,65 @@ export class CreateEgresadoDto {
     'Más de $1.500.001',
   ])
   nivelRentas?: string;
+
+  // ✅ NUEVOS CAMPOS (formulario)
+  @IsOptional()
+  @IsString()
+  @IsIn(['PSU/PAES', 'CFT', 'PACE', 'Propedéutico', 'Otro'])
+  viaIngreso?: string;
+
+  @ValidateIf((o) => o.viaIngreso === 'Otro')
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(120)
+  viaIngresoOtro?: string;
+
+  @IsOptional()
+  anioIngresoCarrera?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['Femenino', 'Masculino', 'Prefiero no decirlo'])
+  genero?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'Menos de 2 meses',
+    'Entre 2 a 6 meses',
+    'Entre 6 meses y 1 año',
+    'Más de 1 año',
+    'No he encontrado trabajo',
+  ])
+  tiempoBusquedaTrabajo?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['Público', 'Privado', 'Otro'])
+  sectorLaboral?: string;
+
+  @ValidateIf((o) => o.sectorLaboral === 'Otro')
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(120)
+  sectorLaboralOtro?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'Del Estado',
+    'Particular subvencionado',
+    'Particular',
+    'No aplica',
+    'Otro',
+  ])
+  tipoEstablecimiento?: string;
+
+  @ValidateIf((o) => o.tipoEstablecimiento === 'Otro')
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(120)
+  tipoEstablecimientoOtro?: string;
 
   // ✅ Ya no van en el formulario, pero los dejamos opcionales por compatibilidad
   @IsOptional()

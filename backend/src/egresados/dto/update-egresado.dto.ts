@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
@@ -12,6 +13,11 @@ export class UpdateEgresadoDto {
   @IsOptional()
   @IsString()
   fechaEgreso?: string;
+
+  // ✅ NUEVO (formulario)
+  @IsOptional()
+  @IsInt()
+  anioFinEstudios?: number;
 
   // ✅ Solo estas 3 opciones (pero opcional en PATCH)
   @IsOptional()
@@ -47,6 +53,61 @@ export class UpdateEgresadoDto {
   ])
   nivelRentas?: string;
 
+  // ✅ NUEVOS CAMPOS (formulario)
+  @IsOptional()
+  @IsString()
+  @IsIn(['PSU/PAES', 'CFT', 'PACE', 'Propedéutico', 'Otro'])
+  viaIngreso?: string;
+
+  @ValidateIf((o) => o.viaIngreso === 'Otro')
+  @IsString()
+  @MaxLength(120)
+  viaIngresoOtro?: string;
+
+  @IsOptional()
+  anioIngresoCarrera?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['Femenino', 'Masculino', 'Prefiero no decirlo'])
+  genero?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'Menos de 2 meses',
+    'Entre 2 a 6 meses',
+    'Entre 6 meses y 1 año',
+    'Más de 1 año',
+    'No he encontrado trabajo',
+  ])
+  tiempoBusquedaTrabajo?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['Público', 'Privado', 'Otro'])
+  sectorLaboral?: string;
+
+  @ValidateIf((o) => o.sectorLaboral === 'Otro')
+  @IsString()
+  @MaxLength(120)
+  sectorLaboralOtro?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'Del Estado',
+    'Particular subvencionado',
+    'Particular',
+    'No aplica',
+    'Otro',
+  ])
+  tipoEstablecimiento?: string;
+
+  @ValidateIf((o) => o.tipoEstablecimiento === 'Otro')
+  @IsString()
+  @MaxLength(120)
+  tipoEstablecimientoOtro?: string;
 
   // ✅ Ya no van en el formulario, pero opcionales por compatibilidad
   @IsOptional()

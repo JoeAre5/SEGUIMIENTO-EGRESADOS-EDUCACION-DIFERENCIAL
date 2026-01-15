@@ -13,12 +13,21 @@ export class EgresadosService {
   // ✅ Helper: convierte "YYYY-MM-DD" o ISO en Date válida
   private parseFecha(fecha: string): Date {
     if (!fecha) return undefined;
-
-    // Si viene ISO completo (con T) lo parsea directo
     if (fecha.includes('T')) return new Date(fecha);
-
-    // Si viene como "YYYY-MM-DD", lo convierte a ISO con hora 00:00
     return new Date(`${fecha}T00:00:00.000Z`);
+  }
+
+  // ✅ Helpers: normalizar tipos (por FormData todo llega string)
+  private toIntOrNull(v: any): number | null {
+    if (v === null || v === undefined || v === '') return null;
+    const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private toStrOrNull(v: any): string | null {
+    if (v === null || v === undefined) return null;
+    const s = String(v).trim();
+    return s.length ? s : null;
   }
 
   /* ===========================
@@ -28,44 +37,77 @@ export class EgresadosService {
     dto.idEstudiante = Number(dto.idEstudiante);
     dto.fechaEgreso = dto.fechaEgreso?.toString();
 
-    // ✅ fechaEgreso ya NO es obligatoria
     const fechaConvertida = dto.fechaEgreso ? this.parseFecha(dto.fechaEgreso) : null;
 
     const existe = await this.prisma.egresado.findUnique({
       where: { idEstudiante: dto.idEstudiante },
     });
 
-    // ✅ Si ya existe, actualiza por estudiante (sin duplicar)
     if (existe) {
       return this.updateByEstudiante(dto.idEstudiante, dto as any, archivos);
     }
 
+    const { planEstudios, ..._rest } = dto as any;
+
     const egresado = await this.prisma.egresado.create({
       data: {
-        idEstudiante: dto.idEstudiante,
-        fechaEgreso: fechaConvertida,
-        situacionActual: dto.situacionActual,
-        // ✅ Nuevo: si no es "Otro", queda null
-        situacionActualOtro:
-          dto.situacionActual === 'Otro' ? (dto as any).situacionActualOtro ?? null : null,
+        // ✅ relación obligatoria => connect
+        Estudiante: { connect: { idEstudiante: dto.idEstudiante } },
 
-        empresa: dto.empresa || null,
-        cargo: dto.cargo || null,
-        sueldo: dto.sueldo ? Number(dto.sueldo) : null,
+        fechaEgreso: fechaConvertida,
+
+        anioFinEstudios: this.toIntOrNull((dto as any).anioFinEstudios),
+
+        situacionActual: dto.situacionActual,
+        situacionActualOtro:
+          dto.situacionActual === 'Otro'
+            ? this.toStrOrNull((dto as any).situacionActualOtro)
+            : null,
+
+        empresa: this.toStrOrNull(dto.empresa),
+        cargo: this.toStrOrNull(dto.cargo),
+        sueldo: dto.sueldo !== undefined ? this.toIntOrNull(dto.sueldo) : null,
         nivelRentas: (dto as any).nivelRentas ?? null,
-        anioIngresoLaboral: dto.anioIngresoLaboral
-          ? Number(dto.anioIngresoLaboral)
-          : null,
-        anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null,
-        telefono: dto.telefono || null,
-        emailContacto: dto.emailContacto || null,
-        direccion: dto.direccion || null,
-        linkedin: dto.linkedin || null,
-        contactoAlternativo: dto.contactoAlternativo || null,
+
+        viaIngreso: this.toStrOrNull((dto as any).viaIngreso),
+        viaIngresoOtro:
+          (dto as any).viaIngreso === 'Otro'
+            ? this.toStrOrNull((dto as any).viaIngresoOtro)
+            : null,
+
+        anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera),
+
+        genero: this.toStrOrNull((dto as any).genero),
+        tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo),
+
+        sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral),
+        sectorLaboralOtro:
+          (dto as any).sectorLaboral === 'Otro'
+            ? this.toStrOrNull((dto as any).sectorLaboralOtro)
+            : null,
+
+        tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento),
+        tipoEstablecimientoOtro:
+          (dto as any).tipoEstablecimiento === 'Otro'
+            ? this.toStrOrNull((dto as any).tipoEstablecimientoOtro)
+            : null,
+
+        anioIngresoLaboral:
+          dto.anioIngresoLaboral !== undefined ? this.toIntOrNull(dto.anioIngresoLaboral) : null,
+
+        // ✅ FIX: NO enviar null; si no viene, Prisma usa @default(2026)
+        ...(dto.anioSeguimiento !== undefined
+          ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) }
+          : {}),
+
+        telefono: this.toStrOrNull(dto.telefono),
+        emailContacto: this.toStrOrNull(dto.emailContacto),
+        direccion: this.toStrOrNull(dto.direccion),
+        linkedin: this.toStrOrNull(dto.linkedin),
+        contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo),
       },
     });
 
-    // ✅ Guardar archivos (si vienen)
     if (archivos && archivos.length > 0) {
       const docs = archivos.map((f) => ({
         nombre: f.originalname,
@@ -91,7 +133,6 @@ export class EgresadosService {
             rut: true,
             nombreCompleto: true,
             idPlan: true,
-            // ✅ Plan de estudios (automático)
             Plan: {
               select: {
                 idPlan: true,
@@ -157,66 +198,104 @@ export class EgresadosService {
 
     if (!existe) throw new NotFoundException('Egresado no encontrado');
 
-    const fechaConvertida = dto.fechaEgreso
-      ? this.parseFecha(dto.fechaEgreso.toString())
+    const { planEstudios, ..._rest } = dto as any;
+
+    const fechaConvertida = (dto as any).fechaEgreso
+      ? this.parseFecha((dto as any).fechaEgreso.toString())
       : undefined;
 
-    // ✅ Construimos solo lo que venga en dto
     const dataUpdate: any = {
       ...(fechaConvertida ? { fechaEgreso: fechaConvertida } : {}),
 
-      // ✅ Si llega situacionActual, actualizamos y controlamos situacionActualOtro
+      ...((dto as any).anioFinEstudios !== undefined
+        ? { anioFinEstudios: this.toIntOrNull((dto as any).anioFinEstudios) }
+        : {}),
+
       ...(dto.situacionActual !== undefined
         ? {
             situacionActual: dto.situacionActual,
             situacionActualOtro:
               dto.situacionActual === 'Otro'
-                ? (dto as any).situacionActualOtro ?? null
+                ? this.toStrOrNull((dto as any).situacionActualOtro)
                 : null,
           }
         : {}),
 
-      // ✅ Si llega solo situacionActualOtro (y no llega situacionActual), lo permitimos
       ...(dto.situacionActualOtro !== undefined && dto.situacionActual === undefined
-        ? { situacionActualOtro: (dto as any).situacionActualOtro ?? null }
+        ? { situacionActualOtro: this.toStrOrNull((dto as any).situacionActualOtro) }
         : {}),
 
-      ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
-      ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
+      ...(dto.empresa !== undefined ? { empresa: this.toStrOrNull(dto.empresa) } : {}),
+      ...(dto.cargo !== undefined ? { cargo: this.toStrOrNull(dto.cargo) } : {}),
       ...(dto.sueldo !== undefined
-        ? { sueldo: dto.sueldo ? Number(dto.sueldo) : null }
+        ? { sueldo: dto.sueldo !== null && dto.sueldo !== ('' as any) ? this.toIntOrNull(dto.sueldo) : null }
         : {}),
-      ...((dto as any).nivelRentas !== undefined
-        ? { nivelRentas: (dto as any).nivelRentas }
-        : {}),
-        
-      ...(dto.anioIngresoLaboral !== undefined
+      ...((dto as any).nivelRentas !== undefined ? { nivelRentas: (dto as any).nivelRentas ?? null } : {}),
+
+      ...((dto as any).viaIngreso !== undefined ? { viaIngreso: this.toStrOrNull((dto as any).viaIngreso) } : {}),
+      ...((dto as any).viaIngresoOtro !== undefined || (dto as any).viaIngreso !== undefined
         ? {
-            anioIngresoLaboral: dto.anioIngresoLaboral
-              ? Number(dto.anioIngresoLaboral)
-              : null,
+            viaIngresoOtro:
+              (dto as any).viaIngreso === 'Otro'
+                ? this.toStrOrNull((dto as any).viaIngresoOtro)
+                : (dto as any).viaIngreso !== undefined
+                ? null
+                : undefined,
           }
         : {}),
-      ...(dto.anioSeguimiento !== undefined
+
+      ...((dto as any).anioIngresoCarrera !== undefined
+        ? { anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera) }
+        : {}),
+
+      ...((dto as any).genero !== undefined ? { genero: this.toStrOrNull((dto as any).genero) } : {}),
+      ...((dto as any).tiempoBusquedaTrabajo !== undefined
+        ? { tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo) }
+        : {}),
+
+      ...((dto as any).sectorLaboral !== undefined ? { sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral) } : {}),
+      ...((dto as any).sectorLaboralOtro !== undefined || (dto as any).sectorLaboral !== undefined
         ? {
-            anioSeguimiento: dto.anioSeguimiento ? Number(dto.anioSeguimiento) : null,
+            sectorLaboralOtro:
+              (dto as any).sectorLaboral === 'Otro'
+                ? this.toStrOrNull((dto as any).sectorLaboralOtro)
+                : (dto as any).sectorLaboral !== undefined
+                ? null
+                : undefined,
           }
         : {}),
-      ...(dto.telefono !== undefined ? { telefono: dto.telefono } : {}),
-      ...(dto.emailContacto !== undefined ? { emailContacto: dto.emailContacto } : {}),
-      ...(dto.direccion !== undefined ? { direccion: dto.direccion } : {}),
-      ...(dto.linkedin !== undefined ? { linkedin: dto.linkedin } : {}),
-      ...(dto.contactoAlternativo !== undefined
-        ? { contactoAlternativo: dto.contactoAlternativo }
+
+      ...((dto as any).tipoEstablecimiento !== undefined
+        ? { tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento) }
         : {}),
+      ...((dto as any).tipoEstablecimientoOtro !== undefined || (dto as any).tipoEstablecimiento !== undefined
+        ? {
+            tipoEstablecimientoOtro:
+              (dto as any).tipoEstablecimiento === 'Otro'
+                ? this.toStrOrNull((dto as any).tipoEstablecimientoOtro)
+                : (dto as any).tipoEstablecimiento !== undefined
+                ? null
+                : undefined,
+          }
+        : {}),
+
+      ...(dto.anioIngresoLaboral !== undefined ? { anioIngresoLaboral: this.toIntOrNull(dto.anioIngresoLaboral) } : {}),
+      ...(dto.anioSeguimiento !== undefined ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) } : {}),
+
+      ...(dto.telefono !== undefined ? { telefono: this.toStrOrNull(dto.telefono) } : {}),
+      ...(dto.emailContacto !== undefined ? { emailContacto: this.toStrOrNull(dto.emailContacto) } : {}),
+      ...(dto.direccion !== undefined ? { direccion: this.toStrOrNull(dto.direccion) } : {}),
+      ...(dto.linkedin !== undefined ? { linkedin: this.toStrOrNull(dto.linkedin) } : {}),
+      ...(dto.contactoAlternativo !== undefined ? { contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo) } : {}),
     };
+
+    Object.keys(dataUpdate).forEach((k) => dataUpdate[k] === undefined && delete dataUpdate[k]);
 
     await this.prisma.egresado.update({
       where: { idEstudiante },
       data: dataUpdate,
     });
 
-    // ✅ Adjuntar documentos nuevos (si vienen)
     if (archivos && archivos.length > 0) {
       const docs = archivos.map((f) => ({
         nombre: f.originalname,
@@ -236,16 +315,13 @@ export class EgresadosService {
   async deleteDocumento(idDocumento: number) {
     idDocumento = Number(idDocumento);
 
-    // ✅ 1. Buscar documento
     const doc = await this.prisma.documentoEgresado.findUnique({
       where: { idDocumento },
     });
 
     if (!doc) throw new NotFoundException('Documento no encontrado');
 
-    // ✅ 2. Eliminar archivo físico
     try {
-      // ✅ convierte "/documents/egresados/file.pdf" → "documents/egresados/file.pdf"
       const rutaRelativa = doc.url.replace('/documents/', 'documents/');
       const ruta = join(process.cwd(), rutaRelativa);
       await unlink(ruta);
@@ -253,12 +329,10 @@ export class EgresadosService {
       console.warn('⚠️ No se pudo eliminar el archivo físico:', err.message);
     }
 
-    // ✅ 3. Eliminar registro en BD
     await this.prisma.documentoEgresado.delete({
       where: { idDocumento },
     });
 
-    // ✅ 4. Retornar egresado actualizado
     const egresado = await this.prisma.egresado.findUnique({
       where: { idEgresado: doc.idEgresado },
       include: {

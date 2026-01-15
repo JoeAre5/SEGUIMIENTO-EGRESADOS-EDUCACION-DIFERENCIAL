@@ -130,10 +130,7 @@
 
         <small
           class="text-red-500"
-          *ngIf="
-            intentoGuardar &&
-            !isRutValido((estudianteSeleccionado?.rut || ''))
-          "
+          *ngIf="intentoGuardar && !isRutValido((estudianteSeleccionado?.rut || ''))"
         >
           RUT inválido. Revisa el dígito verificador.
         </small>
@@ -162,9 +159,7 @@
         class="col-span-2"
         *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado"
       >
-        <label class="block font-semibold mb-2"
-          >Plan de estudios (editable) *</label
-        >
+        <label class="block font-semibold mb-2">Plan de estudios (editable) *</label>
 
         <p-dropdown
           [options]="planesOptions"
@@ -217,10 +212,7 @@
 
             <small
               class="text-red-500"
-              *ngIf="
-                intentoGuardar &&
-                !isRutValido((nuevoEstudiante?.rut || ''))
-              "
+              *ngIf="intentoGuardar && !isRutValido((nuevoEstudiante?.rut || ''))"
             >
               RUT inválido. Revisa el dígito verificador.
             </small>
@@ -282,21 +274,26 @@
         </div>
       </div>
 
-      <!-- ✅ Seguimiento -->
+      <!-- ✅ Seguimiento (ENCUESTA: solo año fin estudios) -->
       <div>
-        <label class="block font-semibold mb-2">Fecha de Egreso *</label>
-        <p-calendar
-          formControlName="fechaEgreso"
-          [showIcon]="true"
-          dateFormat="yy-mm-dd"
+        <label class="block font-semibold mb-2">Año fin de estudios *</label>
+        <p-inputNumber
+          formControlName="anioFinEstudios"
           class="w-full"
-        ></p-calendar>
+          [useGrouping]="false"
+          placeholder="Ej: 2024"
+        ></p-inputNumber>
 
-        <small
-          class="text-red-500"
-          *ngIf="formHasError('anioSeguimientoMenorQueEgreso')"
-        >
-          Año de seguimiento no puede ser menor que el año de egreso.
+        <small class="text-red-500" *ngIf="isInvalid('anioFinEstudios')">
+          <ng-container *ngIf="getError('anioFinEstudios')?.required">
+            Debes indicar el año de finalización.
+          </ng-container>
+          <ng-container *ngIf="getError('anioFinEstudios')?.min">
+            Año demasiado bajo.
+          </ng-container>
+          <ng-container *ngIf="getError('anioFinEstudios')?.max">
+            Año demasiado alto.
+          </ng-container>
         </small>
       </div>
 
@@ -322,7 +319,7 @@
           class="w-full"
           placeholder="Ej: emprendimiento, licencia, etc."
         />
-        <small class="text-red-500" *ngIf="isInvalid('situacionActualOtro')">
+        <small class="text-red-500" *ngIf="formHasError('situacionActualOtroRequerido')">
           Debes especificar la situación.
         </small>
       </div>
@@ -416,21 +413,133 @@
 
         <small
           class="text-red-500"
-          *ngIf="formHasError('anioIngresoLaboralMenorQueEgreso')"
+          *ngIf="formHasError('anioIngresoLaboralMenorQueFin')"
         >
-          Año ingreso laboral debe ser mayor o igual al año de egreso.
+          Año ingreso laboral debe ser mayor o igual al año fin de estudios.
+        </small>
+      </div>
+
+      <!-- ✅✅✅ NUEVO BLOQUE: Datos adicionales (preguntas del formulario) -->
+      <div class="col-span-2 mt-6">
+        <h2 class="text-xl font-bold text-sky-700">Datos adicionales</h2>
+        <hr class="my-3" />
+      </div>
+
+      <!-- Vía de ingreso -->
+      <div class="col-span-2">
+        <label class="block font-semibold mb-2">Vía de ingreso</label>
+        <p-dropdown
+          formControlName="viaIngreso"
+          [options]="viasIngreso"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccionar"
+          class="w-full"
+        ></p-dropdown>
+
+        <div class="mt-2" *ngIf="formulario.get('viaIngreso')?.value === 'Otro'">
+          <label class="block font-semibold mb-2">Especifica (vía de ingreso)</label>
+          <input pInputText formControlName="viaIngresoOtro" class="w-full" />
+          <small class="text-red-500" *ngIf="formHasError('viaIngresoOtroRequerido')">
+            Debes especificar la vía de ingreso.
+          </small>
+        </div>
+      </div>
+
+      <!-- Periodo estudios -->
+      <div>
+        <label class="block font-semibold mb-2">Año ingreso a carrera</label>
+        <p-inputNumber
+          formControlName="anioIngresoCarrera"
+          class="w-full"
+          [useGrouping]="false"
+          placeholder="Ej: 2020"
+        ></p-inputNumber>
+        <small class="text-red-500" *ngIf="formHasError('anioIngresoCarreraMayorQueFin')">
+          Año ingreso a carrera no puede ser mayor que el año fin de estudios.
         </small>
       </div>
 
       <div>
-        <label class="block font-semibold mb-2">Año Seguimiento *</label>
+        <!-- ✅ anioFinEstudios ya está arriba, aquí no va duplicado -->
+        <label class="block font-semibold mb-2">Año fin de estudios *</label>
         <p-inputNumber
-          formControlName="anioSeguimiento"
+          formControlName="anioFinEstudios"
           class="w-full"
           [useGrouping]="false"
+          placeholder="Ej: 2024"
         ></p-inputNumber>
       </div>
 
+      <!-- Género -->
+      <div>
+        <label class="block font-semibold mb-2">Género</label>
+        <p-dropdown
+          formControlName="genero"
+          [options]="generos"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccionar"
+          class="w-full"
+        ></p-dropdown>
+      </div>
+
+      <!-- Tiempo búsqueda trabajo -->
+      <div>
+        <label class="block font-semibold mb-2">Tiempo en encontrar trabajo</label>
+        <p-dropdown
+          formControlName="tiempoBusquedaTrabajo"
+          [options]="tiemposBusquedaTrabajo"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccionar"
+          class="w-full"
+        ></p-dropdown>
+      </div>
+
+      <!-- Sector laboral -->
+      <div class="col-span-2">
+        <label class="block font-semibold mb-2">Sector laboral</label>
+        <p-dropdown
+          formControlName="sectorLaboral"
+          [options]="sectoresLaborales"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccionar"
+          class="w-full"
+        ></p-dropdown>
+
+        <div class="mt-2" *ngIf="formulario.get('sectorLaboral')?.value === 'Otro'">
+          <label class="block font-semibold mb-2">Especifica (sector)</label>
+          <input pInputText formControlName="sectorLaboralOtro" class="w-full" />
+          <small class="text-red-500" *ngIf="formHasError('sectorLaboralOtroRequerido')">
+            Debes especificar el sector.
+          </small>
+        </div>
+      </div>
+
+      <!-- Tipo establecimiento -->
+      <div class="col-span-2">
+        <label class="block font-semibold mb-2">Tipo de establecimiento (si aplica)</label>
+        <p-dropdown
+          formControlName="tipoEstablecimiento"
+          [options]="tipoEstablecimiento"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccionar"
+          class="w-full"
+        ></p-dropdown>
+
+        <div class="mt-2" *ngIf="formulario.get('tipoEstablecimiento')?.value === 'Otro'">
+          <label class="block font-semibold mb-2">Especifica (establecimiento)</label>
+          <input pInputText formControlName="tipoEstablecimientoOtro" class="w-full" />
+          <small class="text-red-500" *ngIf="formHasError('tipoEstablecimientoOtroRequerido')">
+            Debes especificar el tipo de establecimiento.
+          </small>
+        </div>
+      </div>
+
+      <!-- ✅ Datos de Contacto -->
       <div class="col-span-2 mt-6">
         <h2 class="text-xl font-bold text-sky-700">Datos de Contacto</h2>
         <hr class="my-3" />
@@ -490,42 +599,13 @@
         </small>
       </div>
 
-      <div class="col-span-2">
-        <label class="block font-semibold mb-2">Dirección</label>
-        <input pInputText formControlName="direccion" class="w-full" />
-
-        <small
-          class="text-red-500"
-          *ngIf="isInvalid('direccion') && getError('direccion')?.maxlength"
-        >
-          Dirección demasiado larga.
-        </small>
-      </div>
-
-      <div class="col-span-2">
-        <label class="block font-semibold mb-2">Contacto Alternativo</label>
-        <input pInputText formControlName="contactoAlternativo" class="w-full" />
-
-        <small
-          class="text-red-500"
-          *ngIf="
-            isInvalid('contactoAlternativo') &&
-            getError('contactoAlternativo')?.maxlength
-          "
-        >
-          Texto demasiado largo.
-        </small>
-      </div>
-
       <div class="col-span-2 mt-6">
         <h2 class="text-xl font-bold text-sky-700">Documentos</h2>
         <hr class="my-3" />
       </div>
 
       <div class="col-span-2 mt-2" *ngIf="documentosExistentes.length > 0">
-        <h3 class="text-lg font-bold text-sky-700 mb-2">
-          📎 Documentos existentes
-        </h3>
+        <h3 class="text-lg font-bold text-sky-700 mb-2">📎 Documentos existentes</h3>
 
         <p-table [value]="documentosExistentes" class="p-datatable-sm">
           <ng-template pTemplate="header">
@@ -650,7 +730,7 @@
     </div>
 
     <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-      <p class="text-xs text-slate-600 font-semibold">Nivel de rentas</p>
+      <p class="text-xs text-slate-600 font-semibold">Año fin estudios</p>
       <p class="text-2xl font-extrabold text-slate-800">—</p>
       <p class="text-xs text-slate-500">en tabla</p>
     </div>
@@ -723,6 +803,7 @@
         'empresa',
         'cargo',
         'nivelRentas',
+        'anioFinEstudios',
         'telefono',
         'emailContacto'
       ]"
@@ -735,7 +816,7 @@
           <th>Empresa</th>
           <th>Cargo</th>
           <th>Nivel de rentas</th>
-          <th>Año seguimiento</th>
+          <th>Año fin estudios</th>
           <th>Teléfono</th>
           <th>Correo</th>
           <th style="width: 120px;">Documentos</th>
@@ -820,16 +901,16 @@
             <ng-template #sinRenta>—</ng-template>
           </td>
 
-          <!-- ✅ Año seguimiento (amarillo) -->
+          <!-- ✅ Año fin estudios (warning) -->
           <td>
             <p-tag
-              *ngIf="row?.anioSeguimiento; else sinAnio"
-              [value]="row?.anioSeguimiento"
+              *ngIf="row?.anioFinEstudios; else sinAnioFin"
+              [value]="row?.anioFinEstudios"
               severity="warning"
               [rounded]="true"
               styleClass="text-sm px-3 py-2"
             ></p-tag>
-            <ng-template #sinAnio>—</ng-template>
+            <ng-template #sinAnioFin>—</ng-template>
           </td>
 
           <!-- ✅ Teléfono (verde) -->
@@ -938,7 +1019,7 @@
 
       <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
         <div class="flex items-center justify-between mb-3">
-          <p class="font-semibold text-gray-700">% por año (seguimiento)</p>
+          <p class="font-semibold text-gray-700">% por año (fin estudios)</p>
           <span class="text-xs text-gray-500">Top años</span>
         </div>
 
@@ -994,7 +1075,7 @@
           <p-inputNumber
             class="w-full"
             [useGrouping]="false"
-            [placeholder]="f.placeholderMin || 'Min'"
+            placeholder="Desde"
             [ngModel]="filtroValores[f.field]?.min ?? null"
             [ngModelOptions]="{ standalone: true }"
             (ngModelChange)="onRangoFiltroChange(dt, f.field, 'min', $event)"
@@ -1003,7 +1084,7 @@
           <p-inputNumber
             class="w-full"
             [useGrouping]="false"
-            [placeholder]="f.placeholderMax || 'Max'"
+            placeholder="Hasta"
             [ngModel]="filtroValores[f.field]?.max ?? null"
             [ngModelOptions]="{ standalone: true }"
             (ngModelChange)="onRangoFiltroChange(dt, f.field, 'max', $event)"

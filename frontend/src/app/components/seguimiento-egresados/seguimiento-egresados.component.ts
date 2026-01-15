@@ -174,22 +174,51 @@ export class SeguimientoEgresadosComponent implements OnInit {
     { label: 'Más de $1.500.001', value: 'Más de $1.500.001' },
   ];
 
-  // ✅ FILTROS: quitamos Sueldo y Año Ingreso Laboral, agregamos Nivel de Rentas
+  // ✅ NUEVO: opciones (resumen) para preguntas adicionales del formulario
+  viasIngreso = [
+    { label: 'PSU/PAES', value: 'PSU/PAES' },
+    { label: 'CFT', value: 'CFT' },
+    { label: 'PACE', value: 'PACE' },
+    { label: 'Propedéutico', value: 'Propedéutico' },
+    { label: 'Otro', value: 'Otro' },
+  ];
+
+  generos = [
+    { label: 'Femenino', value: 'Femenino' },
+    { label: 'Masculino', value: 'Masculino' },
+    { label: 'Prefiero no decirlo', value: 'Prefiero no decirlo' },
+  ];
+
+  tiemposBusquedaTrabajo = [
+    { label: 'Menos de 2 meses', value: 'Menos de 2 meses' },
+    { label: 'Entre 2 a 6 meses', value: 'Entre 2 a 6 meses' },
+    { label: 'Entre 6 meses y 1 año', value: 'Entre 6 meses y 1 año' },
+    { label: 'Más de 1 año', value: 'Más de 1 año' },
+    { label: 'No he encontrado trabajo', value: 'No he encontrado trabajo' },
+  ];
+
+  sectoresLaborales = [
+    { label: 'Público', value: 'Público' },
+    { label: 'Privado', value: 'Privado' },
+    { label: 'Otro', value: 'Otro' },
+  ];
+
+  tipoEstablecimiento = [
+    { label: 'Del Estado', value: 'Del Estado' },
+    { label: 'Particular subvencionado', value: 'Particular subvencionado' },
+    { label: 'Particular', value: 'Particular' },
+    { label: 'No aplica', value: 'No aplica' },
+    { label: 'Otro', value: 'Otro' },
+  ];
+
+  // ✅ FILTROS: quitamos Año Seguimiento (ya no existe), mantenemos Nivel de Rentas
   filtrosConfig = [
     { label: 'Situación', field: 'situacionActual', type: 'dropdown', dropdownKey: 'situacion' },
-
-    {
-      label: 'Año Seguimiento',
-      field: 'anioSeguimiento',
-      type: 'range-number',
-      placeholderMin: 'Desde',
-      placeholderMax: 'Hasta',
-    },
 
     { label: 'Empresa', field: 'empresa', type: 'text', placeholder: 'Ej: Google' },
     { label: 'Cargo', field: 'cargo', type: 'text', placeholder: 'Ej: Ingeniero' },
 
-    // ✅ nuevo filtro dropdown para nivelRentas
+    // ✅ filtro dropdown para nivelRentas
     { label: 'Nivel de Rentas', field: 'nivelRentas', type: 'dropdown', dropdownKey: 'nivelRentas' },
 
     { label: 'Teléfono', field: 'telefono', type: 'text', placeholder: 'Ej: +56 9 12345678' },
@@ -233,9 +262,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
   readonly CURRENT_YEAR = new Date().getFullYear();
   readonly MIN_ANIO_INGRESO = 1980;
   readonly MAX_ANIO_INGRESO = this.CURRENT_YEAR;
-
-  readonly MIN_ANIO_SEGUIMIENTO = 2000;
-  readonly MAX_ANIO_SEGUIMIENTO = this.CURRENT_YEAR + 1;
 
   rutDuplicadoNuevo = false;
   rutDuplicadoExistente = false;
@@ -293,7 +319,16 @@ export class SeguimientoEgresadosComponent implements OnInit {
         // ✅ Campo informativo (readonly)
         planEstudios: [{ value: '', disabled: true }],
 
-        fechaEgreso: [null, Validators.required],
+        // ✅ Encuesta: solo año de finalización
+        anioFinEstudios: [
+          null,
+          [
+            Validators.required,
+            Validators.min(this.MIN_ANIO_INGRESO),
+            Validators.max(this.CURRENT_YEAR + 5),
+          ],
+        ],
+
         situacionActual: [null, Validators.required],
         situacionActualOtro: [''],
 
@@ -303,6 +338,27 @@ export class SeguimientoEgresadosComponent implements OnInit {
         // ✅ Nivel Rentas
         nivelRentas: [null, Validators.required],
 
+        // ✅ NUEVO (resumido): preguntas adicionales
+        viaIngreso: [null],
+        viaIngresoOtro: [''],
+
+        anioIngresoCarrera: [
+          null,
+          [
+            Validators.min(this.MIN_ANIO_INGRESO),
+            Validators.max(this.CURRENT_YEAR + 1),
+          ],
+        ],
+
+        genero: [null],
+        tiempoBusquedaTrabajo: [null],
+
+        sectorLaboral: [null],
+        sectorLaboralOtro: [''],
+
+        tipoEstablecimiento: ['No aplica'],
+        tipoEstablecimientoOtro: [''],
+
         // ✅ dejamos sueldo por compatibilidad, pero ya no se usa en UI
         sueldo: [null],
 
@@ -311,15 +367,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
           [
             Validators.min(this.MIN_ANIO_INGRESO),
             Validators.max(this.CURRENT_YEAR + 1),
-          ],
-        ],
-
-        anioSeguimiento: [
-          2026,
-          [
-            Validators.required,
-            Validators.min(this.MIN_ANIO_SEGUIMIENTO),
-            Validators.max(this.MAX_ANIO_SEGUIMIENTO),
           ],
         ],
 
@@ -335,8 +382,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
           '',
           [Validators.maxLength(200), Validators.pattern(this.LINKEDIN_REGEX)],
         ],
-        direccion: ['', [Validators.maxLength(250)]],
-        contactoAlternativo: ['', [Validators.maxLength(120)]],
       },
       {
         validators: [this.validarReglasCruzadas()],
@@ -348,34 +393,67 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return (control: AbstractControl) => {
       const group = control as FormGroup;
 
-      const fecha = group.get('fechaEgreso')?.value;
-      const anioSeg = group.get('anioSeguimiento')?.value;
+      const anioFin = group.get('anioFinEstudios')?.value;
       const anioIngresoLab = group.get('anioIngresoLaboral')?.value;
+      const anioIngresoCarrera = group.get('anioIngresoCarrera')?.value;
+
       const situacion = group.get('situacionActual')?.value;
       const otro = (group.get('situacionActualOtro')?.value ?? '').toString().trim();
 
+      // ✅ NUEVO: "Otro" para preguntas adicionales
+      const via = group.get('viaIngreso')?.value;
+      const viaOtro = (group.get('viaIngresoOtro')?.value ?? '').toString().trim();
+
+      const sector = group.get('sectorLaboral')?.value;
+      const sectorOtro = (group.get('sectorLaboralOtro')?.value ?? '').toString().trim();
+
+      const tipoEst = group.get('tipoEstablecimiento')?.value;
+      const tipoEstOtro = (group.get('tipoEstablecimientoOtro')?.value ?? '').toString().trim();
+
       const errors: any = {};
 
-      if (fecha) {
-        const anioEgreso = new Date(fecha).getFullYear();
+      // ✅ Año ingreso carrera <= año fin estudios (si ambos existen)
+      if (anioFin !== null && anioFin !== undefined && anioFin !== '') {
+        const fin = Number(anioFin);
 
-        if (anioSeg && anioSeg < anioEgreso) {
-          errors.anioSeguimientoMenorQueEgreso = true;
+        if (
+          anioIngresoCarrera !== null &&
+          anioIngresoCarrera !== undefined &&
+          anioIngresoCarrera !== '' &&
+          Number(anioIngresoCarrera) > fin
+        ) {
+          errors.anioIngresoCarreraMayorQueFin = true;
         }
 
+        // ✅ Año ingreso laboral >= año fin estudios (si existe)
         if (
           anioIngresoLab !== null &&
           anioIngresoLab !== undefined &&
           anioIngresoLab !== '' &&
-          anioIngresoLab < anioEgreso
+          Number(anioIngresoLab) < fin
         ) {
-          errors.anioIngresoLaboralMenorQueEgreso = true;
+          errors.anioIngresoLaboralMenorQueFin = true;
         }
       }
 
       // ✅ si situación es Otro, exigir texto
       if (situacion === 'Otro' && !otro) {
         errors.situacionActualOtroRequerido = true;
+      }
+
+      // ✅ si vía ingreso es Otro, exigir texto
+      if (via === 'Otro' && !viaOtro) {
+        errors.viaIngresoOtroRequerido = true;
+      }
+
+      // ✅ si sector laboral es Otro, exigir texto
+      if (sector === 'Otro' && !sectorOtro) {
+        errors.sectorLaboralOtroRequerido = true;
+      }
+
+      // ✅ si tipo establecimiento es Otro, exigir texto
+      if (tipoEst === 'Otro' && !tipoEstOtro) {
+        errors.tipoEstablecimientoOtroRequerido = true;
       }
 
       return Object.keys(errors).length ? errors : null;
@@ -581,7 +659,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.planSeleccionadoId = null;
     this.planOriginalId = null;
 
-    this.formulario.reset({ anioSeguimiento: 2026 });
+    this.formulario.reset();
     this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
 
     this.nuevoEstudiante = {
@@ -654,7 +732,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
 
     if (!this.estudianteSeleccionado?.idEstudiante) {
-      this.formulario.reset({ anioSeguimiento: 2026 });
+      this.formulario.reset();
       this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
       return;
     }
@@ -668,14 +746,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
         if (!eg || Object.keys(eg).length === 0) {
           this.existeSeguimiento = false;
           this.documentosExistentes = [];
-          this.formulario.reset({ anioSeguimiento: 2026 });
+          this.formulario.reset();
           this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
           return;
         }
 
         this.existeSeguimiento = true;
-
-        const fechaDate = eg.fechaEgreso ? new Date(eg.fechaEgreso) : null;
 
         const plan = eg?.Estudiante?.Plan ?? null;
         const planTexto = this.construirPlanTextoDesdePlan(plan);
@@ -685,10 +761,14 @@ export class SeguimientoEgresadosComponent implements OnInit {
         this.planOriginalId = idPlan ? Number(idPlan) : null;
         this.planSeleccionadoId = this.planOriginalId;
 
+        // ✅ Compatibilidad: si backend aún manda fechaEgreso, rellenamos anioFinEstudios
+        const anioFinCompat =
+          eg?.anioFinEstudios ??
+          (eg?.fechaEgreso ? new Date(eg.fechaEgreso).getFullYear() : null);
+
         this.formulario.patchValue({
           planEstudios: planTexto,
 
-          fechaEgreso: fechaDate,
           situacionActual: this.normalizarSituacion(eg.situacionActual),
           situacionActualOtro: eg.situacionActualOtro ?? '',
 
@@ -697,16 +777,29 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
           nivelRentas: eg.nivelRentas ?? null,
 
+          // ✅ NUEVO: preguntas adicionales
+          viaIngreso: eg.viaIngreso ?? null,
+          viaIngresoOtro: eg.viaIngresoOtro ?? '',
+
+          anioIngresoCarrera: eg.anioIngresoCarrera ?? null,
+          anioFinEstudios: anioFinCompat,
+
+          genero: eg.genero ?? null,
+          tiempoBusquedaTrabajo: eg.tiempoBusquedaTrabajo ?? null,
+
+          sectorLaboral: eg.sectorLaboral ?? null,
+          sectorLaboralOtro: eg.sectorLaboralOtro ?? '',
+
+          tipoEstablecimiento: eg.tipoEstablecimiento ?? 'No aplica',
+          tipoEstablecimientoOtro: eg.tipoEstablecimientoOtro ?? '',
+
           // compatibilidad
           sueldo: eg.sueldo ?? null,
           anioIngresoLaboral: eg.anioIngresoLaboral ?? null,
 
-          anioSeguimiento: eg.anioSeguimiento ?? 2026,
           telefono: eg.telefono ?? '',
           emailContacto: eg.emailContacto ?? '',
           linkedin: eg.linkedin ?? '',
-          direccion: eg.direccion ?? '',
-          contactoAlternativo: eg.contactoAlternativo ?? '',
         });
 
         this.documentosExistentes = eg.documentos || [];
@@ -720,7 +813,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
       error: () => {
         this.existeSeguimiento = false;
         this.documentosExistentes = [];
-        this.formulario.reset({ anioSeguimiento: 2026 });
+        this.formulario.reset();
         this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
       },
     });
@@ -847,23 +940,15 @@ export class SeguimientoEgresadosComponent implements OnInit {
                 if (this.documentosSeleccionados.length === 0) {
                   const dto: UpdateEgresadoDto = {
                     ...this.formulario.getRawValue(),
-                    fechaEgreso: this.formulario.value.fechaEgreso
-                      ? new Date(this.formulario.value.fechaEgreso)
-                          .toISOString()
-                          .split('T')[0]
-                      : undefined,
                   };
 
                   return this.egresadosService.updateByEstudiante(idEstudiante, dto);
                 }
 
                 const formData = new FormData();
-                const fecha = this.formulario.value.fechaEgreso;
-                const fechaFormateada = new Date(fecha).toISOString().split('T')[0];
-                formData.append('fechaEgreso', fechaFormateada);
 
                 Object.entries(this.formulario.getRawValue()).forEach(([key, value]) => {
-                  if (key !== 'fechaEgreso' && value !== null && value !== undefined && value !== '') {
+                  if (value !== null && value !== undefined && value !== '') {
                     formData.append(key, value.toString());
                   }
                 });
@@ -878,12 +963,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
               const formData = new FormData();
               formData.append('idEstudiante', idEstudiante.toString());
 
-              const fecha = this.formulario.value.fechaEgreso;
-              const fechaFormateada = new Date(fecha).toISOString().split('T')[0];
-              formData.append('fechaEgreso', fechaFormateada);
-
               Object.entries(this.formulario.getRawValue()).forEach(([key, value]) => {
-                if (key !== 'fechaEgreso' && value !== null && value !== undefined && value !== '') {
+                if (value !== null && value !== undefined && value !== '') {
                   formData.append(key, value.toString());
                 }
               });
@@ -970,7 +1051,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   resetFormulario() {
-    this.formulario.reset({ anioSeguimiento: 2026 });
+    this.formulario.reset();
     this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
 
     this.documentosSeleccionados = [];
@@ -988,6 +1069,18 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.anioIngresoInvalidoNuevo = false;
 
     this.nuevoEstudiante.idPlan = undefined;
+
+    // ✅ reset preguntas adicionales
+    this.formulario.get('viaIngreso')?.setValue(null, { emitEvent: false });
+    this.formulario.get('viaIngresoOtro')?.setValue('', { emitEvent: false });
+    this.formulario.get('anioIngresoCarrera')?.setValue(null, { emitEvent: false });
+    this.formulario.get('anioFinEstudios')?.setValue(null, { emitEvent: false });
+    this.formulario.get('genero')?.setValue(null, { emitEvent: false });
+    this.formulario.get('tiempoBusquedaTrabajo')?.setValue(null, { emitEvent: false });
+    this.formulario.get('sectorLaboral')?.setValue(null, { emitEvent: false });
+    this.formulario.get('sectorLaboralOtro')?.setValue('', { emitEvent: false });
+    this.formulario.get('tipoEstablecimiento')?.setValue('No aplica', { emitEvent: false });
+    this.formulario.get('tipoEstablecimientoOtro')?.setValue('', { emitEvent: false });
 
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
@@ -1183,9 +1276,10 @@ export class SeguimientoEgresadosComponent implements OnInit {
       ],
     };
 
+    // ✅ Donut por año fin estudios (en vez de anioSeguimiento)
     const conteoPorAnio = new Map<number, number>();
     for (const x of arr) {
-      const yRaw = x?.anioSeguimiento;
+      const yRaw = x?.anioFinEstudios ?? (x?.fechaEgreso ? new Date(x.fechaEgreso).getFullYear() : null);
       const y = typeof yRaw === 'number' ? yRaw : parseInt(yRaw, 10);
       if (!Number.isFinite(y)) continue;
       conteoPorAnio.set(y, (conteoPorAnio.get(y) ?? 0) + 1);

@@ -1,0 +1,35 @@
+/* =========================================================
+   ✅ PrimeNG DataTable - Encabezado azul (acorde al sistema)
+   ========================================================= */
+
+:host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
+  background: #0369a1 !important; /* sky-700 */
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  font-weight: 700;
+}
+
+/* Opcional: iconos/ordenamiento en blanco */
+:host ::ng-deep .p-datatable .p-sortable-column .p-sortable-column-icon {
+  color: #ffffff !important;
+}
+
+/* Línea inferior más limpia */
+:host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
+}
+
+/* =========================================================
+   ✅ Opcional: borde externo acorde al sistema
+   ========================================================= */
+:host ::ng-deep .p-datatable.p-datatable-gridlines .p-datatable-header,
+:host ::ng-deep .p-datatable.p-datatable-gridlines .p-datatable-footer {
+  border-color: rgba(3, 105, 161, 0.25) !important;
+}
+
+/* =========================================================
+   ✅ Opcional: hover suave (no cambia colores del sistema)
+   ========================================================= */
+:host ::ng-deep .p-datatable .p-datatable-tbody > tr:hover {
+  background: rgba(3, 105, 161, 0.06) !important;
+}

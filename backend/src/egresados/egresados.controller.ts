@@ -55,6 +55,14 @@ export class EgresadosController {
   }
 
   // ==========================
+  // ✅ GET /egresados/dashboard/cohortes
+  // ==========================
+  @Get('dashboard/cohortes')
+  getDashboardCohortes() {
+    return this.egresadosService.getDashboardCohortes();
+  }
+
+  // ==========================
   // GET /egresados
   // ==========================
   @Get()

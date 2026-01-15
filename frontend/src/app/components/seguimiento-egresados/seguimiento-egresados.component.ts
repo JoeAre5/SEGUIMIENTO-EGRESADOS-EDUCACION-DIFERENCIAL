@@ -41,7 +41,7 @@ import { SidebarModule } from 'primeng/sidebar';
 // ✅ Charts
 import { ChartModule } from 'primeng/chart';
 
-// ✅ NUEVO: RadioButton para nivel de rentas (si ya lo agregaste antes, lo dejamos)
+// ✅ RadioButton
 import { RadioButtonModule } from 'primeng/radiobutton';
 
 import {
@@ -230,13 +230,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
   planes: PlanDTO[] = [];
   planesOptions: { label: string; value: number }[] = [];
 
-  // ✅ NUEVO: plan editable del EXISTENTE
+  // ✅ plan editable del EXISTENTE
   public planSeleccionadoId: number | null = null;
 
-  // ✅ IMPORTANTE: debe ser PUBLIC para usarse en el template
+  // ✅ debe ser PUBLIC para template
   public planOriginalId: number | null = null;
 
-  // ✅ CAMBIO: Situaciones SOLO (Trabajando, Cesante, Otro)
+  // ✅ Situaciones SOLO (Trabajando, Cesante, Otro)
   situaciones = [
     { label: 'Trabajando', value: 'Trabajando' },
     { label: 'Cesante', value: 'Cesante' },
@@ -267,7 +267,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   rutDuplicadoExistente = false;
   anioIngresoInvalidoNuevo = false;
 
-  // ✅ CAMBIO: stats sin "estudiando"
+  // ✅ stats sin "estudiando"
   stats = {
     total: 0,
     trabajando: 0,
@@ -279,6 +279,32 @@ export class SeguimientoEgresadosComponent implements OnInit {
   donutDocsData: any;
   donutAnioData: any;
   donutOptions: any;
+
+  /* =========================================================
+    ✅ NUEVO: DASHBOARD POR COHORTE (FRONTEND)
+  ========================================================= */
+  cohortesOptions: { label: string; value: number }[] = [];
+  cohorteSeleccionada: number | null = null;
+
+  kpiCohorte: {
+    total: number;
+    trabajando: number;
+    cesante: number;
+    otro: number;
+    conDocs: number;
+    porcentajeConDocs: number;
+  } = {
+    total: 0,
+    trabajando: 0,
+    cesante: 0,
+    otro: 0,
+    conDocs: 0,
+    porcentajeConDocs: 0,
+  };
+
+  chartOptionsCohorte: any;
+  barSituacionCohorteData: any;
+  donutRentasCohorteData: any;
 
   constructor(
     private fb: FormBuilder,
@@ -295,6 +321,23 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.cargarEgresados();
     this.cargarEstudiantes();
     this.cargarPlanes();
+
+    // ✅ opciones default para charts cohorte
+    this.chartOptionsCohorte = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { usePointStyle: true, boxWidth: 8 },
+        },
+        tooltip: { enabled: true },
+      },
+      scales: {
+        x: { ticks: { autoSkip: false } },
+        y: { beginAtZero: true },
+      },
+    };
   }
 
   isInvalid(controlName: string): boolean {
@@ -338,7 +381,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         // ✅ Nivel Rentas
         nivelRentas: [null, Validators.required],
 
-        // ✅ NUEVO (resumido): preguntas adicionales
+        // ✅ preguntas adicionales
         viaIngreso: [null],
         viaIngresoOtro: [''],
 
@@ -359,7 +402,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         tipoEstablecimiento: ['No aplica'],
         tipoEstablecimientoOtro: [''],
 
-        // ✅ dejamos sueldo por compatibilidad, pero ya no se usa en UI
+        // compatibilidad
         sueldo: [null],
 
         anioIngresoLaboral: [
@@ -400,7 +443,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       const situacion = group.get('situacionActual')?.value;
       const otro = (group.get('situacionActualOtro')?.value ?? '').toString().trim();
 
-      // ✅ NUEVO: "Otro" para preguntas adicionales
       const via = group.get('viaIngreso')?.value;
       const viaOtro = (group.get('viaIngresoOtro')?.value ?? '').toString().trim();
 
@@ -412,7 +454,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
       const errors: any = {};
 
-      // ✅ Año ingreso carrera <= año fin estudios (si ambos existen)
       if (anioFin !== null && anioFin !== undefined && anioFin !== '') {
         const fin = Number(anioFin);
 
@@ -425,7 +466,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
           errors.anioIngresoCarreraMayorQueFin = true;
         }
 
-        // ✅ Año ingreso laboral >= año fin estudios (si existe)
         if (
           anioIngresoLab !== null &&
           anioIngresoLab !== undefined &&
@@ -436,22 +476,18 @@ export class SeguimientoEgresadosComponent implements OnInit {
         }
       }
 
-      // ✅ si situación es Otro, exigir texto
       if (situacion === 'Otro' && !otro) {
         errors.situacionActualOtroRequerido = true;
       }
 
-      // ✅ si vía ingreso es Otro, exigir texto
       if (via === 'Otro' && !viaOtro) {
         errors.viaIngresoOtroRequerido = true;
       }
 
-      // ✅ si sector laboral es Otro, exigir texto
       if (sector === 'Otro' && !sectorOtro) {
         errors.sectorLaboralOtroRequerido = true;
       }
 
-      // ✅ si tipo establecimiento es Otro, exigir texto
       if (tipoEst === 'Otro' && !tipoEstOtro) {
         errors.tipoEstablecimientoOtroRequerido = true;
       }
@@ -614,6 +650,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
         this.recalcularStats(this.egresados);
         this.actualizarChartsGlobal(this.egresados);
 
+        // ✅ NUEVO: preparar dashboard cohorte al cargar data
+        this.prepararCohortesDesdeEgresados(this.egresados);
+
         this.loading = false;
       },
       error: (err: any) => {
@@ -761,7 +800,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
         this.planOriginalId = idPlan ? Number(idPlan) : null;
         this.planSeleccionadoId = this.planOriginalId;
 
-        // ✅ Compatibilidad: si backend aún manda fechaEgreso, rellenamos anioFinEstudios
         const anioFinCompat =
           eg?.anioFinEstudios ??
           (eg?.fechaEgreso ? new Date(eg.fechaEgreso).getFullYear() : null);
@@ -777,7 +815,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
           nivelRentas: eg.nivelRentas ?? null,
 
-          // ✅ NUEVO: preguntas adicionales
           viaIngreso: eg.viaIngreso ?? null,
           viaIngresoOtro: eg.viaIngresoOtro ?? '',
 
@@ -793,7 +830,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
           tipoEstablecimiento: eg.tipoEstablecimiento ?? 'No aplica',
           tipoEstablecimientoOtro: eg.tipoEstablecimientoOtro ?? '',
 
-          // compatibilidad
           sueldo: eg.sueldo ?? null,
           anioIngresoLaboral: eg.anioIngresoLaboral ?? null,
 
@@ -1070,7 +1106,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
     this.nuevoEstudiante.idPlan = undefined;
 
-    // ✅ reset preguntas adicionales
     this.formulario.get('viaIngreso')?.setValue(null, { emitEvent: false });
     this.formulario.get('viaIngresoOtro')?.setValue('', { emitEvent: false });
     this.formulario.get('anioIngresoCarrera')?.setValue(null, { emitEvent: false });
@@ -1150,7 +1185,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     });
   }
 
-  // ✅ CAMBIO: quitamos caso "Estudiando"
   getSituacionSeverity(situacion: string) {
     switch (situacion) {
       case 'Trabajando':
@@ -1199,7 +1233,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     dt.filter([min, max], field, 'between');
   }
 
-  // ✅ Nuevo: resolver opciones dropdown según el filtro
   getDropdownOptions(dropdownKey?: string) {
     if (dropdownKey === 'nivelRentas') return this.nivelesRentasOptions;
     return this.situaciones;
@@ -1209,7 +1242,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return (valor ?? '').toString().trim().toLowerCase();
   }
 
-  // ✅ CAMBIO: stats sin estudiando
   private recalcularStats(lista: any[]) {
     const arr = Array.isArray(lista) ? lista : [];
 
@@ -1230,7 +1262,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.stats = { total, trabajando, cesante, otro };
   }
 
-  // ✅ CAMBIO: donut sin "Estudiando"
   private actualizarChartsGlobal(lista: any[]) {
     const arr = Array.isArray(lista) ? lista : [];
 
@@ -1276,7 +1307,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       ],
     };
 
-    // ✅ Donut por año fin estudios (en vez de anioSeguimiento)
     const conteoPorAnio = new Map<number, number>();
     for (const x of arr) {
       const yRaw = x?.anioFinEstudios ?? (x?.fechaEgreso ? new Date(x.fechaEgreso).getFullYear() : null);
@@ -1323,5 +1353,140 @@ export class SeguimientoEgresadosComponent implements OnInit {
         },
       ],
     };
+  }
+
+  /* =========================================================
+    ✅ NUEVO: DASHBOARD COHORTE (FUNCIONES)
+  ========================================================= */
+
+  private obtenerAnioFinDesdeEgresado(e: any): number | null {
+    const yRaw =
+      e?.anioFinEstudios ??
+      (e?.fechaEgreso ? new Date(e.fechaEgreso).getFullYear() : null);
+
+    const y = typeof yRaw === 'number' ? yRaw : parseInt(yRaw, 10);
+    return Number.isFinite(y) ? y : null;
+  }
+
+  private prepararCohortesDesdeEgresados(lista: any[]) {
+    const arr = Array.isArray(lista) ? lista : [];
+
+    const setAnios = new Set<number>();
+    for (const e of arr) {
+      const y = this.obtenerAnioFinDesdeEgresado(e);
+      if (y) setAnios.add(y);
+    }
+
+    const anios = Array.from(setAnios.values()).sort((a, b) => b - a);
+
+    this.cohortesOptions = anios.map((y) => ({ label: y.toString(), value: y }));
+
+    // ✅ Selección default: la cohorte más reciente si no hay una seleccionada
+    if (!this.cohorteSeleccionada && anios.length > 0) {
+      this.cohorteSeleccionada = anios[0];
+    }
+
+    this.recalcularDashboardCohorte();
+  }
+
+  onCohorteChange() {
+    this.recalcularDashboardCohorte();
+  }
+
+  private recalcularDashboardCohorte() {
+    const cohorte = this.cohorteSeleccionada;
+
+    if (!cohorte) {
+      this.kpiCohorte = {
+        total: 0,
+        trabajando: 0,
+        cesante: 0,
+        otro: 0,
+        conDocs: 0,
+        porcentajeConDocs: 0,
+      };
+      this.barSituacionCohorteData = {
+        labels: ['Trabajando', 'Cesante', 'Otro'],
+        datasets: [{ data: [0, 0, 0], label: 'Cantidad' }],
+      };
+      this.donutRentasCohorteData = {
+        labels: ['Sin datos'],
+        datasets: [{ data: [1] }],
+      };
+      return;
+    }
+
+    const arr = (this.egresados ?? []).filter((e) => this.obtenerAnioFinDesdeEgresado(e) === cohorte);
+
+    const total = arr.length;
+
+    const trabajando = arr.filter(
+      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'trabajando'
+    ).length;
+
+    const cesante = arr.filter(
+      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'cesante'
+    ).length;
+
+    const otro = arr.filter(
+      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'otro'
+    ).length;
+
+    const conDocs = arr.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
+
+    const porcentajeConDocs =
+      total > 0 ? Math.round((conDocs / total) * 100) : 0;
+
+    this.kpiCohorte = {
+      total,
+      trabajando,
+      cesante,
+      otro,
+      conDocs,
+      porcentajeConDocs,
+    };
+
+    // ✅ BAR: situación cohorte
+    this.barSituacionCohorteData = {
+      labels: ['Trabajando', 'Cesante', 'Otro'],
+      datasets: [
+        {
+          label: `Cohorte ${cohorte}`,
+          data: [trabajando, cesante, otro],
+        },
+      ],
+    };
+
+    // ✅ DONUT: nivel rentas cohorte
+    const conteoRentas = new Map<string, number>();
+
+    for (const e of arr) {
+      const r = (e?.nivelRentas ?? '').toString().trim();
+      if (!r) continue;
+      conteoRentas.set(r, (conteoRentas.get(r) ?? 0) + 1);
+    }
+
+    const pares = Array.from(conteoRentas.entries()).sort((a, b) => b[1] - a[1]);
+
+    if (pares.length === 0) {
+      this.donutRentasCohorteData = {
+        labels: ['Sin datos'],
+        datasets: [{ data: [1] }],
+      };
+    } else {
+      const labels = pares.map(([k]) => k);
+      const data = pares.map(([, v]) => v);
+
+      this.donutRentasCohorteData = {
+        labels,
+        datasets: [
+          {
+            data,
+            borderColor: '#ffffff',
+            borderWidth: 2,
+          },
+        ],
+      };
+    }
   }
 }

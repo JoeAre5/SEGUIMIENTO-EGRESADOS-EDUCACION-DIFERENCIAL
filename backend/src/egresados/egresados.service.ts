@@ -93,7 +93,9 @@ export class EgresadosService {
             : null,
 
         anioIngresoLaboral:
-          dto.anioIngresoLaboral !== undefined ? this.toIntOrNull(dto.anioIngresoLaboral) : null,
+          dto.anioIngresoLaboral !== undefined
+            ? this.toIntOrNull(dto.anioIngresoLaboral)
+            : null,
 
         // ✅ FIX: NO enviar null; si no viene, Prisma usa @default(2026)
         ...(dto.anioSeguimiento !== undefined
@@ -228,11 +230,20 @@ export class EgresadosService {
       ...(dto.empresa !== undefined ? { empresa: this.toStrOrNull(dto.empresa) } : {}),
       ...(dto.cargo !== undefined ? { cargo: this.toStrOrNull(dto.cargo) } : {}),
       ...(dto.sueldo !== undefined
-        ? { sueldo: dto.sueldo !== null && dto.sueldo !== ('' as any) ? this.toIntOrNull(dto.sueldo) : null }
+        ? {
+            sueldo:
+              dto.sueldo !== null && dto.sueldo !== ('' as any)
+                ? this.toIntOrNull(dto.sueldo)
+                : null,
+          }
         : {}),
-      ...((dto as any).nivelRentas !== undefined ? { nivelRentas: (dto as any).nivelRentas ?? null } : {}),
+      ...((dto as any).nivelRentas !== undefined
+        ? { nivelRentas: (dto as any).nivelRentas ?? null }
+        : {}),
 
-      ...((dto as any).viaIngreso !== undefined ? { viaIngreso: this.toStrOrNull((dto as any).viaIngreso) } : {}),
+      ...((dto as any).viaIngreso !== undefined
+        ? { viaIngreso: this.toStrOrNull((dto as any).viaIngreso) }
+        : {}),
       ...((dto as any).viaIngresoOtro !== undefined || (dto as any).viaIngreso !== undefined
         ? {
             viaIngresoOtro:
@@ -248,12 +259,20 @@ export class EgresadosService {
         ? { anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera) }
         : {}),
 
-      ...((dto as any).genero !== undefined ? { genero: this.toStrOrNull((dto as any).genero) } : {}),
+      ...((dto as any).genero !== undefined
+        ? { genero: this.toStrOrNull((dto as any).genero) }
+        : {}),
       ...((dto as any).tiempoBusquedaTrabajo !== undefined
-        ? { tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo) }
+        ? {
+            tiempoBusquedaTrabajo: this.toStrOrNull(
+              (dto as any).tiempoBusquedaTrabajo,
+            ),
+          }
         : {}),
 
-      ...((dto as any).sectorLaboral !== undefined ? { sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral) } : {}),
+      ...((dto as any).sectorLaboral !== undefined
+        ? { sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral) }
+        : {}),
       ...((dto as any).sectorLaboralOtro !== undefined || (dto as any).sectorLaboral !== undefined
         ? {
             sectorLaboralOtro:
@@ -266,9 +285,14 @@ export class EgresadosService {
         : {}),
 
       ...((dto as any).tipoEstablecimiento !== undefined
-        ? { tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento) }
+        ? {
+            tipoEstablecimiento: this.toStrOrNull(
+              (dto as any).tipoEstablecimiento,
+            ),
+          }
         : {}),
-      ...((dto as any).tipoEstablecimientoOtro !== undefined || (dto as any).tipoEstablecimiento !== undefined
+      ...((dto as any).tipoEstablecimientoOtro !== undefined ||
+      (dto as any).tipoEstablecimiento !== undefined
         ? {
             tipoEstablecimientoOtro:
               (dto as any).tipoEstablecimiento === 'Otro'
@@ -279,17 +303,33 @@ export class EgresadosService {
           }
         : {}),
 
-      ...(dto.anioIngresoLaboral !== undefined ? { anioIngresoLaboral: this.toIntOrNull(dto.anioIngresoLaboral) } : {}),
-      ...(dto.anioSeguimiento !== undefined ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) } : {}),
+      ...(dto.anioIngresoLaboral !== undefined
+        ? { anioIngresoLaboral: this.toIntOrNull(dto.anioIngresoLaboral) }
+        : {}),
+      ...(dto.anioSeguimiento !== undefined
+        ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) }
+        : {}),
 
-      ...(dto.telefono !== undefined ? { telefono: this.toStrOrNull(dto.telefono) } : {}),
-      ...(dto.emailContacto !== undefined ? { emailContacto: this.toStrOrNull(dto.emailContacto) } : {}),
-      ...(dto.direccion !== undefined ? { direccion: this.toStrOrNull(dto.direccion) } : {}),
-      ...(dto.linkedin !== undefined ? { linkedin: this.toStrOrNull(dto.linkedin) } : {}),
-      ...(dto.contactoAlternativo !== undefined ? { contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo) } : {}),
+      ...(dto.telefono !== undefined
+        ? { telefono: this.toStrOrNull(dto.telefono) }
+        : {}),
+      ...(dto.emailContacto !== undefined
+        ? { emailContacto: this.toStrOrNull(dto.emailContacto) }
+        : {}),
+      ...(dto.direccion !== undefined
+        ? { direccion: this.toStrOrNull(dto.direccion) }
+        : {}),
+      ...(dto.linkedin !== undefined
+        ? { linkedin: this.toStrOrNull(dto.linkedin) }
+        : {}),
+      ...(dto.contactoAlternativo !== undefined
+        ? { contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo) }
+        : {}),
     };
 
-    Object.keys(dataUpdate).forEach((k) => dataUpdate[k] === undefined && delete dataUpdate[k]);
+    Object.keys(dataUpdate).forEach(
+      (k) => dataUpdate[k] === undefined && delete dataUpdate[k],
+    );
 
     await this.prisma.egresado.update({
       where: { idEstudiante },
@@ -307,6 +347,88 @@ export class EgresadosService {
     }
 
     return this.findOne(idEstudiante);
+  }
+
+  /* ===========================
+    ✅ DASHBOARD POR COHORTE
+    Cohorte = anioFinEstudios
+  =========================== */
+  async getDashboardCohortes() {
+    // 1) Total por cohorte
+    const porCohorte = await this.prisma.egresado.groupBy({
+      by: ['anioFinEstudios'],
+      _count: { _all: true },
+      where: { anioFinEstudios: { not: null } },
+      orderBy: { anioFinEstudios: 'desc' },
+    });
+
+    // 2) Por cohorte + situacion
+    const porCohorteSituacion = await this.prisma.egresado.groupBy({
+      by: ['anioFinEstudios', 'situacionActual'],
+      _count: { _all: true },
+      where: { anioFinEstudios: { not: null } },
+    });
+
+    // 3) Por cohorte + nivelRentas
+    const porCohorteRentas = await this.prisma.egresado.groupBy({
+      by: ['anioFinEstudios', 'nivelRentas'],
+      _count: { _all: true },
+      where: { anioFinEstudios: { not: null } },
+    });
+
+    // 4) Docs por cohorte (contar con/sin docs)
+    const egresadosMin = await this.prisma.egresado.findMany({
+      where: { anioFinEstudios: { not: null } },
+      select: {
+        anioFinEstudios: true,
+        documentos: { select: { idDocumento: true } },
+      },
+    });
+
+    const docsPorCohorte = new Map<number, { conDocs: number; sinDocs: number }>();
+    for (const e of egresadosMin) {
+      const anio = e.anioFinEstudios as number;
+      const tiene = (e.documentos?.length ?? 0) > 0;
+
+      if (!docsPorCohorte.has(anio)) docsPorCohorte.set(anio, { conDocs: 0, sinDocs: 0 });
+      const ref = docsPorCohorte.get(anio)!;
+      if (tiene) ref.conDocs += 1;
+      else ref.sinDocs += 1;
+    }
+
+    // Normalizar shape amigable
+    const cohortes = porCohorte
+      .filter((x) => x.anioFinEstudios !== null)
+      .map((x) => {
+        const anio = x.anioFinEstudios as number;
+
+        const situacion = { Trabajando: 0, Cesante: 0, Otro: 0 };
+
+        for (const s of porCohorteSituacion) {
+          if ((s.anioFinEstudios as number) !== anio) continue;
+          const key = (s.situacionActual ?? 'Otro') as 'Trabajando' | 'Cesante' | 'Otro';
+          if (situacion[key] !== undefined) situacion[key] = s._count._all;
+        }
+
+        const rentas: Record<string, number> = {};
+        for (const r of porCohorteRentas) {
+          if ((r.anioFinEstudios as number) !== anio) continue;
+          const key = r.nivelRentas ?? 'Sin dato';
+          rentas[key] = r._count._all;
+        }
+
+        const docs = docsPorCohorte.get(anio) ?? { conDocs: 0, sinDocs: 0 };
+
+        return {
+          anio,
+          total: x._count._all,
+          situacion,
+          rentas,
+          docs,
+        };
+      });
+
+    return { cohortes };
   }
 
   /* ===========================

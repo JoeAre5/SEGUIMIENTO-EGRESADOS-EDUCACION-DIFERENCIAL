@@ -63,6 +63,14 @@ export class EgresadosService {
   }
 
   /* ===========================
+   ✅ DASHBOARD POR COHORTE ✅
+   ✅ GET /egresados/dashboard/cohortes
+  =========================== */
+  getDashboardCohortes(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/dashboard/cohortes`);
+  }
+
+  /* ===========================
    ✅ UPDATE SOLO TEXTO
    ✅ PATCH /egresados/estudiante/:idEstudiante
   =========================== */

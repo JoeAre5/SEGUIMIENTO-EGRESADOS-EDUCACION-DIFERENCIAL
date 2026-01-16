@@ -6,6 +6,40 @@ import { ROLES_KEY } from './roles.decorator';
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
+  private normalizeRole(role: any): string {
+    if (!role) return '';
+    const r = String(role).trim();
+
+    // soportar "ROLE_ADMIN" -> "ADMIN"
+    const cleaned = r.replace(/^ROLE_/i, '');
+
+    return cleaned.toUpperCase();
+  }
+
+  private extractUserRoles(user: any): string[] {
+    if (!user) return [];
+
+    // casos comunes:
+    // user.role: "ADMIN"
+    // user.roles: ["ADMIN","..."]
+    // user.rol: "ADMIN" (a veces en español)
+    // user.rolesUsuario: [...]
+    const candidates: any[] = [];
+
+    if (user.role) candidates.push(user.role);
+    if (user.rol) candidates.push(user.rol);
+
+    if (Array.isArray(user.roles)) candidates.push(...user.roles);
+    if (Array.isArray(user.rolesUsuario)) candidates.push(...user.rolesUsuario);
+
+    // por si viene como string con comas
+    if (typeof user.roles === 'string') candidates.push(...user.roles.split(','));
+
+    return candidates
+      .map((x) => this.normalizeRole(x))
+      .filter((x) => !!x);
+  }
+
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(
       ROLES_KEY,
@@ -18,9 +52,11 @@ export class RolesGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     const user = req.user;
 
-    // si no hay user/role, bloquea
-    if (!user?.role) return false;
+    const userRoles = this.extractUserRoles(user);
+    if (userRoles.length === 0) return false;
 
-    return requiredRoles.includes(user.role);
+    const required = requiredRoles.map((r) => this.normalizeRole(r));
+
+    return required.some((r) => userRoles.includes(r));
   }
 }

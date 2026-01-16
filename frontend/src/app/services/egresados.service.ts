@@ -33,6 +33,7 @@ export interface UpdateEgresadoDto {
   providedIn: 'root',
 })
 export class EgresadosService {
+  // ✅ Mantengo tus URLs EXACTAS
   private apiUrl = 'http://localhost:3000/egresados';
   private apiFilesUrl = 'http://localhost:3000';
 
@@ -136,5 +137,26 @@ export class EgresadosService {
   =========================== */
   getPlanesEstudio(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiFilesUrl}/planes-de-estudio`);
+  }
+
+  /* ============================================================
+   ✅ (EXTRA, NO ROMPE NADA) ENDPOINTS PARA ROL EGRESADO
+   - Si algún día entras como EGRESADO, debes usar /mine
+   - No afecta tu flujo ADMIN/SECRETARIA porque no cambia nada existente
+  ============================================================ */
+
+  // ✅ GET /egresados/mine
+  findMine(): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/mine`);
+  }
+
+  // ✅ POST /egresados/mine (con docs)
+  createMineWithFiles(formData: FormData): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/mine`, formData);
+  }
+
+  // ✅ PATCH /egresados/mine (con o sin docs)
+  updateMineWithFiles(formData: FormData): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/mine`, formData);
   }
 }

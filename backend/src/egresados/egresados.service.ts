@@ -11,7 +11,8 @@ export class EgresadosService {
   constructor(private prisma: PrismaService) {}
 
   // ✅ Helper: convierte "YYYY-MM-DD" o ISO en Date válida
-  private parseFecha(fecha: string): Date {
+  // (sin afectar lógica: solo tipado correcto)
+  private parseFecha(fecha: string): Date | undefined {
     if (!fecha) return undefined;
     if (fecha.includes('T')) return new Date(fecha);
     return new Date(`${fecha}T00:00:00.000Z`);
@@ -98,7 +99,10 @@ export class EgresadosService {
     ✅ CREATE (o update si existe)
   =========================== */
   async create(dto: CreateEgresadoDto, archivos: Express.Multer.File[]) {
-    dto.idEstudiante = Number(dto.idEstudiante);
+    // ✅ SIN afectar lógica: evitar NaN si viene vacío/undefined
+    const idEst = dto?.idEstudiante !== undefined && dto?.idEstudiante !== null ? Number(dto.idEstudiante) : NaN;
+    dto.idEstudiante = idEst as any;
+
     dto.fechaEgreso = dto.fechaEgreso?.toString();
 
     const fechaConvertida = dto.fechaEgreso ? this.parseFecha(dto.fechaEgreso) : null;
@@ -323,15 +327,9 @@ export class EgresadosService {
         ? { anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera) }
         : {}),
 
-      ...((dto as any).genero !== undefined
-        ? { genero: this.toStrOrNull((dto as any).genero) }
-        : {}),
+      ...((dto as any).genero !== undefined ? { genero: this.toStrOrNull((dto as any).genero) } : {}),
       ...((dto as any).tiempoBusquedaTrabajo !== undefined
-        ? {
-            tiempoBusquedaTrabajo: this.toStrOrNull(
-              (dto as any).tiempoBusquedaTrabajo,
-            ),
-          }
+        ? { tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo) }
         : {}),
 
       ...((dto as any).sectorLaboral !== undefined
@@ -349,11 +347,7 @@ export class EgresadosService {
         : {}),
 
       ...((dto as any).tipoEstablecimiento !== undefined
-        ? {
-            tipoEstablecimiento: this.toStrOrNull(
-              (dto as any).tipoEstablecimiento,
-            ),
-          }
+        ? { tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento) }
         : {}),
       ...((dto as any).tipoEstablecimientoOtro !== undefined ||
       (dto as any).tipoEstablecimiento !== undefined
@@ -374,26 +368,16 @@ export class EgresadosService {
         ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) }
         : {}),
 
-      ...(dto.telefono !== undefined
-        ? { telefono: this.toStrOrNull(dto.telefono) }
-        : {}),
-      ...(dto.emailContacto !== undefined
-        ? { emailContacto: this.toStrOrNull(dto.emailContacto) }
-        : {}),
-      ...(dto.direccion !== undefined
-        ? { direccion: this.toStrOrNull(dto.direccion) }
-        : {}),
-      ...(dto.linkedin !== undefined
-        ? { linkedin: this.toStrOrNull(dto.linkedin) }
-        : {}),
+      ...(dto.telefono !== undefined ? { telefono: this.toStrOrNull(dto.telefono) } : {}),
+      ...(dto.emailContacto !== undefined ? { emailContacto: this.toStrOrNull(dto.emailContacto) } : {}),
+      ...(dto.direccion !== undefined ? { direccion: this.toStrOrNull(dto.direccion) } : {}),
+      ...(dto.linkedin !== undefined ? { linkedin: this.toStrOrNull(dto.linkedin) } : {}),
       ...(dto.contactoAlternativo !== undefined
         ? { contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo) }
         : {}),
     };
 
-    Object.keys(dataUpdate).forEach(
-      (k) => dataUpdate[k] === undefined && delete dataUpdate[k],
-    );
+    Object.keys(dataUpdate).forEach((k) => dataUpdate[k] === undefined && delete dataUpdate[k]);
 
     await this.prisma.egresado.update({
       where: { idEstudiante },

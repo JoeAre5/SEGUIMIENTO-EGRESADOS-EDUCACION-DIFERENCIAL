@@ -103,7 +103,8 @@ export class EgresadosController {
   // POST /egresados (con docs)
   // ==========================
   @Post()
-  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
+  // ✅ FIX MINIMO: permitir variantes típicas del rol en JWT (sin afectar lógica)
+  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
@@ -116,7 +117,9 @@ export class EgresadosController {
   ) {
     // ✅ IMPORTANTE: cuando viene multipart/form-data, números llegan como string
     // El service ya hace Number() donde corresponde, pero aquí dejamos idEstudiante sólido
-    dto.idEstudiante = Number(dto.idEstudiante);
+    if (dto?.idEstudiante !== undefined && dto?.idEstudiante !== null) {
+      dto.idEstudiante = Number(dto.idEstudiante);
+    }
 
     return this.egresadosService.create(dto, archivos);
   }
@@ -125,7 +128,7 @@ export class EgresadosController {
   // ✅ GET /egresados/dashboard/cohortes
   // ==========================
   @Get('dashboard/cohortes')
-  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
+  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
   getDashboardCohortes() {
     return this.egresadosService.getDashboardCohortes();
   }
@@ -134,7 +137,7 @@ export class EgresadosController {
   // GET /egresados
   // ==========================
   @Get()
-  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
+  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
   findAll() {
     return this.egresadosService.findAll();
   }
@@ -143,7 +146,7 @@ export class EgresadosController {
   // GET /egresados/estudiante/:idEstudiante
   // ==========================
   @Get('estudiante/:idEstudiante')
-  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
+  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
   findOne(@Param('idEstudiante') idEstudiante: string) {
     return this.egresadosService.findOne(Number(idEstudiante));
   }
@@ -152,7 +155,7 @@ export class EgresadosController {
   // PATCH /egresados/estudiante/:idEstudiante (con o sin docs)
   // ==========================
   @Patch('estudiante/:idEstudiante')
-  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
+  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
@@ -177,7 +180,7 @@ export class EgresadosController {
   // DELETE /egresados/documento/:idDocumento
   // ==========================
   @Delete('documento/:idDocumento')
-  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO (por seguridad)
+  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
   deleteDocumento(@Param('idDocumento') idDocumento: string) {
     return this.egresadosService.deleteDocumento(Number(idDocumento));
   }
@@ -186,7 +189,7 @@ export class EgresadosController {
   // DELETE /egresados/:idEgresado
   // ==========================
   @Delete(':idEgresado')
-  @Roles('ADMIN', 'SECRETARIA') // ✅ bloquear para EGRESADO
+  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
   delete(@Param('idEgresado') idEgresado: string) {
     return this.egresadosService.delete(Number(idEgresado));
   }

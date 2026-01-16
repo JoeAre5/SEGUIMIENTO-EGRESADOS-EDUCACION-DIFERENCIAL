@@ -134,19 +134,19 @@
       </small>
     </div>
 
-    <!-- ✅ EXISTENTE: RUT -->
+    <!-- ✅ EXISTENTE: RUT (sin DV) -->
     <div
       class="col-span-2"
       *ngIf="!isEgresado && modoEstudiante === 'existente' && estudianteSeleccionado"
     >
-      <label class="block font-semibold mb-2">RUT *</label>
+      <label class="block font-semibold mb-2">RUT (sin DV) *</label>
       <input
         pInputText
         [(ngModel)]="estudianteSeleccionado.rut"
         [ngModelOptions]="{ standalone: true }"
-        placeholder="Ej: 20.123.456-7"
+        placeholder="Ej: 20.123.456"
         class="w-full"
-        maxlength="12"
+        maxlength="10"
         inputmode="text"
         autocomplete="off"
         (input)="onRutInputExistente()"
@@ -156,7 +156,7 @@
         class="text-red-500"
         *ngIf="intentoGuardar && !isRutValido((estudianteSeleccionado?.rut || ''))"
       >
-        RUT inválido. Revisa el dígito verificador.
+        RUT inválido. Debe tener 7 u 8 dígitos (sin DV).
       </small>
     </div>
 
@@ -208,21 +208,21 @@
 
       <div class="grid grid-cols-2 gap-6 mt-4">
         <div>
-          <label class="block font-semibold mb-2">RUT *</label>
+          <label class="block font-semibold mb-2">RUT (sin DV) *</label>
           <input
             pInputText
             [(ngModel)]="nuevoEstudiante.rut"
             [ngModelOptions]="{ standalone: true }"
-            placeholder="Ej: 20.123.456-7"
+            placeholder="Ej: 20.123.456"
             class="w-full"
-            maxlength="12"
+            maxlength="10"
             inputmode="text"
             autocomplete="off"
             (input)="onRutInputNuevo()"
           />
 
           <small class="text-red-500" *ngIf="intentoGuardar && !isRutValido((nuevoEstudiante?.rut || ''))">
-            RUT inválido. Revisa el dígito verificador.
+            RUT inválido. Debe tener 7 u 8 dígitos (sin DV).
           </small>
         </div>
 

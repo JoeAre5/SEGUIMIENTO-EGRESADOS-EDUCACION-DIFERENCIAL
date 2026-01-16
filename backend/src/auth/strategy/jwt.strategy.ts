@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Usuario } from '@prisma/client';
@@ -8,12 +8,12 @@ import { PrismaService } from 'src/prisma/prisma.service';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
-    config: ConfigService,
-    private prisma: PrismaService,
+    private config: ConfigService,
+    private prisma: PrismaService
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      secretOrKey: config.get('JWT_SECRET'),
+      secretOrKey: config.get<string>('JWT_SECRET') || config.get<string>('JWT_SECRET'.toLowerCase()),
     });
   }
 
@@ -24,20 +24,26 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     role?: string;
     idEstudiante?: number | null;
   }) {
-    const user: Usuario = await this.prisma.usuario.findUnique({
+    const user = await this.prisma.usuario.findUnique({
       where: {
         id: payload.sub,
       },
     });
 
-    delete user.hashedPassword;
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    // no romper nada: quitamos password antes de devolver
+    const safeUser: any = { ...user };
+    delete safeUser.hashedPassword;
 
     // ✅ Sin romper nada: devolvemos el usuario como antes,
     // pero garantizando que en req.user existan role e idEstudiante (si vienen en el token).
     return {
-      ...user,
-      role: (user as any).role ?? payload.role,
-      idEstudiante: (user as any).idEstudiante ?? payload.idEstudiante ?? null,
+      ...safeUser,
+      role: safeUser.role ?? payload.role,
+      idEstudiante: safeUser.idEstudiante ?? payload.idEstudiante ?? null,
     };
   }
 }

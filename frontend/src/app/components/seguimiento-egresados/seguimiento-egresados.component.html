@@ -31,7 +31,7 @@
     </h2>
   </div>
 
-  <div id="formulario-egresados" class="bg-white p-2">
+  <div id="formulario-egresados" class="bg-white p-2 max-h-[75vh] overflow-y-auto">
     <ng-container *ngTemplateOutlet="formularioTemplate"></ng-container>
   </div>
 </div>
@@ -62,7 +62,7 @@
     ></button>
   </div>
 
-  <div id="formulario-egresados" class="bg-white p-2">
+  <div id="formulario-egresados" class="bg-white p-2 max-h-[75vh] overflow-y-auto">
     <ng-container *ngTemplateOutlet="formularioTemplate"></ng-container>
   </div>
 </p-sidebar>
@@ -151,11 +151,7 @@
         autocomplete="off"
         (input)="onRutInputExistente()"
       />
-
-      <!-- ✅ desactivado: no validar rut real/falso -->
-      <small class="text-red-500" *ngIf="false">
-        RUT inválido.
-      </small>
+      <small class="text-red-500" *ngIf="false">RUT inválido.</small>
     </div>
 
     <!-- ✅ EXISTENTE: Plan (info readonly) -->
@@ -218,11 +214,7 @@
             autocomplete="off"
             (input)="onRutInputNuevo()"
           />
-
-          <!-- ✅ desactivado: no validar rut real/falso -->
-          <small class="text-red-500" *ngIf="false">
-            RUT inválido.
-          </small>
+          <small class="text-red-500" *ngIf="false">RUT inválido.</small>
         </div>
 
         <div>
@@ -278,9 +270,11 @@
       </div>
     </div>
 
-    <!-- ======= TODO EL RESTO DE TU FORMULARIO QUEDA IGUAL ======= -->
+    <!-- ==========================================================
+    ✅ RESTO DEL FORMULARIO (completo, SIN sueldo; con nivelRentas)
+    ========================================================== -->
 
-    <!-- ✅ Seguimiento (ENCUESTA: solo año fin estudios) -->
+    <!-- ✅ Año fin estudios -->
     <div>
       <label class="block font-semibold mb-2">Año fin de estudios *</label>
       <p-inputNumber
@@ -299,6 +293,7 @@
       </small>
     </div>
 
+    <!-- ✅ Situación -->
     <div>
       <label class="block font-semibold mb-2">Situación Actual *</label>
       <p-dropdown
@@ -322,6 +317,7 @@
       </small>
     </div>
 
+    <!-- ✅ Empresa / cargo -->
     <div>
       <label class="block font-semibold mb-2">Empresa</label>
       <input pInputText formControlName="empresa" class="w-full" />
@@ -332,8 +328,320 @@
       <input pInputText formControlName="cargo" class="w-full" />
     </div>
 
-    <!-- ... (tu resto de formulario igual) ... -->
+    <!-- ✅ Vía ingreso -->
+    <div>
+      <label class="block font-semibold mb-2">Vía de ingreso</label>
+      <p-dropdown
+        formControlName="viaIngreso"
+        [options]="viasIngreso"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+    </div>
 
+    <div *ngIf="formulario.get('viaIngreso')?.value === 'Otro'">
+      <label class="block font-semibold mb-2">Especifica (Vía de ingreso)</label>
+      <input pInputText formControlName="viaIngresoOtro" class="w-full" />
+      <small class="text-red-500" *ngIf="formHasError('viaIngresoOtroRequerido')">
+        Debes especificar la vía de ingreso.
+      </small>
+    </div>
+
+    <!-- ✅ Año ingreso carrera -->
+    <div>
+      <label class="block font-semibold mb-2">Año ingreso carrera</label>
+      <p-inputNumber
+        formControlName="anioIngresoCarrera"
+        class="w-full"
+        [useGrouping]="false"
+        placeholder="Ej: 2019"
+      ></p-inputNumber>
+
+      <small class="text-red-500" *ngIf="isInvalid('anioIngresoCarrera')">
+        <ng-container *ngIf="getError('anioIngresoCarrera')?.min">Año demasiado bajo.</ng-container>
+        <ng-container *ngIf="getError('anioIngresoCarrera')?.max">Año demasiado alto.</ng-container>
+      </small>
+
+      <small class="text-red-500" *ngIf="formHasError('anioIngresoCarreraMayorQueFin')">
+        Año ingreso carrera debe ser menor o igual al año fin de estudios.
+      </small>
+    </div>
+
+    <!-- ✅ Género -->
+    <div>
+      <label class="block font-semibold mb-2">Género</label>
+      <p-dropdown
+        formControlName="genero"
+        [options]="generos"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <!-- ✅ Tiempo búsqueda -->
+    <div class="col-span-2">
+      <label class="block font-semibold mb-2">Tiempo de búsqueda de trabajo</label>
+      <p-dropdown
+        formControlName="tiempoBusquedaTrabajo"
+        [options]="tiemposBusquedaTrabajo"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <!-- ✅ Sector laboral -->
+    <div>
+      <label class="block font-semibold mb-2">Sector laboral</label>
+      <p-dropdown
+        formControlName="sectorLaboral"
+        [options]="sectoresLaborales"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <div *ngIf="formulario.get('sectorLaboral')?.value === 'Otro'">
+      <label class="block font-semibold mb-2">Especifica (Sector)</label>
+      <input pInputText formControlName="sectorLaboralOtro" class="w-full" />
+      <small class="text-red-500" *ngIf="formHasError('sectorLaboralOtroRequerido')">
+        Debes especificar el sector.
+      </small>
+    </div>
+
+    <!-- ✅ Tipo establecimiento -->
+    <div>
+      <label class="block font-semibold mb-2">Tipo de establecimiento</label>
+      <p-dropdown
+        formControlName="tipoEstablecimiento"
+        [options]="tipoEstablecimiento"
+        placeholder="Seleccionar"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <div *ngIf="formulario.get('tipoEstablecimiento')?.value === 'Otro'">
+      <label class="block font-semibold mb-2">Especifica (Tipo establecimiento)</label>
+      <input pInputText formControlName="tipoEstablecimientoOtro" class="w-full" />
+      <small class="text-red-500" *ngIf="formHasError('tipoEstablecimientoOtroRequerido')">
+        Debes especificar el tipo de establecimiento.
+      </small>
+    </div>
+
+    <!-- ✅ Nivel de rentas (radios) -->
+    <div class="col-span-2">
+      <label class="font-bold block mb-2">
+        Nivel de Rentas <span class="text-red-500">*</span>
+      </label>
+
+      <div class="flex flex-column gap-2">
+        <div class="flex align-items-center gap-2">
+          <p-radioButton
+            name="nivelRentas"
+            inputId="nr_1"
+            [value]="'Sueldo mínimo ($500.000)'"
+            formControlName="nivelRentas"
+          ></p-radioButton>
+          <label for="nr_1">Sueldo mínimo ($500.000)</label>
+        </div>
+
+        <div class="flex align-items-center gap-2">
+          <p-radioButton
+            name="nivelRentas"
+            inputId="nr_2"
+            [value]="'Entre $500.001 y $1.000.000'"
+            formControlName="nivelRentas"
+          ></p-radioButton>
+          <label for="nr_2">Entre $500.001 y $1.000.000</label>
+        </div>
+
+        <div class="flex align-items-center gap-2">
+          <p-radioButton
+            name="nivelRentas"
+            inputId="nr_3"
+            [value]="'Entre $1.000.001 y $1.500.000'"
+            formControlName="nivelRentas"
+          ></p-radioButton>
+          <label for="nr_3">Entre $1.000.001 y $1.500.000</label>
+        </div>
+
+        <div class="flex align-items-center gap-2">
+          <p-radioButton
+            name="nivelRentas"
+            inputId="nr_4"
+            [value]="'Más de $1.500.001'"
+            formControlName="nivelRentas"
+          ></p-radioButton>
+          <label for="nr_4">Más de $1.500.001</label>
+        </div>
+      </div>
+
+      <small
+        class="p-error"
+        *ngIf="formulario.get('nivelRentas')?.touched && formulario.get('nivelRentas')?.invalid"
+      >
+        Debes seleccionar un nivel de rentas.
+      </small>
+    </div>
+
+    <!-- ✅ Año ingreso laboral -->
+    <div>
+      <label class="block font-semibold mb-2">Año Ingreso Laboral</label>
+      <p-inputNumber
+        formControlName="anioIngresoLaboral"
+        class="w-full"
+        [useGrouping]="false"
+        placeholder="Ej: 2024"
+      ></p-inputNumber>
+
+      <small class="text-red-500" *ngIf="isInvalid('anioIngresoLaboral')">
+        <ng-container *ngIf="getError('anioIngresoLaboral')?.min">
+          Año ingreso laboral demasiado bajo.
+        </ng-container>
+        <ng-container *ngIf="getError('anioIngresoLaboral')?.max">
+          Año ingreso laboral demasiado alto.
+        </ng-container>
+      </small>
+
+      <small class="text-red-500" *ngIf="formHasError('anioIngresoLaboralMenorQueFin')">
+        Año ingreso laboral debe ser mayor o igual al año fin de estudios.
+      </small>
+    </div>
+
+    <!-- ✅ Teléfono -->
+    <div>
+      <label class="block font-semibold mb-2">Teléfono</label>
+      <input
+        pInputText
+        formControlName="telefono"
+        class="w-full"
+        placeholder="Ej: +56 9 12345678"
+        (input)="onTelefonoInput()"
+      />
+      <small class="text-red-500" *ngIf="isInvalid('telefono')">Teléfono inválido.</small>
+    </div>
+
+    <!-- ✅ Email -->
+    <div class="col-span-2">
+      <label class="block font-semibold mb-2">Correo</label>
+      <input
+        pInputText
+        formControlName="emailContacto"
+        class="w-full"
+        placeholder="Ej: nombre@dominio.cl"
+      />
+      <small class="text-red-500" *ngIf="isInvalid('emailContacto')">Email inválido.</small>
+    </div>
+
+    <!-- ✅ LinkedIn -->
+    <div class="col-span-2">
+      <label class="block font-semibold mb-2">LinkedIn</label>
+      <input
+        pInputText
+        formControlName="linkedin"
+        class="w-full"
+        placeholder="Ej: https://linkedin.com/in/usuario"
+      />
+      <small class="text-red-500" *ngIf="isInvalid('linkedin')">URL de LinkedIn inválida.</small>
+    </div>
+
+    <!-- ==========================================================
+✅ DOCUMENTOS (subida + existentes)
+========================================================== -->
+<div class="col-span-2 mt-4">
+  <h3 class="text-lg font-bold text-sky-700">📎 Documentos</h3>
+  <hr class="my-3" />
+
+  <!-- ✅ Subida de archivos -->
+  <div class="mb-3">
+    <label class="block font-semibold mb-2">Subir documentos</label>
+
+    <input
+      #fileInput
+      type="file"
+      multiple
+      class="w-full"
+      (change)="onFileSelected($event)"
+    />
+
+    <small class="text-gray-500 block mt-2">
+      Puedes seleccionar uno o más archivos. Se adjuntarán al guardar.
+    </small>
+  </div>
+
+  <!-- ✅ Preview de seleccionados -->
+  <div class="mb-3" *ngIf="documentosSeleccionados?.length">
+    <p class="font-semibold mb-2">Seleccionados:</p>
+
+    <ul class="list-disc pl-6">
+      <li *ngFor="let f of documentosSeleccionados">
+        {{ f.name }} <span class="text-gray-500">({{ f.size }} bytes)</span>
+      </li>
+    </ul>
+
+    <button
+      pButton
+      type="button"
+      class="p-button-sm p-button-outlined p-button-secondary mt-3"
+      icon="pi pi-trash"
+      label="Quitar seleccionados"
+      (click)="limpiarInputArchivos()"
+    ></button>
+  </div>
+
+  <!-- ✅ Documentos existentes (del seguimiento cargado) -->
+  <div class="mt-4" *ngIf="documentosExistentes?.length">
+    <p class="font-semibold mb-2">Existentes:</p>
+
+    <div class="flex flex-col gap-2">
+      <div
+        class="flex items-center justify-between p-3 border rounded-md"
+        *ngFor="let doc of documentosExistentes"
+      >
+        <div class="flex flex-col">
+          <span class="font-semibold">{{ doc.nombre }}</span>
+          <small class="text-gray-500">{{ doc.url }}</small>
+        </div>
+
+        <div class="flex gap-2">
+          <button
+            pButton
+            type="button"
+            class="p-button-sm p-button-outlined"
+            icon="pi pi-eye"
+            pTooltip="Ver"
+            (click)="verDocumento(doc)"
+          ></button>
+
+          <button
+            pButton
+            type="button"
+            class="p-button-sm p-button-outlined"
+            icon="pi pi-download"
+            pTooltip="Descargar"
+            (click)="descargarDocumento(doc)"
+          ></button>
+
+          <!-- ✅ En EGRESADO ya bloqueas eliminar en TS, así que lo dejamos igual -->
+          <button
+            pButton
+            type="button"
+            class="p-button-sm p-button-outlined p-button-danger"
+            icon="pi pi-trash"
+            pTooltip="Eliminar"
+            (click)="eliminarDocumento(doc)"
+          ></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-3" *ngIf="!documentosExistentes?.length">
+    <small class="text-gray-500">No hay documentos cargados.</small>
+  </div>
+</div>
+
+
+    <!-- ✅ BOTONES -->
     <div class="col-span-2 flex justify-end gap-4 mt-8">
       <button pButton type="button" class="p-button-warning" (click)="resetFormulario()">
         Limpiar

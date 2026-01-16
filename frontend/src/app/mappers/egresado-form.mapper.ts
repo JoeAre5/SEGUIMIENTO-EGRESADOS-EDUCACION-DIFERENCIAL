@@ -1,87 +1,79 @@
 // src/app/mappers/egresado-form.mapper.ts
 
-import { FormGroup } from '@angular/forms';
+export type SituacionOption = { label: string; value: string };
 
-function construirPlanTextoDesdePlan(plan: any): string {
+export function normalizarSituacion(valor: any, situaciones: SituacionOption[]): string | null {
+  if (!valor) return null;
+  const limpio = valor.toString().trim().toLowerCase();
+  const match = (situaciones ?? []).find((s) => s.value.toLowerCase() === limpio);
+  return match ? match.value : null;
+}
+
+export function construirPlanTextoDesdePlan(plan: any): string {
   if (!plan) return '';
   const titulo = plan?.titulo ?? '';
   const codigo = plan?.codigo ?? '';
   const agnio = plan?.agnio ?? '';
-
   const partes: string[] = [];
   if (titulo) partes.push(titulo);
   if (agnio !== '' && agnio !== null && agnio !== undefined) partes.push(`Año: ${agnio}`);
   if (codigo !== '' && codigo !== null && codigo !== undefined) partes.push(`Código: ${codigo}`);
-
   return partes.join(' • ');
 }
 
-function normalizarSituacion(valor: any, situaciones: Array<{ value: string }>): string | null {
-  if (!valor) return null;
-  const limpio = valor.toString().trim().toLowerCase();
-  const match = situaciones.find((s) => s.value.toLowerCase() === limpio);
-  return match ? match.value : null;
-}
-
-function anioFinCompat(eg: any): number | null {
-  return (
-    eg?.anioFinEstudios ??
-    (eg?.fechaEgreso ? new Date(eg.fechaEgreso).getFullYear() : null)
-  );
-}
-
-export function patchFormFromEgresado(
-  form: FormGroup,
-  egresado: any,
-  situaciones: Array<{ value: string }>,
-) {
-  const eg = egresado?.data ? egresado.data : egresado;
-  if (!eg) return;
-
+/**
+ * Devuelve:
+ * - idPlan (para planOriginalId/planSeleccionadoId)
+ * - patch (objeto listo para formulario.patchValue)
+ */
+export function mapEgresadoToFormPatch(
+  eg: any,
+  situaciones: SituacionOption[]
+): { idPlan: number | null; patch: Record<string, any> } {
   const plan = eg?.Estudiante?.Plan ?? null;
   const planTexto = construirPlanTextoDesdePlan(plan);
 
-  form.patchValue({
-    planEstudios: planTexto,
+  const idPlanRaw = plan?.idPlan ?? eg?.Estudiante?.idPlan ?? null;
+  const idPlan = idPlanRaw !== null && idPlanRaw !== undefined ? Number(idPlanRaw) : null;
 
-    situacionActual: normalizarSituacion(eg.situacionActual, situaciones),
-    situacionActualOtro: eg.situacionActualOtro ?? '',
+  const anioFinCompat =
+    eg?.anioFinEstudios ??
+    (eg?.fechaEgreso ? new Date(eg.fechaEgreso).getFullYear() : null);
 
-    empresa: eg.empresa ?? '',
-    cargo: eg.cargo ?? '',
+  return {
+    idPlan,
+    patch: {
+      planEstudios: planTexto,
 
-    nivelRentas: eg.nivelRentas ?? null,
+      situacionActual: normalizarSituacion(eg?.situacionActual, situaciones),
+      situacionActualOtro: eg?.situacionActualOtro ?? '',
 
-    viaIngreso: eg.viaIngreso ?? null,
-    viaIngresoOtro: eg.viaIngresoOtro ?? '',
+      empresa: eg?.empresa ?? '',
+      cargo: eg?.cargo ?? '',
 
-    anioIngresoCarrera: eg.anioIngresoCarrera ?? null,
-    anioFinEstudios: anioFinCompat(eg),
+      nivelRentas: eg?.nivelRentas ?? null,
 
-    genero: eg.genero ?? null,
-    tiempoBusquedaTrabajo: eg.tiempoBusquedaTrabajo ?? null,
+      viaIngreso: eg?.viaIngreso ?? null,
+      viaIngresoOtro: eg?.viaIngresoOtro ?? '',
 
-    sectorLaboral: eg.sectorLaboral ?? null,
-    sectorLaboralOtro: eg.sectorLaboralOtro ?? '',
+      anioIngresoCarrera: eg?.anioIngresoCarrera ?? null,
+      anioFinEstudios: anioFinCompat,
 
-    tipoEstablecimiento: eg.tipoEstablecimiento ?? 'No aplica',
-    tipoEstablecimientoOtro: eg.tipoEstablecimientoOtro ?? '',
+      genero: eg?.genero ?? null,
+      tiempoBusquedaTrabajo: eg?.tiempoBusquedaTrabajo ?? null,
 
-    sueldo: eg.sueldo ?? null,
-    anioIngresoLaboral: eg.anioIngresoLaboral ?? null,
+      sectorLaboral: eg?.sectorLaboral ?? null,
+      sectorLaboralOtro: eg?.sectorLaboralOtro ?? '',
 
-    telefono: eg.telefono ?? '',
-    emailContacto: eg.emailContacto ?? '',
-    linkedin: eg.linkedin ?? '',
-  });
-}
+      tipoEstablecimiento: eg?.tipoEstablecimiento ?? 'No aplica',
+      tipoEstablecimientoOtro: eg?.tipoEstablecimientoOtro ?? '',
 
-export function extractPlanIds(egresado: any): { planOriginalId: number | null; planSeleccionadoId: number | null } {
-  const eg = egresado?.data ? egresado.data : egresado;
-  const plan = eg?.Estudiante?.Plan ?? null;
+      sueldo: eg?.sueldo ?? null,
+      anioIngresoLaboral: eg?.anioIngresoLaboral ?? null,
 
-  const idPlan = plan?.idPlan ?? eg?.Estudiante?.idPlan ?? null;
-  const original = idPlan ? Number(idPlan) : null;
-
-  return { planOriginalId: original, planSeleccionadoId: original };
+      telefono: eg?.telefono ?? '',
+      emailContacto: eg?.emailContacto ?? '',
+      linkedin: eg?.linkedin ?? '',
+    },
+  };
 }

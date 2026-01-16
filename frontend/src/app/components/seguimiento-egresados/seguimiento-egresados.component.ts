@@ -58,22 +58,20 @@ import {
 
 import { switchMap, of, Observable } from 'rxjs';
 
-// ✅ NUEVO (sin romper nada): roles para detectar EGRESADO desde JWT
+// ✅ (opcional) roles type
 import { Roles } from '../../models/login.dto';
 
-// ✅ REFACTOR: utils + mapper (los que ya creaste)
-import {
-  formatearRutMinimoSinDv,
-  existeRutEnEstudiantes,
-  isRutValido,
-} from '../../utils/rut.util';
+// ✅ Refactor definitivo (según tu estructura)
+import * as DashboardUtil from './_refactor/dashboard.util';
+import * as Mapper from './_refactor/egresado-form.mapper';
+import { buildFormDataFromRaw, actualizarPlanSiCambia$ } from './_refactor/egresado-save.facade';
 
-import { buildFormDataFromObject, appendFiles } from '../../utils/formdata.util';
+import * as Helpers from './_refactor/helpers.util';
+import { EgresadosDashboardComponent } from './ui/egresados-dashboard.component';
 
-import {
-  patchFormFromEgresado,
-  extractPlanIds,
-} from '../../mappers/egresado-form.mapper';
+import * as JwtUtil from '../../utils/jwt.util';
+import * as RutUtil from '../../utils/rut.util';
+import * as SsrStorage from '../../utils/ssr-storage.util';
 
 interface PlanDTO {
   idPlan: number;
@@ -89,6 +87,7 @@ interface PlanDTO {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    EgresadosDashboardComponent,
     FormsModule,
     CardModule,
     InputTextModule,
@@ -112,23 +111,15 @@ interface PlanDTO {
     trigger('pageEnter', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(10px)' }),
-        animate(
-          '320ms ease-out',
-          style({ opacity: 1, transform: 'translateY(0)' })
-        ),
+        animate('320ms ease-out', style({ opacity: 1, transform: 'translateY(0)' })),
       ]),
     ]),
-
     trigger('fadeHeader', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(-6px)' }),
-        animate(
-          '260ms ease-out',
-          style({ opacity: 1, transform: 'translateY(0)' })
-        ),
+        animate('260ms ease-out', style({ opacity: 1, transform: 'translateY(0)' })),
       ]),
     ]),
-
     trigger('cardsStagger', [
       transition(':enter', [
         query('@cardItem', stagger(70, animateChild()), { optional: true }),
@@ -137,24 +128,16 @@ interface PlanDTO {
         query('@cardItem', stagger(70, animateChild()), { optional: true }),
       ]),
     ]),
-
     trigger('cardItem', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateY(8px) scale(0.98)' }),
-        animate(
-          '260ms ease-out',
-          style({ opacity: 1, transform: 'translateY(0) scale(1)' })
-        ),
+        animate('260ms ease-out', style({ opacity: 1, transform: 'translateY(0) scale(1)' })),
       ]),
     ]),
-
     trigger('sidebarStagger', [
       transition(':enter', [
         style({ opacity: 0, transform: 'translateX(10px)' }),
-        animate(
-          '220ms ease-out',
-          style({ opacity: 1, transform: 'translateX(0)' })
-        ),
+        animate('220ms ease-out', style({ opacity: 1, transform: 'translateX(0)' })),
       ]),
     ]),
   ],
@@ -175,23 +158,22 @@ export class SeguimientoEgresadosComponent implements OnInit {
   estudianteSeleccionado: EstudianteDTO | null = null;
   modoEstudiante: 'existente' | 'nuevo' = 'existente';
 
-  existeSeguimiento: boolean = false;
+  existeSeguimiento = false;
 
   modalDocsVisible = false;
   documentosModal: any[] = [];
 
-  modalFiltrosVisible: boolean = false;
+  modalFiltrosVisible = false;
   filtroValores: Record<string, any> = {};
 
   // ✅ SSR
   private readonly isBrowser: boolean;
 
-  // ✅ NUEVO (sin afectar nada): modo EGRESADO
+  // ✅ modo EGRESADO
   public EGRESADO = 'Egresado';
-  public isEgresado: boolean = false;
+  public isEgresado = false;
   private idEstudianteToken: number | null = null;
 
-  // ✅ Opciones para filtro de NIVEL RENTAS
   nivelesRentasOptions = [
     { label: 'Sueldo mínimo ($500.000)', value: 'Sueldo mínimo ($500.000)' },
     { label: 'Entre $500.001 y $1.000.000', value: 'Entre $500.001 y $1.000.000' },
@@ -244,7 +226,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
     { label: 'Email', field: 'emailContacto', type: 'text', placeholder: 'Ej: nombre@dominio.cl' },
   ];
 
-  drawerFormulario: boolean = false;
+  drawerFormulario = false;
 
   planes: PlanDTO[] = [];
   planesOptions: { label: string; value: number }[] = [];
@@ -258,7 +240,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
     { label: 'Otro', value: 'Otro' },
   ];
 
-  intentoGuardar: boolean = false;
+  intentoGuardar = false;
 
   nuevoEstudiante: CreateEstudianteDTO = {
     rut: '',
@@ -282,12 +264,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   rutDuplicadoExistente = false;
   anioIngresoInvalidoNuevo = false;
 
-  stats = {
-    total: 0,
-    trabajando: 0,
-    cesante: 0,
-    otro: 0,
-  };
+  stats = { total: 0, trabajando: 0, cesante: 0, otro: 0 };
 
   donutSituacionData: any;
   donutDocsData: any;
@@ -297,14 +274,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   cohortesOptions: { label: string; value: number }[] = [];
   cohorteSeleccionada: number | null = null;
 
-  kpiCohorte: {
-    total: number;
-    trabajando: number;
-    cesante: number;
-    otro: number;
-    conDocs: number;
-    porcentajeConDocs: number;
-  } = {
+  kpiCohorte = {
     total: 0,
     trabajando: 0,
     cesante: 0,
@@ -330,33 +300,56 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
     this.crearFormulario();
 
-    // ✅ SSR-safe: token/JWT solo en browser
+    // ✅ token/JWT solo en browser
     if (this.isBrowser) {
-      const token =
-        localStorage.getItem('access_token') ||
-        localStorage.getItem('token') ||
-        sessionStorage.getItem('access_token') ||
-        sessionStorage.getItem('token');
-
-      const payload = this.decodeJwt(token);
-      const role = payload?.role;
+      const token = this.getTokenSafe();
+      const payload = this.decodeJwtSafe(token);
+      const role = payload?.role as Roles | undefined;
 
       this.idEstudianteToken =
         payload?.idEstudiante !== undefined && payload?.idEstudiante !== null
           ? Number(payload.idEstudiante)
           : null;
 
-      this.isEgresado = role === this.EGRESADO || role === 'EGRESADO';
+      this.isEgresado = role === (this.EGRESADO as any) || role === ('EGRESADO' as any);
     } else {
       this.idEstudianteToken = null;
       this.isEgresado = false;
     }
   }
 
-  // ✅ SSR-safe: atob solo en browser
-  private decodeJwt(token: string | null): any {
-    if (!token) return null;
+  // ---------------------------
+  // SSR-safe helpers
+  // ---------------------------
+  private getTokenSafe(): string | null {
     if (!this.isBrowser) return null;
+
+    const maybe = (SsrStorage as any)?.getToken?.() ?? (SsrStorage as any)?.getTokenFromStorage?.();
+    if (typeof maybe === 'string' && maybe) return maybe;
+
+    return (
+      localStorage.getItem('access_token') ||
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('access_token') ||
+      sessionStorage.getItem('token')
+    );
+  }
+
+  private decodeJwtSafe(token: string | null): any {
+    if (!token || !this.isBrowser) return null;
+
+    const fn =
+      (JwtUtil as any)?.decodeJwt ||
+      (JwtUtil as any)?.getJwtPayload ||
+      (JwtUtil as any)?.decodeToken;
+
+    if (typeof fn === 'function') {
+      try {
+        return fn(token);
+      } catch {
+        // fallback
+      }
+    }
 
     try {
       const payloadPart = token.split('.')[1];
@@ -376,123 +369,38 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // ✅✅✅ FIX CLAVE: En SSR NO hagas llamadas HTTP (no hay token => 401)
     if (!this.isBrowser) {
       this.loading = false;
       return;
     }
 
+    this.chartOptionsCohorte = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
+        tooltip: { enabled: true },
+      },
+      scales: { x: { ticks: { autoSkip: false } }, y: { beginAtZero: true } },
+    };
+
+    this.cargarPlanes();
+
     if (this.isEgresado) {
       this.loading = true;
       this.modoEstudiante = 'existente';
       this.drawerFormulario = true;
-
-      this.cargarPlanes();
       this.cargarMiSeguimiento();
-
-      this.chartOptionsCohorte = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { usePointStyle: true, boxWidth: 8 },
-          },
-          tooltip: { enabled: true },
-        },
-        scales: {
-          x: { ticks: { autoSkip: false } },
-          y: { beginAtZero: true },
-        },
-      };
-
       return;
     }
 
     this.cargarEgresados();
     this.cargarEstudiantes();
-    this.cargarPlanes();
-
-    this.chartOptionsCohorte = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { usePointStyle: true, boxWidth: 8 },
-        },
-        tooltip: { enabled: true },
-      },
-      scales: {
-        x: { ticks: { autoSkip: false } },
-        y: { beginAtZero: true },
-      },
-    };
   }
 
-  private resetFormSinSeguimiento() {
-    this.existeSeguimiento = false;
-    this.documentosExistentes = [];
-    this.formulario.reset();
-    this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
-  }
-
-  private cargarMiSeguimiento() {
-    const id = this.idEstudianteToken;
-
-    if (!id || Number.isNaN(id)) {
-      this.loading = false;
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Sin vínculo',
-        detail: 'No se pudo identificar tu idEstudiante en el token.',
-      });
-      return;
-    }
-
-    const svc: any = this.egresadosService as any;
-
-    const obs =
-      typeof svc.getMine === 'function'
-        ? svc.getMine()
-        : this.egresadosService.findOneByEstudiante(id);
-
-    obs.subscribe({
-      next: (egresado: any) => {
-        const eg = egresado?.data ? egresado.data : egresado;
-
-        if (!eg || Object.keys(eg).length === 0) {
-          this.resetFormSinSeguimiento();
-          this.loading = false;
-          return;
-        }
-
-        this.existeSeguimiento = true;
-
-        // ✅ REFACTOR: mapper central
-        const { planOriginalId, planSeleccionadoId } = extractPlanIds(egresado);
-        this.planOriginalId = planOriginalId;
-        this.planSeleccionadoId = planSeleccionadoId;
-
-        patchFormFromEgresado(this.formulario, egresado, this.situaciones);
-
-        this.documentosExistentes = eg.documentos || [];
-
-        this.messageService.add({
-          severity: 'info',
-          summary: 'Datos cargados',
-          detail: '✅ Formulario rellenado automáticamente.',
-        });
-
-        this.loading = false;
-      },
-      error: () => {
-        this.resetFormSinSeguimiento();
-        this.loading = false;
-      },
-    });
-  }
-
+  // ---------------------------
+  // UI helpers
+  // ---------------------------
   isInvalid(controlName: string): boolean {
     const c = this.formulario.get(controlName);
     return !!(c && c.invalid && (c.dirty || c.touched || this.intentoGuardar));
@@ -509,6 +417,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
     );
   }
 
+  // ---------------------------
+  // Form
+  // ---------------------------
   crearFormulario() {
     this.formulario = this.fb.group(
       {
@@ -561,22 +472,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
           ],
         ],
 
-        telefono: [
-          '',
-          [Validators.maxLength(20), Validators.pattern(this.PHONE_8_REGEX)],
-        ],
-        emailContacto: [
-          '',
-          [Validators.maxLength(120), Validators.pattern(this.EMAIL_REGEX)],
-        ],
-        linkedin: [
-          '',
-          [Validators.maxLength(200), Validators.pattern(this.LINKEDIN_REGEX)],
-        ],
+        telefono: ['', [Validators.maxLength(20), Validators.pattern(this.PHONE_8_REGEX)]],
+        emailContacto: ['', [Validators.maxLength(120), Validators.pattern(this.EMAIL_REGEX)]],
+        linkedin: ['', [Validators.maxLength(200), Validators.pattern(this.LINKEDIN_REGEX)]],
       },
-      {
-        validators: [this.validarReglasCruzadas()],
-      }
+      { validators: [this.validarReglasCruzadas()] }
     );
   }
 
@@ -638,7 +538,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     if (!c) return;
 
     let v = (c.value ?? '').toString();
-
     v = v.replace(/[^\d+]/g, '');
     if (v.includes('+')) v = '+' + v.replace(/\+/g, '');
 
@@ -654,46 +553,64 @@ export class SeguimientoEgresadosComponent implements OnInit {
     c.setValue(v, { emitEvent: false });
   }
 
-  // ✅ REFACTOR: RUT ahora viene de util
+  // ---------------------------
+  // RUT (libre, con DV, sin validación)
+  // ---------------------------
+  private sanitizeRutLibre(value: string): string {
+    // Permite: dígitos, k/K, puntos y guión. No valida.
+    return (value ?? '')
+      .toString()
+      .replace(/[^0-9kK\.\-]/g, '')
+      .replace(/K/g, 'k')
+      .slice(0, 12);
+  }
+
+  private normalizarRut(rut: string): string {
+    // Normaliza para comparar duplicados: quita puntos/guión y deja dv en minúscula si existe.
+    const v = (rut ?? '').toString().trim().toLowerCase();
+    return v.replace(/\./g, '').replace(/-/g, '').replace(/[^0-9k]/g, '');
+  }
+
+  isRutValido(_rutFormateado: string): boolean {
+    // ✅ Por requerimiento: NO validar si el rut es real o falso.
+    return true;
+  }
+
+  private existeRutEnEstudiantes(rut: string, excluirIdEstudiante?: number | null): boolean {
+    const objetivo = this.normalizarRut(rut);
+    if (!objetivo) return false;
+
+    return (this.estudiantes ?? []).some((e) => {
+      if (excluirIdEstudiante && e.idEstudiante === excluirIdEstudiante) return false;
+      return this.normalizarRut(e.rut) === objetivo;
+    });
+  }
+
   onRutInputExistente() {
     if (!this.estudianteSeleccionado) return;
 
-    this.estudianteSeleccionado.rut = formatearRutMinimoSinDv(
+    this.estudianteSeleccionado.rut = this.sanitizeRutLibre(
       (this.estudianteSeleccionado.rut as any) ?? ''
     );
 
     const id = this.estudianteSeleccionado?.idEstudiante ?? null;
-
-    this.rutDuplicadoExistente = existeRutEnEstudiantes(
-      this.estudiantes as any,
-      this.estudianteSeleccionado.rut,
-      id
-    );
+    this.rutDuplicadoExistente = this.existeRutEnEstudiantes(this.estudianteSeleccionado.rut, id);
   }
 
   onRutInputNuevo() {
-    this.nuevoEstudiante.rut = formatearRutMinimoSinDv(
-      (this.nuevoEstudiante.rut as any) ?? ''
-    );
-
-    this.rutDuplicadoNuevo = existeRutEnEstudiantes(
-      this.estudiantes as any,
-      this.nuevoEstudiante.rut
-    );
+    this.nuevoEstudiante.rut = this.sanitizeRutLibre((this.nuevoEstudiante.rut as any) ?? '');
+    this.rutDuplicadoNuevo = this.existeRutEnEstudiantes(this.nuevoEstudiante.rut);
   }
 
   private validarAnioIngresoNuevo(): boolean {
     const v = this.nuevoEstudiante?.agnioIngreso;
     if (v === undefined || v === null) return false;
-    if (v < this.MIN_ANIO_INGRESO || v > this.MAX_ANIO_INGRESO) return false;
-    return true;
+    return !(v < this.MIN_ANIO_INGRESO || v > this.MAX_ANIO_INGRESO);
   }
 
-  // ✅ REFACTOR: RUT válido desde util
-  isRutValido(rutFormateado: string): boolean {
-    return isRutValido(rutFormateado);
-  }
-
+  // ---------------------------
+  // Loads
+  // ---------------------------
   cargarEstudiantes() {
     this.estudiantesService.findAll().subscribe({
       next: (data: EstudianteDTO[]) => (this.estudiantes = data),
@@ -710,9 +627,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
           value: p.idPlan,
         }));
       },
-      error: (err: any) => {
-        console.error('❌ ERROR CARGANDO PLANES:', err);
-      },
+      error: (err: any) => console.error('❌ ERROR CARGANDO PLANES:', err),
     });
   }
 
@@ -722,11 +637,21 @@ export class SeguimientoEgresadosComponent implements OnInit {
       next: (data: any[]) => {
         this.egresados = data;
 
-        this.recalcularStats(this.egresados);
-        this.actualizarChartsGlobal(this.egresados);
+        this.stats = DashboardUtil.recalcularStats(this.egresados);
+        this.donutOptions = DashboardUtil.buildDonutOptions();
 
-        this.prepararCohortesDesdeEgresados(this.egresados);
+        const charts = DashboardUtil.buildChartsGlobal(this.egresados, this.stats);
+        this.donutSituacionData = charts.donutSituacionData;
+        this.donutDocsData = charts.donutDocsData;
+        this.donutAnioData = charts.donutAnioData;
 
+        const cohortes = DashboardUtil.buildCohortesOptions(this.egresados);
+        this.cohortesOptions = cohortes.cohortesOptions;
+        if (!this.cohorteSeleccionada && cohortes.anios?.length) {
+          this.cohorteSeleccionada = cohortes.anios[0];
+        }
+
+        this.recalcularDashboardCohorte();
         this.loading = false;
       },
       error: (err: any) => {
@@ -736,11 +661,101 @@ export class SeguimientoEgresadosComponent implements OnInit {
     });
   }
 
+  // ---------------------------
+  // Seguimiento loader único (elimina duplicaciones)
+  // ---------------------------
+  private resetSeguimientoState(opts?: { keepForm?: boolean }) {
+    this.existeSeguimiento = false;
+    this.documentosExistentes = [];
+    this.documentosSeleccionados = [];
+    this.rutDuplicadoExistente = false;
+
+    this.planSeleccionadoId = null;
+    this.planOriginalId = null;
+
+    this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+
+    if (!opts?.keepForm) {
+      this.formulario.reset();
+      this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+    }
+  }
+
+  private loadSeguimientoByEstudiante(idEstudiante: number, toast = true) {
+    this.resetSeguimientoState();
+
+    const svc: any = this.egresadosService as any;
+
+    // Si el usuario es egresado y existe endpoint mine, úsalo
+    const obs: Observable<any> =
+      this.isEgresado && typeof svc.getMine === 'function'
+        ? svc.getMine()
+        : this.egresadosService.findOneByEstudiante(idEstudiante);
+
+    this.loading = true;
+
+    obs.subscribe({
+      next: (egresado: any) => {
+        const eg = egresado?.data ? egresado.data : egresado;
+
+        if (!eg || Object.keys(eg).length === 0) {
+          this.resetSeguimientoState();
+          this.loading = false;
+          return;
+        }
+
+        this.existeSeguimiento = true;
+
+        const mapped = Mapper.mapEgresadoToFormPatch(eg, this.situaciones);
+
+        const idPlan = mapped?.idPlan ?? null;
+        this.planOriginalId = idPlan ? Number(idPlan) : null;
+        this.planSeleccionadoId = this.planOriginalId;
+
+        this.formulario.patchValue(mapped.patch);
+        this.documentosExistentes = eg.documentos || [];
+
+        if (toast) {
+          this.messageService.add({
+            severity: 'info',
+            summary: 'Datos cargados',
+            detail: '✅ Formulario rellenado automáticamente.',
+          });
+        }
+
+        this.loading = false;
+      },
+      error: () => {
+        this.resetSeguimientoState();
+        this.loading = false;
+      },
+    });
+  }
+
+  // ---------------------------
+  // EGRESADO (mine)
+  // ---------------------------
+  private cargarMiSeguimiento() {
+    const id = this.idEstudianteToken;
+
+    if (!id || Number.isNaN(id)) {
+      this.loading = false;
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Sin vínculo',
+        detail: 'No se pudo identificar tu idEstudiante en el token.',
+      });
+      return;
+    }
+
+    this.loadSeguimientoByEstudiante(id, true);
+  }
+
+  // ---------------------------
+  // UI actions
+  // ---------------------------
   normalizarSituacion(valor: any): string | null {
-    if (!valor) return null;
-    const limpio = valor.toString().trim().toLowerCase();
-    const match = this.situaciones.find((s) => s.value.toLowerCase() === limpio);
-    return match ? match.value : null;
+    return Mapper.normalizarSituacion(valor, this.situaciones);
   }
 
   abrirDrawerFormulario() {
@@ -756,16 +771,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.modoEstudiante = 'existente';
     this.drawerFormulario = true;
 
-    if (this.isBrowser) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (this.isBrowser) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   cambiarAModoNuevo() {
     this.estudianteSeleccionado = null;
-    this.existeSeguimiento = false;
-    this.documentosExistentes = [];
-    this.documentosSeleccionados = [];
+
+    this.resetSeguimientoState();
     this.intentoGuardar = false;
 
     this.rutDuplicadoNuevo = false;
@@ -774,9 +786,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
     this.planSeleccionadoId = null;
     this.planOriginalId = null;
-
-    this.formulario.reset();
-    this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
 
     this.nuevoEstudiante = {
       rut: '',
@@ -800,7 +809,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     }
 
     const encontrado = this.estudiantes?.find((e) => e.idEstudiante === id);
-
     if (encontrado) {
       this.estudianteSeleccionado = encontrado;
       this.rutDuplicadoExistente = false;
@@ -826,61 +834,18 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   onEstudianteChange() {
-    this.existeSeguimiento = false;
-    this.documentosExistentes = [];
-    this.rutDuplicadoExistente = false;
-
-    this.planSeleccionadoId = null;
-    this.planOriginalId = null;
-
-    this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
-
     if (!this.estudianteSeleccionado?.idEstudiante) {
-      this.formulario.reset();
-      this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+      this.resetSeguimientoState();
       return;
     }
 
-    const id = this.estudianteSeleccionado.idEstudiante;
-
-    this.egresadosService.findOneByEstudiante(id).subscribe({
-      next: (egresado: any) => {
-        const eg = egresado?.data ? egresado.data : egresado;
-
-        if (!eg || Object.keys(eg).length === 0) {
-          this.resetFormSinSeguimiento();
-          return;
-        }
-
-        this.existeSeguimiento = true;
-
-        // ✅ REFACTOR: mapper central
-        const { planOriginalId, planSeleccionadoId } = extractPlanIds(egresado);
-        this.planOriginalId = planOriginalId;
-        this.planSeleccionadoId = planSeleccionadoId;
-
-        patchFormFromEgresado(this.formulario, egresado, this.situaciones);
-
-        this.documentosExistentes = eg.documentos || [];
-
-        this.messageService.add({
-          severity: 'info',
-          summary: 'Datos cargados',
-          detail: '✅ Formulario rellenado automáticamente.',
-        });
-      },
-      error: () => {
-        this.resetFormSinSeguimiento();
-      },
-    });
+    this.loadSeguimientoByEstudiante(this.estudianteSeleccionado.idEstudiante, true);
   }
 
   onFileSelected(event: any) {
     const files: FileList = event.target.files;
     this.documentosSeleccionados = [];
-    for (let i = 0; i < files.length; i++) {
-      this.documentosSeleccionados.push(files[i]);
-    }
+    for (let i = 0; i < files.length; i++) this.documentosSeleccionados.push(files[i]);
   }
 
   limpiarInputArchivos() {
@@ -888,47 +853,19 @@ export class SeguimientoEgresadosComponent implements OnInit {
     if (this.fileInput) this.fileInput.nativeElement.value = '';
   }
 
-  private actualizarPlanSiCambia$(idEstudiante: number): Observable<any> {
-    const nuevoIdPlan = this.planSeleccionadoId ? Number(this.planSeleccionadoId) : null;
-
-    if (!nuevoIdPlan) return of(null);
-    if (this.planOriginalId && nuevoIdPlan === Number(this.planOriginalId)) return of(null);
-
-    const dto: UpdateEstudianteDTO = { idPlan: nuevoIdPlan };
-    return this.estudiantesService.update(idEstudiante, dto);
-  }
-
+  // ---------------------------
+  // GUARDAR (EGRESADO + ADMIN/SECRETARIA)
+  // ---------------------------
   guardar() {
     this.intentoGuardar = true;
     this.formulario.markAllAsTouched();
 
-    // ✅ DEBUG: dime por qué no guarda (no cambia el flujo)
     const logStop = (msg: string) => {
-      console.warn('🛑 NO GUARDA:', msg, {
-        modo: this.modoEstudiante,
-        formularioInvalid: this.formulario?.invalid,
-        estudianteSeleccionado: this.estudianteSeleccionado,
-        planSeleccionadoId: this.planSeleccionadoId,
-        rutExistente: this.estudianteSeleccionado?.rut,
-        rutNuevo: this.nuevoEstudiante?.rut,
-        errores: this.formulario?.errors,
-        controles: Object.keys(this.formulario?.controls || {}).reduce((acc: any, k) => {
-          const c = this.formulario.get(k);
-          if (c?.invalid) acc[k] = c.errors;
-          return acc;
-        }, {}),
-      });
-
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'No se puede guardar',
-        detail: msg,
-      });
+      console.warn('🛑 NO GUARDA:', msg);
+      this.messageService.add({ severity: 'warn', summary: 'No se puede guardar', detail: msg });
     };
 
-    // ==============================
-    // ✅ EGRESADO (token)
-    // ==============================
+    // ✅ EGRESADO (mine)
     if (this.isEgresado) {
       if (this.formulario.invalid) {
         logStop('Formulario inválido (EGRESADO). Revisa requeridos.');
@@ -936,26 +873,73 @@ export class SeguimientoEgresadosComponent implements OnInit {
       }
 
       const svc: any = this.egresadosService as any;
-      const id = this.idEstudianteToken;
+      const raw = this.formulario.getRawValue();
+      const hasDocs = (this.documentosSeleccionados?.length ?? 0) > 0;
 
-      if (!id || Number.isNaN(id)) {
-        logStop('No se pudo identificar idEstudiante en token.');
-        return;
-      }
+      const obs: Observable<any> = (() => {
+        // sin docs -> usa raw (endpoints JSON)
+        if (!hasDocs) {
+          if (this.existeSeguimiento) {
+            if (typeof svc.updateMine === 'function') return svc.updateMine(raw);
+            const id = this.idEstudianteToken;
+            if (id) return this.egresadosService.updateByEstudiante(id, raw);
+            return of(null);
+          } else {
+            if (typeof svc.createMine === 'function') return svc.createMine(raw);
+            const id = this.idEstudianteToken;
+            if (id) {
+              const fd = buildFormDataFromRaw(raw, [], id);
+              return this.egresadosService.createWithFiles(fd);
+            }
+            return of(null);
+          }
+        }
 
-      // ... (deja tu código EGRESADO igual)
-      // ⚠️ pega aquí tu bloque actual sin cambios
+        // con docs -> multipart
+        const fd = buildFormDataFromRaw(raw, this.documentosSeleccionados, this.idEstudianteToken ?? undefined);
+
+        if (this.existeSeguimiento) {
+          if (typeof svc.updateMineWithFiles === 'function') return svc.updateMineWithFiles(fd);
+          if (typeof svc.updateMine === 'function') return svc.updateMine(fd);
+          const id = this.idEstudianteToken;
+          if (id) return this.egresadosService.updateWithFilesByEstudiante(id, fd);
+          return of(null);
+        } else {
+          if (typeof svc.createMineWithFiles === 'function') return svc.createMineWithFiles(fd);
+          if (typeof svc.createMine === 'function') return svc.createMine(fd);
+          return this.egresadosService.createWithFiles(fd);
+        }
+      })();
+
+      obs.subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Guardado',
+            detail: this.existeSeguimiento ? '✅ Seguimiento actualizado.' : '✅ Seguimiento creado.',
+          });
+
+          this.limpiarInputArchivos();
+          this.cargarMiSeguimiento();
+        },
+        error: (err: any) => {
+          console.error('❌ ERROR GUARDAR EGRESADO:', err);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error al guardar',
+            detail: err?.error?.message || err?.message || '❌ No se pudo guardar.',
+          });
+        },
+      });
+
+      return;
     }
 
-    // ==============================
     // ✅ ADMIN / SECRETARIA
-    // ==============================
     if (this.modoEstudiante === 'nuevo') {
       this.anioIngresoInvalidoNuevo = !this.validarAnioIngresoNuevo();
       if (this.anioIngresoInvalidoNuevo) {
-        logStop(
-          `Año ingreso inválido. Debe estar entre ${this.MIN_ANIO_INGRESO} y ${this.MAX_ANIO_INGRESO}.`
-        );
+        logStop(`Año ingreso inválido. Debe estar entre ${this.MIN_ANIO_INGRESO} y ${this.MAX_ANIO_INGRESO}.`);
         return;
       }
     }
@@ -975,8 +959,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
         ? this.estudianteSeleccionado?.rut ?? ''
         : this.nuevoEstudiante?.rut ?? '';
 
+    // ✅ por requerimiento: no validar rut real/falso
     if (!this.isRutValido(rutActual)) {
-      logStop('RUT inválido (solo cuerpo 7 u 8 dígitos).');
+      logStop('RUT inválido.');
       return;
     }
 
@@ -996,14 +981,10 @@ export class SeguimientoEgresadosComponent implements OnInit {
     }
 
     if (this.formulario.invalid) {
-      logStop(
-        'Formulario inválido. Falta completar requeridos (Año fin estudios, Situación, Nivel rentas).'
-      );
+      logStop('Formulario inválido. Falta completar requeridos (Año fin estudios, Situación, Nivel rentas).');
       return;
     }
 
-    // ✅ desde aquí tu flujo original sigue igual:
-    // (NO toco nada más)
     const obtenerEstudiante$ =
       this.modoEstudiante === 'existente'
         ? of(this.estudianteSeleccionado)
@@ -1019,29 +1000,26 @@ export class SeguimientoEgresadosComponent implements OnInit {
           this.estudianteSeleccionado = estudiante;
           const idEstudiante = estudiante.idEstudiante;
 
-          return this.actualizarPlanSiCambia$(idEstudiante).pipe(
+          return actualizarPlanSiCambia$(
+            idEstudiante,
+            this.planSeleccionadoId,
+            this.planOriginalId,
+            (id: number, dto: UpdateEstudianteDTO) => this.estudiantesService.update(id, dto)
+          ).pipe(
             switchMap(() => {
+              const raw = this.formulario.getRawValue();
+
               if (this.existeSeguimiento) {
                 if (this.documentosSeleccionados.length === 0) {
-                  const dto: UpdateEgresadoDto = {
-                    ...this.formulario.getRawValue(),
-                  };
-
+                  const dto: UpdateEgresadoDto = { ...raw };
                   return this.egresadosService.updateByEstudiante(idEstudiante, dto);
                 }
 
-                // ✅ REFACTOR: util FormData
-                const formData = buildFormDataFromObject(this.formulario.getRawValue());
-                appendFiles(formData, 'documentos', this.documentosSeleccionados);
-
+                const formData = buildFormDataFromRaw(raw, this.documentosSeleccionados);
                 return this.egresadosService.updateWithFilesByEstudiante(idEstudiante, formData);
               }
 
-              // ✅ REFACTOR: util FormData
-              const formData = buildFormDataFromObject(this.formulario.getRawValue());
-              formData.append('idEstudiante', idEstudiante.toString());
-              appendFiles(formData, 'documentos', this.documentosSeleccionados);
-
+              const formData = buildFormDataFromRaw(raw, this.documentosSeleccionados, idEstudiante);
               return this.egresadosService.createWithFiles(formData);
             })
           );
@@ -1078,6 +1056,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
       });
   }
 
+  // ---------------------------
+  // documentos
+  // ---------------------------
   eliminarDocumento(doc: any) {
     if (!doc?.idDocumento) return;
 
@@ -1240,23 +1221,15 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   getSituacionSeverity(situacion: string) {
-    switch (situacion) {
-      case 'Trabajando':
-        return 'success';
-      case 'Cesante':
-        return 'danger';
-      default:
-        return 'warning';
-    }
+    return Helpers.getSituacionSeverity(situacion);
   }
 
   formatCLP(valor: number): string {
-    if (!valor) return '-';
-    return valor.toLocaleString('es-CL');
+    return Helpers.formatCLP(valor);
   }
 
   onGlobalFilter(table: any, event: any) {
-    table.filterGlobal(event.target.value, 'contains');
+    Helpers.applyGlobalFilter(table, event, 'contains');
   }
 
   abrirEdicion(egresado: any) {
@@ -1264,9 +1237,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.drawerFormulario = true;
     this.seleccionarEstudianteParaEdicion(egresado);
 
-    if (this.isBrowser) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    if (this.isBrowser) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   abrirModalDocumentos(egresado: any) {
@@ -1295,251 +1266,14 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return this.situaciones;
   }
 
-  private normalizarSituacionStats(valor: any): string {
-    return (valor ?? '').toString().trim().toLowerCase();
-  }
-
-  private recalcularStats(lista: any[]) {
-    const arr = Array.isArray(lista) ? lista : [];
-
-    const total = arr.length;
-
-    const trabajando = arr.filter(
-      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'trabajando'
-    ).length;
-
-    const cesante = arr.filter(
-      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'cesante'
-    ).length;
-
-    const otro = arr.filter(
-      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'otro'
-    ).length;
-
-    this.stats = { total, trabajando, cesante, otro };
-  }
-
-  private actualizarChartsGlobal(lista: any[]) {
-    const arr = Array.isArray(lista) ? lista : [];
-
-    this.donutOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: '68%',
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { usePointStyle: true, boxWidth: 8 },
-        },
-        tooltip: { enabled: true },
-      },
-    };
-
-    this.donutSituacionData = {
-      labels: ['Trabajando', 'Cesante', 'Otro'],
-      datasets: [
-        {
-          data: [this.stats.trabajando, this.stats.cesante, this.stats.otro],
-          backgroundColor: ['#047857', '#E11D48', '#D97706'],
-          hoverBackgroundColor: ['#059669', '#F43F5E', '#F59E0B'],
-          borderColor: '#ffffff',
-          borderWidth: 2,
-        },
-      ],
-    };
-
-    const conDocs = arr.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
-    const sinDocs = arr.length - conDocs;
-
-    this.donutDocsData = {
-      labels: ['Con documentos', 'Sin documentos'],
-      datasets: [
-        {
-          data: [conDocs, sinDocs],
-          backgroundColor: ['#0369A1', '#CBD5E1'],
-          hoverBackgroundColor: ['#0284C7', '#E2E8F0'],
-          borderColor: '#ffffff',
-          borderWidth: 2,
-        },
-      ],
-    };
-
-    const conteoPorAnio = new Map<number, number>();
-    for (const x of arr) {
-      const yRaw =
-        x?.anioFinEstudios ??
-        (x?.fechaEgreso ? new Date(x.fechaEgreso).getFullYear() : null);
-      const y = typeof yRaw === 'number' ? yRaw : parseInt(yRaw, 10);
-      if (!Number.isFinite(y)) continue;
-      conteoPorAnio.set(y, (conteoPorAnio.get(y) ?? 0) + 1);
-    }
-
-    const pares = Array.from(conteoPorAnio.entries()).sort((a, b) => b[0] - a[0]);
-    const top = pares.slice(0, 6);
-    const otros = pares.slice(6);
-
-    const labelsAnios = top.map(([anio]) => anio.toString());
-    const countsAnios = top.map(([, c]) => c);
-
-    if (otros.length > 0) {
-      const sumOtros = otros.reduce((acc, [, c]) => acc + c, 0);
-      labelsAnios.push('Otros');
-      countsAnios.push(sumOtros);
-    }
-
-    const total = arr.length || 1;
-    const porcentajes = countsAnios.map((c) => Math.round((c / total) * 100));
-
-    const palette = [
-      '#0F766E',
-      '#2563EB',
-      '#7C3AED',
-      '#DB2777',
-      '#EA580C',
-      '#16A34A',
-      '#64748B',
-    ];
-
-    this.donutAnioData = {
-      labels: labelsAnios.map((l, idx) => `${l} (${porcentajes[idx]}%)`),
-      datasets: [
-        {
-          data: countsAnios,
-          backgroundColor: labelsAnios.map((_, i) => palette[i % palette.length]),
-          hoverBackgroundColor: labelsAnios.map((_, i) => palette[i % palette.length]),
-          borderColor: '#ffffff',
-          borderWidth: 2,
-        },
-      ],
-    };
-  }
-
-  private obtenerAnioFinDesdeEgresado(e: any): number | null {
-    const yRaw =
-      e?.anioFinEstudios ??
-      (e?.fechaEgreso ? new Date(e.fechaEgreso).getFullYear() : null);
-
-    const y = typeof yRaw === 'number' ? yRaw : parseInt(yRaw, 10);
-    return Number.isFinite(y) ? y : null;
-  }
-
-  private prepararCohortesDesdeEgresados(lista: any[]) {
-    const arr = Array.isArray(lista) ? lista : [];
-
-    const setAnios = new Set<number>();
-    for (const e of arr) {
-      const y = this.obtenerAnioFinDesdeEgresado(e);
-      if (y) setAnios.add(y);
-    }
-
-    const anios = Array.from(setAnios.values()).sort((a, b) => b - a);
-
-    this.cohortesOptions = anios.map((y) => ({ label: y.toString(), value: y }));
-
-    if (!this.cohorteSeleccionada && anios.length > 0) {
-      this.cohorteSeleccionada = anios[0];
-    }
-
-    this.recalcularDashboardCohorte();
-  }
-
   onCohorteChange() {
     this.recalcularDashboardCohorte();
   }
 
   private recalcularDashboardCohorte() {
-    const cohorte = this.cohorteSeleccionada;
-
-    if (!cohorte) {
-      this.kpiCohorte = {
-        total: 0,
-        trabajando: 0,
-        cesante: 0,
-        otro: 0,
-        conDocs: 0,
-        porcentajeConDocs: 0,
-      };
-      this.barSituacionCohorteData = {
-        labels: ['Trabajando', 'Cesante', 'Otro'],
-        datasets: [{ data: [0, 0, 0], label: 'Cantidad' }],
-      };
-      this.donutRentasCohorteData = {
-        labels: ['Sin datos'],
-        datasets: [{ data: [1] }],
-      };
-      return;
-    }
-
-    const arr = (this.egresados ?? []).filter(
-      (e) => this.obtenerAnioFinDesdeEgresado(e) === cohorte
-    );
-
-    const total = arr.length;
-
-    const trabajando = arr.filter(
-      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'trabajando'
-    ).length;
-
-    const cesante = arr.filter(
-      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'cesante'
-    ).length;
-
-    const otro = arr.filter(
-      (x) => this.normalizarSituacionStats(x?.situacionActual) === 'otro'
-    ).length;
-
-    const conDocs = arr.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
-
-    const porcentajeConDocs = total > 0 ? Math.round((conDocs / total) * 100) : 0;
-
-    this.kpiCohorte = {
-      total,
-      trabajando,
-      cesante,
-      otro,
-      conDocs,
-      porcentajeConDocs,
-    };
-
-    this.barSituacionCohorteData = {
-      labels: ['Trabajando', 'Cesante', 'Otro'],
-      datasets: [
-        {
-          label: `Cohorte ${cohorte}`,
-          data: [trabajando, cesante, otro],
-        },
-      ],
-    };
-
-    const conteoRentas = new Map<string, number>();
-
-    for (const e of arr) {
-      const r = (e?.nivelRentas ?? '').toString().trim();
-      if (!r) continue;
-      conteoRentas.set(r, (conteoRentas.get(r) ?? 0) + 1);
-    }
-
-    const pares = Array.from(conteoRentas.entries()).sort((a, b) => b[1] - a[1]);
-
-    if (pares.length === 0) {
-      this.donutRentasCohorteData = {
-        labels: ['Sin datos'],
-        datasets: [{ data: [1] }],
-      };
-    } else {
-      const labels = pares.map(([k]) => k);
-      const data = pares.map(([, v]) => v);
-
-      this.donutRentasCohorteData = {
-        labels,
-        datasets: [
-          {
-            data,
-            borderColor: '#ffffff',
-            borderWidth: 2,
-          },
-        ],
-      };
-    }
+    const r = DashboardUtil.buildCohorteDashboard(this.egresados ?? [], this.cohorteSeleccionada);
+    this.kpiCohorte = r.kpiCohorte;
+    this.barSituacionCohorteData = r.barSituacionCohorteData;
+    this.donutRentasCohorteData = r.donutRentasCohorteData;
   }
 }

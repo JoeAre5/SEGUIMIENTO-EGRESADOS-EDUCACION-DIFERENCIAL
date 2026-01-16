@@ -61,6 +61,20 @@ import { switchMap, of, Observable } from 'rxjs';
 // ✅ NUEVO (sin romper nada): roles para detectar EGRESADO desde JWT
 import { Roles } from '../../models/login.dto';
 
+// ✅ REFACTOR: utils + mapper (los que ya creaste)
+import {
+  formatearRutMinimoSinDv,
+  existeRutEnEstudiantes,
+  isRutValido,
+} from '../../utils/rut.util';
+
+import { buildFormDataFromObject, appendFiles } from '../../utils/formdata.util';
+
+import {
+  patchFormFromEgresado,
+  extractPlanIds,
+} from '../../mappers/egresado-form.mapper';
+
 interface PlanDTO {
   idPlan: number;
   codigo: number;
@@ -416,6 +430,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
     };
   }
 
+  private resetFormSinSeguimiento() {
+    this.existeSeguimiento = false;
+    this.documentosExistentes = [];
+    this.formulario.reset();
+    this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+  }
+
   private cargarMiSeguimiento() {
     const id = this.idEstudianteToken;
 
@@ -441,61 +462,19 @@ export class SeguimientoEgresadosComponent implements OnInit {
         const eg = egresado?.data ? egresado.data : egresado;
 
         if (!eg || Object.keys(eg).length === 0) {
-          this.existeSeguimiento = false;
-          this.documentosExistentes = [];
-          this.formulario.reset();
-          this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+          this.resetFormSinSeguimiento();
           this.loading = false;
           return;
         }
 
         this.existeSeguimiento = true;
 
-        const plan = eg?.Estudiante?.Plan ?? null;
-        const planTexto = this.construirPlanTextoDesdePlan(plan);
+        // ✅ REFACTOR: mapper central
+        const { planOriginalId, planSeleccionadoId } = extractPlanIds(egresado);
+        this.planOriginalId = planOriginalId;
+        this.planSeleccionadoId = planSeleccionadoId;
 
-        const idPlan = plan?.idPlan ?? eg?.Estudiante?.idPlan ?? null;
-
-        this.planOriginalId = idPlan ? Number(idPlan) : null;
-        this.planSeleccionadoId = this.planOriginalId;
-
-        const anioFinCompat =
-          eg?.anioFinEstudios ??
-          (eg?.fechaEgreso ? new Date(eg.fechaEgreso).getFullYear() : null);
-
-        this.formulario.patchValue({
-          planEstudios: planTexto,
-
-          situacionActual: this.normalizarSituacion(eg.situacionActual),
-          situacionActualOtro: eg.situacionActualOtro ?? '',
-
-          empresa: eg.empresa ?? '',
-          cargo: eg.cargo ?? '',
-
-          nivelRentas: eg.nivelRentas ?? null,
-
-          viaIngreso: eg.viaIngreso ?? null,
-          viaIngresoOtro: eg.viaIngresoOtro ?? '',
-
-          anioIngresoCarrera: eg.anioIngresoCarrera ?? null,
-          anioFinEstudios: anioFinCompat,
-
-          genero: eg.genero ?? null,
-          tiempoBusquedaTrabajo: eg.tiempoBusquedaTrabajo ?? null,
-
-          sectorLaboral: eg.sectorLaboral ?? null,
-          sectorLaboralOtro: eg.sectorLaboralOtro ?? '',
-
-          tipoEstablecimiento: eg.tipoEstablecimiento ?? 'No aplica',
-          tipoEstablecimientoOtro: eg.tipoEstablecimientoOtro ?? '',
-
-          sueldo: eg.sueldo ?? null,
-          anioIngresoLaboral: eg.anioIngresoLaboral ?? null,
-
-          telefono: eg.telefono ?? '',
-          emailContacto: eg.emailContacto ?? '',
-          linkedin: eg.linkedin ?? '',
-        });
+        patchFormFromEgresado(this.formulario, egresado, this.situaciones);
 
         this.documentosExistentes = eg.documentos || [];
 
@@ -508,10 +487,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
-        this.existeSeguimiento = false;
-        this.documentosExistentes = [];
-        this.formulario.reset();
-        this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+        this.resetFormSinSeguimiento();
         this.loading = false;
       },
     });
@@ -678,55 +654,32 @@ export class SeguimientoEgresadosComponent implements OnInit {
     c.setValue(v, { emitEvent: false });
   }
 
-  /* =========================================================
-    ✅ RUT SIN DV + FORMATO MINIMO (solo cuerpo con puntos)
-  ========================================================= */
-
-  private extraerRutCuerpo(raw: string): string {
-    const digits = (raw ?? '').toString().replace(/\D/g, '');
-    return digits.slice(0, 8);
-  }
-
-  private formatearRutMinimoSinDv(raw: string): string {
-    const cuerpo = this.extraerRutCuerpo(raw);
-    if (!cuerpo) return '';
-    return cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  }
-
-  private normalizarRut(rut: string): string {
-    return this.extraerRutCuerpo(rut);
-  }
-
-  private existeRutEnEstudiantes(rut: string, excluirIdEstudiante?: number | null): boolean {
-    const objetivo = this.normalizarRut(rut);
-    if (!objetivo || objetivo.length < 7) return false;
-
-    return (this.estudiantes ?? []).some((e) => {
-      if (excluirIdEstudiante && e.idEstudiante === excluirIdEstudiante) return false;
-      return this.normalizarRut(e.rut) === objetivo;
-    });
-  }
-
+  // ✅ REFACTOR: RUT ahora viene de util
   onRutInputExistente() {
     if (!this.estudianteSeleccionado) return;
 
-    this.estudianteSeleccionado.rut = this.formatearRutMinimoSinDv(
+    this.estudianteSeleccionado.rut = formatearRutMinimoSinDv(
       (this.estudianteSeleccionado.rut as any) ?? ''
     );
 
     const id = this.estudianteSeleccionado?.idEstudiante ?? null;
-    this.rutDuplicadoExistente = this.existeRutEnEstudiantes(
+
+    this.rutDuplicadoExistente = existeRutEnEstudiantes(
+      this.estudiantes as any,
       this.estudianteSeleccionado.rut,
       id
     );
   }
 
   onRutInputNuevo() {
-    this.nuevoEstudiante.rut = this.formatearRutMinimoSinDv(
+    this.nuevoEstudiante.rut = formatearRutMinimoSinDv(
       (this.nuevoEstudiante.rut as any) ?? ''
     );
 
-    this.rutDuplicadoNuevo = this.existeRutEnEstudiantes(this.nuevoEstudiante.rut);
+    this.rutDuplicadoNuevo = existeRutEnEstudiantes(
+      this.estudiantes as any,
+      this.nuevoEstudiante.rut
+    );
   }
 
   private validarAnioIngresoNuevo(): boolean {
@@ -736,9 +689,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return true;
   }
 
+  // ✅ REFACTOR: RUT válido desde util
   isRutValido(rutFormateado: string): boolean {
-    const cuerpo = this.normalizarRut(rutFormateado);
-    return /^\d{7,8}$/.test(cuerpo);
+    return isRutValido(rutFormateado);
   }
 
   cargarEstudiantes() {
@@ -837,18 +790,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.modoEstudiante = 'nuevo';
   }
 
-  private construirPlanTextoDesdePlan(plan: any): string {
-    if (!plan) return '';
-    const titulo = plan?.titulo ?? '';
-    const codigo = plan?.codigo ?? '';
-    const agnio = plan?.agnio ?? '';
-    const partes: string[] = [];
-    if (titulo) partes.push(titulo);
-    if (agnio !== '' && agnio !== null && agnio !== undefined) partes.push(`Año: ${agnio}`);
-    if (codigo !== '' && codigo !== null && codigo !== undefined) partes.push(`Código: ${codigo}`);
-    return partes.join(' • ');
-  }
-
   private seleccionarEstudianteParaEdicion(egresado: any) {
     const id = egresado?.Estudiante?.idEstudiante ?? egresado?.idEstudiante ?? null;
 
@@ -907,60 +848,18 @@ export class SeguimientoEgresadosComponent implements OnInit {
         const eg = egresado?.data ? egresado.data : egresado;
 
         if (!eg || Object.keys(eg).length === 0) {
-          this.existeSeguimiento = false;
-          this.documentosExistentes = [];
-          this.formulario.reset();
-          this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+          this.resetFormSinSeguimiento();
           return;
         }
 
         this.existeSeguimiento = true;
 
-        const plan = eg?.Estudiante?.Plan ?? null;
-        const planTexto = this.construirPlanTextoDesdePlan(plan);
+        // ✅ REFACTOR: mapper central
+        const { planOriginalId, planSeleccionadoId } = extractPlanIds(egresado);
+        this.planOriginalId = planOriginalId;
+        this.planSeleccionadoId = planSeleccionadoId;
 
-        const idPlan = plan?.idPlan ?? eg?.Estudiante?.idPlan ?? null;
-
-        this.planOriginalId = idPlan ? Number(idPlan) : null;
-        this.planSeleccionadoId = this.planOriginalId;
-
-        const anioFinCompat =
-          eg?.anioFinEstudios ??
-          (eg?.fechaEgreso ? new Date(eg.fechaEgreso).getFullYear() : null);
-
-        this.formulario.patchValue({
-          planEstudios: planTexto,
-
-          situacionActual: this.normalizarSituacion(eg.situacionActual),
-          situacionActualOtro: eg.situacionActualOtro ?? '',
-
-          empresa: eg.empresa ?? '',
-          cargo: eg.cargo ?? '',
-
-          nivelRentas: eg.nivelRentas ?? null,
-
-          viaIngreso: eg.viaIngreso ?? null,
-          viaIngresoOtro: eg.viaIngresoOtro ?? '',
-
-          anioIngresoCarrera: eg.anioIngresoCarrera ?? null,
-          anioFinEstudios: anioFinCompat,
-
-          genero: eg.genero ?? null,
-          tiempoBusquedaTrabajo: eg.tiempoBusquedaTrabajo ?? null,
-
-          sectorLaboral: eg.sectorLaboral ?? null,
-          sectorLaboralOtro: eg.sectorLaboralOtro ?? '',
-
-          tipoEstablecimiento: eg.tipoEstablecimiento ?? 'No aplica',
-          tipoEstablecimientoOtro: eg.tipoEstablecimientoOtro ?? '',
-
-          sueldo: eg.sueldo ?? null,
-          anioIngresoLaboral: eg.anioIngresoLaboral ?? null,
-
-          telefono: eg.telefono ?? '',
-          emailContacto: eg.emailContacto ?? '',
-          linkedin: eg.linkedin ?? '',
-        });
+        patchFormFromEgresado(this.formulario, egresado, this.situaciones);
 
         this.documentosExistentes = eg.documentos || [];
 
@@ -971,10 +870,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         });
       },
       error: () => {
-        this.existeSeguimiento = false;
-        this.documentosExistentes = [];
-        this.formulario.reset();
-        this.formulario.get('planEstudios')?.setValue('', { emitEvent: false });
+        this.resetFormSinSeguimiento();
       },
     });
   }
@@ -1003,195 +899,184 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   guardar() {
-  this.intentoGuardar = true;
-  this.formulario.markAllAsTouched();
+    this.intentoGuardar = true;
+    this.formulario.markAllAsTouched();
 
-  // ✅ DEBUG: dime por qué no guarda (no cambia el flujo)
-  const logStop = (msg: string) => {
-    console.warn('🛑 NO GUARDA:', msg, {
-      modo: this.modoEstudiante,
-      formularioInvalid: this.formulario?.invalid,
-      estudianteSeleccionado: this.estudianteSeleccionado,
-      planSeleccionadoId: this.planSeleccionadoId,
-      rutExistente: this.estudianteSeleccionado?.rut,
-      rutNuevo: this.nuevoEstudiante?.rut,
-      errores: this.formulario?.errors,
-      controles: Object.keys(this.formulario?.controls || {}).reduce((acc: any, k) => {
-        const c = this.formulario.get(k);
-        if (c?.invalid) acc[k] = c.errors;
-        return acc;
-      }, {}),
-    });
+    // ✅ DEBUG: dime por qué no guarda (no cambia el flujo)
+    const logStop = (msg: string) => {
+      console.warn('🛑 NO GUARDA:', msg, {
+        modo: this.modoEstudiante,
+        formularioInvalid: this.formulario?.invalid,
+        estudianteSeleccionado: this.estudianteSeleccionado,
+        planSeleccionadoId: this.planSeleccionadoId,
+        rutExistente: this.estudianteSeleccionado?.rut,
+        rutNuevo: this.nuevoEstudiante?.rut,
+        errores: this.formulario?.errors,
+        controles: Object.keys(this.formulario?.controls || {}).reduce((acc: any, k) => {
+          const c = this.formulario.get(k);
+          if (c?.invalid) acc[k] = c.errors;
+          return acc;
+        }, {}),
+      });
 
-    this.messageService.add({
-      severity: 'warn',
-      summary: 'No se puede guardar',
-      detail: msg,
-    });
-  };
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'No se puede guardar',
+        detail: msg,
+      });
+    };
 
-  // ==============================
-  // ✅ EGRESADO (token)
-  // ==============================
-  if (this.isEgresado) {
-    if (this.formulario.invalid) {
-      logStop('Formulario inválido (EGRESADO). Revisa requeridos.');
-      return;
+    // ==============================
+    // ✅ EGRESADO (token)
+    // ==============================
+    if (this.isEgresado) {
+      if (this.formulario.invalid) {
+        logStop('Formulario inválido (EGRESADO). Revisa requeridos.');
+        return;
+      }
+
+      const svc: any = this.egresadosService as any;
+      const id = this.idEstudianteToken;
+
+      if (!id || Number.isNaN(id)) {
+        logStop('No se pudo identificar idEstudiante en token.');
+        return;
+      }
+
+      // ... (deja tu código EGRESADO igual)
+      // ⚠️ pega aquí tu bloque actual sin cambios
     }
 
-    const svc: any = this.egresadosService as any;
-    const id = this.idEstudianteToken;
-
-    if (!id || Number.isNaN(id)) {
-      logStop('No se pudo identificar idEstudiante en token.');
-      return;
-    }
-
-    // ... (deja tu código EGRESADO igual)
-    // ⚠️ pega aquí tu bloque actual sin cambios
-  }
-
-  // ==============================
-  // ✅ ADMIN / SECRETARIA
-  // ==============================
-  if (this.modoEstudiante === 'nuevo') {
-    this.anioIngresoInvalidoNuevo = !this.validarAnioIngresoNuevo();
-    if (this.anioIngresoInvalidoNuevo) {
-      logStop(`Año ingreso inválido. Debe estar entre ${this.MIN_ANIO_INGRESO} y ${this.MAX_ANIO_INGRESO}.`);
-      return;
-    }
-  }
-
-  if (this.modoEstudiante === 'nuevo' && this.rutDuplicadoNuevo) {
-    logStop('RUT duplicado (nuevo).');
-    return;
-  }
-
-  if (this.modoEstudiante === 'existente' && this.rutDuplicadoExistente) {
-    logStop('RUT duplicado (existente).');
-    return;
-  }
-
-  const rutActual =
-    this.modoEstudiante === 'existente'
-      ? this.estudianteSeleccionado?.rut ?? ''
-      : this.nuevoEstudiante?.rut ?? '';
-
-  if (!this.isRutValido(rutActual)) {
-    logStop('RUT inválido (solo cuerpo 7 u 8 dígitos).');
-    return;
-  }
-
-  if (this.modoEstudiante === 'existente' && !this.estudianteSeleccionado) {
-    logStop('Debes seleccionar un estudiante.');
-    return;
-  }
-
-  if (this.modoEstudiante === 'nuevo' && !this.nuevoEstudiante.idPlan) {
-    logStop('Debes seleccionar un plan (nuevo estudiante).');
-    return;
-  }
-
-  if (this.modoEstudiante === 'existente' && !this.planSeleccionadoId) {
-    logStop('Debes seleccionar un plan (estudiante existente).');
-    return;
-  }
-
-  if (this.formulario.invalid) {
-    logStop('Formulario inválido. Falta completar requeridos (Año fin estudios, Situación, Nivel rentas).');
-    return;
-  }
-
-  // ✅ desde aquí tu flujo original sigue igual:
-  // (NO toco nada más)
-  const obtenerEstudiante$ =
-    this.modoEstudiante === 'existente'
-      ? of(this.estudianteSeleccionado)
-      : (() => {
-          this.nuevoEstudiante.nombreSocial =
-            `${this.nuevoEstudiante.nombre} ${this.nuevoEstudiante.apellido}`.trim();
-          return this.estudiantesService.create(this.nuevoEstudiante);
-        })();
-
-  obtenerEstudiante$
-    .pipe(
-      switchMap((estudiante: any) => {
-        this.estudianteSeleccionado = estudiante;
-        const idEstudiante = estudiante.idEstudiante;
-
-        return this.actualizarPlanSiCambia$(idEstudiante).pipe(
-          switchMap(() => {
-            if (this.existeSeguimiento) {
-              if (this.documentosSeleccionados.length === 0) {
-                const dto: UpdateEgresadoDto = {
-                  ...this.formulario.getRawValue(),
-                };
-
-                return this.egresadosService.updateByEstudiante(idEstudiante, dto);
-              }
-
-              const formData = new FormData();
-
-              Object.entries(this.formulario.getRawValue()).forEach(([key, value]) => {
-                if (value !== null && value !== undefined && value !== '') {
-                  formData.append(key, value.toString());
-                }
-              });
-
-              this.documentosSeleccionados.forEach((file) =>
-                formData.append('documentos', file)
-              );
-
-              return this.egresadosService.updateWithFilesByEstudiante(idEstudiante, formData);
-            }
-
-            const formData = new FormData();
-            formData.append('idEstudiante', idEstudiante.toString());
-
-            Object.entries(this.formulario.getRawValue()).forEach(([key, value]) => {
-              if (value !== null && value !== undefined && value !== '') {
-                formData.append(key, value.toString());
-              }
-            });
-
-            this.documentosSeleccionados.forEach((file) => formData.append('documentos', file));
-
-            return this.egresadosService.createWithFiles(formData);
-          })
+    // ==============================
+    // ✅ ADMIN / SECRETARIA
+    // ==============================
+    if (this.modoEstudiante === 'nuevo') {
+      this.anioIngresoInvalidoNuevo = !this.validarAnioIngresoNuevo();
+      if (this.anioIngresoInvalidoNuevo) {
+        logStop(
+          `Año ingreso inválido. Debe estar entre ${this.MIN_ANIO_INGRESO} y ${this.MAX_ANIO_INGRESO}.`
         );
-      })
-    )
-    .subscribe({
-      next: () => {
-        this.messageService.add({
-          severity: 'success',
-          summary: 'Guardado',
-          detail: this.existeSeguimiento
-            ? '✅ Seguimiento actualizado (y plan actualizado si cambió).'
-            : '✅ Seguimiento creado correctamente.',
-        });
+        return;
+      }
+    }
 
-        const id = this.estudianteSeleccionado?.idEstudiante;
+    if (this.modoEstudiante === 'nuevo' && this.rutDuplicadoNuevo) {
+      logStop('RUT duplicado (nuevo).');
+      return;
+    }
 
-        this.limpiarInputArchivos();
-        this.cargarEgresados();
-        this.cargarEstudiantes();
+    if (this.modoEstudiante === 'existente' && this.rutDuplicadoExistente) {
+      logStop('RUT duplicado (existente).');
+      return;
+    }
 
-        if (id) setTimeout(() => this.onEstudianteChange(), 300);
+    const rutActual =
+      this.modoEstudiante === 'existente'
+        ? this.estudianteSeleccionado?.rut ?? ''
+        : this.nuevoEstudiante?.rut ?? '';
 
-        this.drawerFormulario = false;
-      },
-      error: (err: any) => {
-        console.error('❌ ERROR GUARDAR:', err);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error al guardar',
-          detail: err?.error?.message || err?.message || '❌ No se pudo guardar.',
-        });
-      },
-    });
-}
+    if (!this.isRutValido(rutActual)) {
+      logStop('RUT inválido (solo cuerpo 7 u 8 dígitos).');
+      return;
+    }
 
+    if (this.modoEstudiante === 'existente' && !this.estudianteSeleccionado) {
+      logStop('Debes seleccionar un estudiante.');
+      return;
+    }
+
+    if (this.modoEstudiante === 'nuevo' && !this.nuevoEstudiante.idPlan) {
+      logStop('Debes seleccionar un plan (nuevo estudiante).');
+      return;
+    }
+
+    if (this.modoEstudiante === 'existente' && !this.planSeleccionadoId) {
+      logStop('Debes seleccionar un plan (estudiante existente).');
+      return;
+    }
+
+    if (this.formulario.invalid) {
+      logStop(
+        'Formulario inválido. Falta completar requeridos (Año fin estudios, Situación, Nivel rentas).'
+      );
+      return;
+    }
+
+    // ✅ desde aquí tu flujo original sigue igual:
+    // (NO toco nada más)
+    const obtenerEstudiante$ =
+      this.modoEstudiante === 'existente'
+        ? of(this.estudianteSeleccionado)
+        : (() => {
+            this.nuevoEstudiante.nombreSocial =
+              `${this.nuevoEstudiante.nombre} ${this.nuevoEstudiante.apellido}`.trim();
+            return this.estudiantesService.create(this.nuevoEstudiante);
+          })();
+
+    obtenerEstudiante$
+      .pipe(
+        switchMap((estudiante: any) => {
+          this.estudianteSeleccionado = estudiante;
+          const idEstudiante = estudiante.idEstudiante;
+
+          return this.actualizarPlanSiCambia$(idEstudiante).pipe(
+            switchMap(() => {
+              if (this.existeSeguimiento) {
+                if (this.documentosSeleccionados.length === 0) {
+                  const dto: UpdateEgresadoDto = {
+                    ...this.formulario.getRawValue(),
+                  };
+
+                  return this.egresadosService.updateByEstudiante(idEstudiante, dto);
+                }
+
+                // ✅ REFACTOR: util FormData
+                const formData = buildFormDataFromObject(this.formulario.getRawValue());
+                appendFiles(formData, 'documentos', this.documentosSeleccionados);
+
+                return this.egresadosService.updateWithFilesByEstudiante(idEstudiante, formData);
+              }
+
+              // ✅ REFACTOR: util FormData
+              const formData = buildFormDataFromObject(this.formulario.getRawValue());
+              formData.append('idEstudiante', idEstudiante.toString());
+              appendFiles(formData, 'documentos', this.documentosSeleccionados);
+
+              return this.egresadosService.createWithFiles(formData);
+            })
+          );
+        })
+      )
+      .subscribe({
+        next: () => {
+          this.messageService.add({
+            severity: 'success',
+            summary: 'Guardado',
+            detail: this.existeSeguimiento
+              ? '✅ Seguimiento actualizado (y plan actualizado si cambió).'
+              : '✅ Seguimiento creado correctamente.',
+          });
+
+          const id = this.estudianteSeleccionado?.idEstudiante;
+
+          this.limpiarInputArchivos();
+          this.cargarEgresados();
+          this.cargarEstudiantes();
+
+          if (id) setTimeout(() => this.onEstudianteChange(), 300);
+
+          this.drawerFormulario = false;
+        },
+        error: (err: any) => {
+          console.error('❌ ERROR GUARDAR:', err);
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Error al guardar',
+            detail: err?.error?.message || err?.message || '❌ No se pudo guardar.',
+          });
+        },
+      });
+  }
 
   eliminarDocumento(doc: any) {
     if (!doc?.idDocumento) return;
@@ -1481,7 +1366,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
     const conteoPorAnio = new Map<number, number>();
     for (const x of arr) {
-      const yRaw = x?.anioFinEstudios ?? (x?.fechaEgreso ? new Date(x.fechaEgreso).getFullYear() : null);
+      const yRaw =
+        x?.anioFinEstudios ??
+        (x?.fechaEgreso ? new Date(x.fechaEgreso).getFullYear() : null);
       const y = typeof yRaw === 'number' ? yRaw : parseInt(yRaw, 10);
       if (!Number.isFinite(y)) continue;
       conteoPorAnio.set(y, (conteoPorAnio.get(y) ?? 0) + 1);
@@ -1583,7 +1470,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
       return;
     }
 
-    const arr = (this.egresados ?? []).filter((e) => this.obtenerAnioFinDesdeEgresado(e) === cohorte);
+    const arr = (this.egresados ?? []).filter(
+      (e) => this.obtenerAnioFinDesdeEgresado(e) === cohorte
+    );
 
     const total = arr.length;
 
@@ -1601,8 +1490,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
     const conDocs = arr.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
 
-    const porcentajeConDocs =
-      total > 0 ? Math.round((conDocs / total) * 100) : 0;
+    const porcentajeConDocs = total > 0 ? Math.round((conDocs / total) * 100) : 0;
 
     this.kpiCohorte = {
       total,

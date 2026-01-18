@@ -100,7 +100,10 @@ export class EgresadosService {
   =========================== */
   async create(dto: CreateEgresadoDto, archivos: Express.Multer.File[]) {
     // ✅ SIN afectar lógica: evitar NaN si viene vacío/undefined
-    const idEst = dto?.idEstudiante !== undefined && dto?.idEstudiante !== null ? Number(dto.idEstudiante) : NaN;
+    const idEst =
+      dto?.idEstudiante !== undefined && dto?.idEstudiante !== null
+        ? Number(dto.idEstudiante)
+        : NaN;
     dto.idEstudiante = idEst as any;
 
     dto.fechaEgreso = dto.fechaEgreso?.toString();
@@ -327,7 +330,9 @@ export class EgresadosService {
         ? { anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera) }
         : {}),
 
-      ...((dto as any).genero !== undefined ? { genero: this.toStrOrNull((dto as any).genero) } : {}),
+      ...((dto as any).genero !== undefined
+        ? { genero: this.toStrOrNull((dto as any).genero) }
+        : {}),
       ...((dto as any).tiempoBusquedaTrabajo !== undefined
         ? { tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo) }
         : {}),
@@ -369,7 +374,9 @@ export class EgresadosService {
         : {}),
 
       ...(dto.telefono !== undefined ? { telefono: this.toStrOrNull(dto.telefono) } : {}),
-      ...(dto.emailContacto !== undefined ? { emailContacto: this.toStrOrNull(dto.emailContacto) } : {}),
+      ...(dto.emailContacto !== undefined
+        ? { emailContacto: this.toStrOrNull(dto.emailContacto) }
+        : {}),
       ...(dto.direccion !== undefined ? { direccion: this.toStrOrNull(dto.direccion) } : {}),
       ...(dto.linkedin !== undefined ? { linkedin: this.toStrOrNull(dto.linkedin) } : {}),
       ...(dto.contactoAlternativo !== undefined
@@ -527,6 +534,73 @@ export class EgresadosService {
     });
 
     return egresado;
+  }
+
+  /* ============================================================
+    ✅ NUEVO: DELETE DOCUMENTO (MINE)
+    - El egresado autenticado SOLO puede borrar documentos de SU seguimiento
+    - Reutiliza la misma lógica física de borrado del método deleteDocumento
+    - NO afecta el flujo Admin/Secretaría
+  ============================================================ */
+  async deleteDocumentoMine(idDocumento: number, idEstudiante: number) {
+    idDocumento = Number(idDocumento);
+    idEstudiante = Number(idEstudiante);
+
+    const doc = await this.prisma.documentoEgresado.findUnique({
+      where: { idDocumento },
+    });
+
+    if (!doc) throw new NotFoundException('Documento no encontrado');
+
+    // ✅ validar que el documento pertenezca al egresado del token
+    const egresado = await this.prisma.egresado.findUnique({
+      where: { idEstudiante },
+      select: { idEgresado: true },
+    });
+
+    if (!egresado) throw new NotFoundException('Egresado no encontrado');
+
+    // si el documento no es del egresado autenticado, lo tratamos como no encontrado
+    // para no filtrar información
+    if (doc.idEgresado !== egresado.idEgresado) {
+      throw new NotFoundException('Documento no encontrado');
+    }
+
+    try {
+      const rutaRelativa = doc.url.replace('/documents/', 'documents/');
+      const ruta = join(process.cwd(), rutaRelativa);
+      await unlink(ruta);
+    } catch (err) {
+      console.warn('⚠️ No se pudo eliminar el archivo físico:', err.message);
+    }
+
+    await this.prisma.documentoEgresado.delete({
+      where: { idDocumento },
+    });
+
+    // devolver egresado actualizado (mismo shape que findOne/findMine)
+    return this.prisma.egresado.findUnique({
+      where: { idEstudiante },
+      include: {
+        documentos: true,
+        Estudiante: {
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   /* ===========================

@@ -75,14 +75,8 @@ export class EgresadosService {
    ✅ UPDATE SOLO TEXTO
    ✅ PATCH /egresados/estudiante/:idEstudiante
   =========================== */
-  updateByEstudiante(
-    idEstudiante: number,
-    dto: UpdateEgresadoDto
-  ): Observable<any> {
-    return this.http.patch<any>(
-      `${this.apiUrl}/estudiante/${idEstudiante}`,
-      dto
-    );
+  updateByEstudiante(idEstudiante: number, dto: UpdateEgresadoDto): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, dto);
   }
 
   /* ===========================
@@ -90,14 +84,8 @@ export class EgresadosService {
    ✅ PATCH /egresados/estudiante/:idEstudiante
    ✅ Sirve para agregar documentos sin borrar los anteriores
   =========================== */
-  updateWithFilesByEstudiante(
-    idEstudiante: number,
-    formData: FormData
-  ): Observable<any> {
-    return this.http.patch<any>(
-      `${this.apiUrl}/estudiante/${idEstudiante}`,
-      formData
-    );
+  updateWithFilesByEstudiante(idEstudiante: number, formData: FormData): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, formData);
   }
 
   /* ===========================
@@ -132,6 +120,15 @@ export class EgresadosService {
   }
 
   /* ===========================
+   ✅ NUEVO (EGRESADO): ELIMINAR DOCUMENTO PROPIO ✅
+   ✅ DELETE /egresados/mine/documento/:idDocumento
+   ✅ (este es el que evita el 403 en rol EGRESADO)
+  =========================== */
+  deleteDocumentoMine(idDocumento: number): Observable<any> {
+    return this.http.delete<any>(`${this.apiUrl}/mine/documento/${idDocumento}`);
+  }
+
+  /* ===========================
    ✅ NUEVO: LISTAR PLANES DE ESTUDIO ✅
    ✅ GET /planes-de-estudio
   =========================== */
@@ -149,16 +146,28 @@ export class EgresadosService {
   findMine(): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/mine`);
   }
+
   getMine(): Observable<any> {
-  return this.findMine();
-}
+    return this.findMine();
+  }
+
+  // ✅ POST /egresados/mine (SIN docs) -> JSON
+  // (Tu componente lo usa cuando no adjuntas archivos)
+  createMine(dto: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/mine`, dto);
+  }
+
+  // ✅ PATCH /egresados/mine (SIN docs) -> JSON
+  updateMine(dto: any): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/mine`, dto);
+  }
 
   // ✅ POST /egresados/mine (con docs)
   createMineWithFiles(formData: FormData): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/mine`, formData);
   }
 
-  // ✅ PATCH /egresados/mine (con o sin docs)
+  // ✅ PATCH /egresados/mine (con docs)
   updateMineWithFiles(formData: FormData): Observable<any> {
     return this.http.patch<any>(`${this.apiUrl}/mine`, formData);
   }

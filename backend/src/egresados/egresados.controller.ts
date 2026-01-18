@@ -99,6 +99,20 @@ export class EgresadosController {
     );
   }
 
+  // ============================================================
+  // ✅ EGRESADO: DELETE /egresados/mine/documento/:idDocumento
+  // Borra SOLO un documento que pertenezca al egresado autenticado
+  // (evita 403 y evita que borren docs ajenos)
+  // ============================================================
+  @Delete('mine/documento/:idDocumento')
+  @Roles('EGRESADO')
+  deleteDocumentoMine(@Param('idDocumento') idDocumento: string, @Req() req: any) {
+    return this.egresadosService.deleteDocumentoMine(
+      Number(idDocumento),
+      Number(req.user.idEstudiante),
+    );
+  }
+
   // ==========================
   // POST /egresados (con docs)
   // ==========================

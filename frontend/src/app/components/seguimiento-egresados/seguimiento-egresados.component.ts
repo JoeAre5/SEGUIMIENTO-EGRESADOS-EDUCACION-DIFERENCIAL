@@ -58,7 +58,6 @@ import {
 
 import { switchMap, of, Observable, map } from 'rxjs';
 
-
 // ✅ (opcional) roles type
 import { Roles } from '../../models/login.dto';
 
@@ -307,10 +306,13 @@ export class SeguimientoEgresadosComponent implements OnInit {
       const payload = this.decodeJwtSafe(token);
       const role = payload?.role as Roles | undefined;
 
-      this.idEstudianteToken =
-        payload?.idEstudiante !== undefined && payload?.idEstudiante !== null
-          ? Number(payload.idEstudiante)
-          : null;
+      // ✅ FIX: idEstudianteToken debe ser numérico real (evita /estudiantes/401)
+      const rawIdEst =
+        payload?.idEstudiante ?? payload?.id_estudiante ?? payload?.estudianteId ?? null;
+
+      const parsed = rawIdEst !== null && rawIdEst !== undefined ? Number(rawIdEst) : NaN;
+
+      this.idEstudianteToken = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 
       this.isEgresado = role === (this.EGRESADO as any) || role === ('EGRESADO' as any);
     } else {
@@ -558,7 +560,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
   // RUT (libre, con DV, sin validación)
   // ---------------------------
   private sanitizeRutLibre(value: string): string {
-    // Permite: dígitos, k/K, puntos y guión. No valida.
     return (value ?? '')
       .toString()
       .replace(/[^0-9kK\.\-]/g, '')
@@ -567,13 +568,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   private normalizarRut(rut: string): string {
-    // Normaliza para comparar duplicados: quita puntos/guión y deja dv en minúscula si existe.
     const v = (rut ?? '').toString().trim().toLowerCase();
     return v.replace(/\./g, '').replace(/-/g, '').replace(/[^0-9k]/g, '');
   }
 
   isRutValido(_rutFormateado: string): boolean {
-    // ✅ Por requerimiento: NO validar si el rut es real o falso.
     return true;
   }
 
@@ -663,7 +662,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   // ---------------------------
-  // Seguimiento loader único (elimina duplicaciones)
+  // Seguimiento loader único
   // ---------------------------
   private resetSeguimientoState(opts?: { keepForm?: boolean }) {
     this.existeSeguimiento = false;
@@ -687,7 +686,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
     const svc: any = this.egresadosService as any;
 
-    // Si el usuario es egresado y existe endpoint mine, úsalo
     const obs: Observable<any> =
       this.isEgresado && typeof svc.getMine === 'function'
         ? svc.getMine()
@@ -715,11 +713,10 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
         this.formulario.patchValue(mapped.patch);
         this.documentosExistentes = eg.documentos || [];
-        // ✅ Si el backend trae el estudiante dentro del seguimiento, lo guardamos
+
         if (!this.estudianteSeleccionado && eg?.Estudiante) {
           this.estudianteSeleccionado = eg.Estudiante;
         }
-
 
         if (toast) {
           this.messageService.add({
@@ -737,55 +734,45 @@ export class SeguimientoEgresadosComponent implements OnInit {
       },
     });
   }
+
   private cargarEstudianteById$(idEstudiante: number): Observable<EstudianteDTO | null> {
-  const svc: any = this.estudiantesService as any;
+    const svc: any = this.estudiantesService as any;
 
-  // Si tu servicio tiene alguno de estos métodos, lo usamos:
-  if (typeof svc.findOne === 'function') return svc.findOne(idEstudiante);
-  if (typeof svc.getOne === 'function') return svc.getOne(idEstudiante);
-  if (typeof svc.findById === 'function') return svc.findById(idEstudiante);
-  if (typeof svc.getById === 'function') return svc.getById(idEstudiante);
+    if (typeof svc.findOne === 'function') return svc.findOne(idEstudiante);
+    if (typeof svc.getOne === 'function') return svc.getOne(idEstudiante);
+    if (typeof svc.findById === 'function') return svc.findById(idEstudiante);
+    if (typeof svc.getById === 'function') return svc.getById(idEstudiante);
 
-  // Fallback: traer todos y buscar (por si no tienes endpoint específico)
-  return this.estudiantesService.findAll().pipe(
-    map((list: EstudianteDTO[]) => list.find((e) => e.idEstudiante === idEstudiante) ?? null)
-  );
-}
+    return this.estudiantesService.findAll().pipe(
+      map((list: EstudianteDTO[]) => list.find((e) => e.idEstudiante === idEstudiante) ?? null)
+    );
+  }
 
   // ---------------------------
   // EGRESADO (mine)
   // ---------------------------
   private cargarMiSeguimiento() {
-  const id = this.idEstudianteToken;
+    const id = this.idEstudianteToken;
 
-  if (!id || Number.isNaN(id)) {
-    this.loading = false;
-    this.messageService.add({
-      severity: 'warn',
-      summary: 'Sin vínculo',
-      detail: 'No se pudo identificar tu idEstudiante en el token.',
+    // ✅ FIX: si no hay idEstudiante en token, igual cargamos por /egresados/mine
+    // (evita warning y evita GET /estudiantes/401)
+    if (!id || Number.isNaN(id)) {
+      this.loadSeguimientoByEstudiante(0 as any, true);
+      return;
+    }
+
+    this.cargarEstudianteById$(id).subscribe({
+      next: (est) => {
+        if (est) {
+          this.estudianteSeleccionado = est;
+        }
+        this.loadSeguimientoByEstudiante(id, true);
+      },
+      error: () => {
+        this.loadSeguimientoByEstudiante(id, true);
+      },
     });
-    return;
   }
-
-  // 1) Cargar Estudiante (para tener nombre/rut)
-  this.cargarEstudianteById$(id).subscribe({
-    next: (est) => {
-      if (est) {
-        this.estudianteSeleccionado = est;
-        // opcional: normaliza el rut con tu input libre si quieres
-        // this.onRutInputExistente();
-      }
-      // 2) Cargar Seguimiento (mismo id que usa admin)
-      this.loadSeguimientoByEstudiante(id, true);
-    },
-    error: () => {
-      // si falla cargar estudiante, igual cargamos seguimiento
-      this.loadSeguimientoByEstudiante(id, true);
-    },
-  });
-}
-
 
   // ---------------------------
   // UI actions
@@ -890,7 +877,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   // ---------------------------
-  // GUARDAR (EGRESADO + ADMIN/SECRETARIA)
+  // ✅ GUARDAR (EGRESADO + ADMIN/SECRETARIA)
   // ---------------------------
   guardar() {
     this.intentoGuardar = true;
@@ -912,40 +899,56 @@ export class SeguimientoEgresadosComponent implements OnInit {
       const raw = this.formulario.getRawValue();
       const hasDocs = (this.documentosSeleccionados?.length ?? 0) > 0;
 
+      // ✅ FIX: el check obs === of(null) no sirve (comparación por referencia)
+      let missingMine = false;
+
+      // ✅ IMPORTANTE:
+      // Para EGRESADO NUNCA debemos llamar a updateByEstudiante() (eso es admin/secretaría)
+      // Siempre usar endpoints /egresados/mine
       const obs: Observable<any> = (() => {
-        // sin docs -> usa raw (endpoints JSON)
+        // sin docs -> JSON
         if (!hasDocs) {
           if (this.existeSeguimiento) {
             if (typeof svc.updateMine === 'function') return svc.updateMine(raw);
-            const id = this.idEstudianteToken;
-            if (id) return this.egresadosService.updateByEstudiante(id, raw);
+            missingMine = true;
             return of(null);
           } else {
             if (typeof svc.createMine === 'function') return svc.createMine(raw);
-            const id = this.idEstudianteToken;
-            if (id) {
-              const fd = buildFormDataFromRaw(raw, [], id);
-              return this.egresadosService.createWithFiles(fd);
-            }
+            missingMine = true;
             return of(null);
           }
         }
 
-        // con docs -> multipart
-        const fd = buildFormDataFromRaw(raw, this.documentosSeleccionados, this.idEstudianteToken ?? undefined);
+        // con docs -> multipart (FormData)
+        const fd = buildFormDataFromRaw(
+          raw,
+          this.documentosSeleccionados,
+          this.idEstudianteToken ?? undefined
+        );
 
         if (this.existeSeguimiento) {
           if (typeof svc.updateMineWithFiles === 'function') return svc.updateMineWithFiles(fd);
           if (typeof svc.updateMine === 'function') return svc.updateMine(fd);
-          const id = this.idEstudianteToken;
-          if (id) return this.egresadosService.updateWithFilesByEstudiante(id, fd);
+          missingMine = true;
           return of(null);
         } else {
           if (typeof svc.createMineWithFiles === 'function') return svc.createMineWithFiles(fd);
           if (typeof svc.createMine === 'function') return svc.createMine(fd);
-          return this.egresadosService.createWithFiles(fd);
+          missingMine = true;
+          return of(null);
         }
       })();
+
+      // ✅ FIX: ahora detecta correctamente si faltan métodos mine
+      if (missingMine) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Falta endpoint MINE en frontend',
+          detail:
+            'Tu SeguimientoEgresadosComponent está listo, pero tu egresados.service.ts no tiene createMine/updateMine (y variantes con files). Agrega esos métodos apuntando a /egresados/mine.',
+        });
+        return;
+      }
 
       obs.subscribe({
         next: () => {
@@ -1098,21 +1101,20 @@ export class SeguimientoEgresadosComponent implements OnInit {
   eliminarDocumento(doc: any) {
     if (!doc?.idDocumento) return;
 
-    if (this.isEgresado) {
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Acción no permitida',
-        detail: 'No puedes eliminar documentos.',
-      });
-      return;
-    }
-
+    // ✅ CAMBIO: EGRESADO ahora SÍ puede eliminar docs (por endpoint mine si existe)
     this.confirmationService.confirm({
       message: `¿Seguro que deseas eliminar el documento "${doc.nombre}"?`,
       header: 'Eliminar documento',
       icon: 'pi pi-exclamation-triangle',
       accept: () => {
-        this.egresadosService.deleteDocumento(doc.idDocumento).subscribe({
+        const svc: any = this.egresadosService as any;
+
+        const eliminar$ =
+          this.isEgresado && typeof svc.deleteDocumentoMine === 'function'
+            ? svc.deleteDocumentoMine(doc.idDocumento)
+            : this.egresadosService.deleteDocumento(doc.idDocumento);
+
+        eliminar$.subscribe({
           next: (egresadoActualizado: any) => {
             this.documentosExistentes = egresadoActualizado.documentos || [];
             this.documentosModal = egresadoActualizado.documentos || [];
@@ -1123,7 +1125,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
               detail: '✅ Documento eliminado correctamente.',
             });
 
-            this.cargarEgresados();
+            // admin refresca global; egresado refresca su propio seguimiento
+            if (this.isEgresado) {
+              this.cargarMiSeguimiento();
+            } else {
+              this.cargarEgresados();
+            }
 
             if (this.modalDocsVisible && this.documentosModal.length === 0) {
               this.modalDocsVisible = false;

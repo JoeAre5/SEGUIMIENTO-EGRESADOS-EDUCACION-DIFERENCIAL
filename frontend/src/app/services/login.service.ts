@@ -26,13 +26,16 @@ export class LoginService {
   // ✅ compatible con tu LoginComponent (result.success / result.message)
   public iniciarSesion(usuario: LoginUsuario): Observable<ResultadoLogin> {
     return this.http.post<RespuestaLogin>(`${this.url}/login`, usuario).pipe(
-      map((respuesta) => {
+      map((respuesta: any) => {
         if (isPlatformBrowser(this.platformId)) {
-          // ✅ token compatible con token/access_token
-          const token =
-            (respuesta as any).token ?? (respuesta as any).access_token;
+          // ✅ TU BACKEND DEVUELVE: { access_token: "..." }
+          const token = respuesta?.access_token ?? respuesta?.token;
 
           if (token) {
+            // ✅ Limpio y estándar
+            sessionStorage.setItem('access_token', token);
+
+            // ✅ Compatibilidad (por si algún código viejo lee "token")
             sessionStorage.setItem('token', token);
           }
         }
@@ -52,7 +55,10 @@ export class LoginService {
   // ✅ método que navbar espera
   public logout() {
     if (isPlatformBrowser(this.platformId)) {
+      sessionStorage.removeItem('access_token');
       sessionStorage.removeItem('token');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('token');
     }
     this.router.navigateByUrl('login');
   }
@@ -60,7 +66,13 @@ export class LoginService {
   public isAuth(): Observable<boolean> {
     if (!isPlatformBrowser(this.platformId)) return of(true);
 
-    if (sessionStorage.getItem('token')) {
+    const token =
+      sessionStorage.getItem('access_token') ||
+      sessionStorage.getItem('token') ||
+      localStorage.getItem('access_token') ||
+      localStorage.getItem('token');
+
+    if (token) {
       return of(true);
     }
 

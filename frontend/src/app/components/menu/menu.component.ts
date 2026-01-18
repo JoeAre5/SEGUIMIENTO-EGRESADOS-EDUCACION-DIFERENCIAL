@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, Inject, PLATFORM_ID } from '@angular/core';
 import { Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { TieneRolDirective } from '../../directives/tiene-rol.directive';
 import { Roles } from '../../models/login.dto';
@@ -22,7 +22,15 @@ export class MenuComponent {
 
   public isEgresado = false;
 
-  constructor(private router: Router) {
+  constructor(
+    private router: Router,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {
+    // ✅ SSR-safe: en servidor no existe localStorage/sessionStorage
+    if (!isPlatformBrowser(this.platformId)) {
+      return;
+    }
+
     const token =
       localStorage.getItem('access_token') ||
       localStorage.getItem('token') ||

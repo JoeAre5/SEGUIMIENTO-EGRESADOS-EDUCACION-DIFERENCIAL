@@ -77,6 +77,19 @@
       <hr class="my-3" />
     </div>
 
+    <!-- ✅ SOLO EGRESADO: mostrar nombre/rut (NO afecta el resto del formulario) -->
+    <div class="col-span-2" *ngIf="isEgresado">
+      <div class="bg-sky-50 border border-sky-200 rounded-md p-3">
+        <div class="font-semibold text-sky-700">Egresado:</div>
+        <div class="text-gray-900">
+          {{ estudianteSeleccionado?.nombreCompleto || '—' }}
+        </div>
+        <small class="text-gray-600">
+          RUT: {{ estudianteSeleccionado?.rut || '—' }}
+        </small>
+      </div>
+    </div>
+
     <!-- ✅ NUEVO: si es EGRESADO, ocultar botones de modo -->
     <div class="col-span-2 flex gap-4 items-center mb-2" *ngIf="!isEgresado">
       <label class="font-semibold">Modo:</label>
@@ -545,111 +558,143 @@
     </div>
 
     <!-- ==========================================================
-✅ DOCUMENTOS (subida + existentes)
+✅ DOCUMENTOS (subida + existentes) - MEJORADO VISUALMENTE
 ========================================================== -->
-<div class="col-span-2 mt-4">
-  <h3 class="text-lg font-bold text-sky-700">📎 Documentos</h3>
-  <hr class="my-3" />
+    <div class="col-span-2 mt-6">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-sky-700 flex items-center gap-2">
+          <i class="pi pi-paperclip"></i>
+          Documentos
+        </h3>
+      </div>
 
-  <!-- ✅ Subida de archivos -->
-  <div class="mb-3">
-    <label class="block font-semibold mb-2">Subir documentos</label>
+      <div class="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+        <!-- ✅ Subida de archivos -->
+        <div class="flex flex-col gap-2">
+          <label class="block font-semibold text-slate-700">Subir documentos</label>
 
-    <input
-      #fileInput
-      type="file"
-      multiple
-      class="w-full"
-      (change)="onFileSelected($event)"
-    />
+          <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <input
+              #fileInput
+              type="file"
+              multiple
+              class="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                     file:text-sm file:font-semibold file:bg-sky-600 file:text-white
+                     hover:file:bg-sky-700"
+              (change)="onFileSelected($event)"
+            />
 
-    <small class="text-gray-500 block mt-2">
-      Puedes seleccionar uno o más archivos. Se adjuntarán al guardar.
-    </small>
-  </div>
+            <button
+              *ngIf="documentosSeleccionados?.length"
+              pButton
+              type="button"
+              class="p-button-sm p-button-outlined p-button-secondary"
+              icon="pi pi-trash"
+              label="Quitar"
+              (click)="limpiarInputArchivos()"
+            ></button>
+          </div>
 
-  <!-- ✅ Preview de seleccionados -->
-  <div class="mb-3" *ngIf="documentosSeleccionados?.length">
-    <p class="font-semibold mb-2">Seleccionados:</p>
-
-    <ul class="list-disc pl-6">
-      <li *ngFor="let f of documentosSeleccionados">
-        {{ f.name }} <span class="text-gray-500">({{ f.size }} bytes)</span>
-      </li>
-    </ul>
-
-    <button
-      pButton
-      type="button"
-      class="p-button-sm p-button-outlined p-button-secondary mt-3"
-      icon="pi pi-trash"
-      label="Quitar seleccionados"
-      (click)="limpiarInputArchivos()"
-    ></button>
-  </div>
-
-  <!-- ✅ Documentos existentes (del seguimiento cargado) -->
-  <div class="mt-4" *ngIf="documentosExistentes?.length">
-    <p class="font-semibold mb-2">Existentes:</p>
-
-    <div class="flex flex-col gap-2">
-      <div
-        class="flex items-center justify-between p-3 border rounded-md"
-        *ngFor="let doc of documentosExistentes"
-      >
-        <div class="flex flex-col">
-          <span class="font-semibold">{{ doc.nombre }}</span>
-          <small class="text-gray-500">{{ doc.url }}</small>
+          <small class="text-slate-500">
+            Puedes seleccionar uno o más archivos. Se adjuntarán al guardar.
+          </small>
         </div>
 
-        <div class="flex gap-2">
-          <button
-            pButton
-            type="button"
-            class="p-button-sm p-button-outlined"
-            icon="pi pi-eye"
-            pTooltip="Ver"
-            (click)="verDocumento(doc)"
-          ></button>
+        <!-- ✅ Preview de seleccionados -->
+        <div class="mt-4" *ngIf="documentosSeleccionados?.length">
+          <p class="font-semibold text-slate-700 mb-2">Seleccionados:</p>
 
-          <button
-            pButton
-            type="button"
-            class="p-button-sm p-button-outlined"
-            icon="pi pi-download"
-            pTooltip="Descargar"
-            (click)="descargarDocumento(doc)"
-          ></button>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <div
+              *ngFor="let f of documentosSeleccionados"
+              class="flex items-center justify-between bg-white border border-slate-200 rounded-lg px-3 py-2"
+            >
+              <div class="flex flex-col">
+                <span class="font-medium text-slate-800 truncate">{{ f.name }}</span>
+                <small class="text-slate-500">{{ f.size }} bytes</small>
+              </div>
+              <i class="pi pi-file text-slate-400"></i>
+            </div>
+          </div>
+        </div>
 
-          <!-- ✅ En EGRESADO ya bloqueas eliminar en TS, así que lo dejamos igual -->
-          <button
-            pButton
-            type="button"
-            class="p-button-sm p-button-outlined p-button-danger"
-            icon="pi pi-trash"
-            pTooltip="Eliminar"
-            (click)="eliminarDocumento(doc)"
-          ></button>
+        <!-- ✅ Documentos existentes -->
+        <div class="mt-6">
+          <p class="font-semibold text-slate-700 mb-2">Existentes:</p>
+
+          <div *ngIf="documentosExistentes?.length; else sinDocs" class="flex flex-col gap-3">
+            <div
+              *ngFor="let doc of documentosExistentes"
+              class="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between gap-4"
+            >
+              <div class="min-w-0">
+                <div class="flex items-center gap-2">
+                  <i class="pi pi-file text-slate-400"></i>
+                  <span class="font-semibold text-slate-900 truncate">{{ doc.nombre }}</span>
+                </div>
+                <small class="text-slate-500 truncate block">{{ doc.url }}</small>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0">
+                <button
+                  pButton
+                  type="button"
+                  class="p-button-sm p-button-outlined p-button-info"
+                  icon="pi pi-eye"
+                  pTooltip="Ver"
+                  (click)="verDocumento(doc)"
+                ></button>
+
+                <button
+                  pButton
+                  type="button"
+                  class="p-button-sm p-button-outlined p-button-help"
+                  icon="pi pi-download"
+                  pTooltip="Descargar"
+                  (click)="descargarDocumento(doc)"
+                ></button>
+
+                <!-- ✅ En EGRESADO ya bloqueas eliminar en TS, así que lo dejamos igual -->
+                <button
+                  pButton
+                  type="button"
+                  class="p-button-sm p-button-outlined p-button-danger"
+                  icon="pi pi-trash"
+                  pTooltip="Eliminar"
+                  (click)="eliminarDocumento(doc)"
+                ></button>
+              </div>
+            </div>
+          </div>
+
+          <ng-template #sinDocs>
+            <div class="bg-white border border-dashed border-slate-300 rounded-xl p-4 text-slate-500">
+              No hay documentos cargados.
+            </div>
+          </ng-template>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="mt-3" *ngIf="!documentosExistentes?.length">
-    <small class="text-gray-500">No hay documentos cargados.</small>
-  </div>
-</div>
+    <!-- ✅ BOTONES - MEJORADOS -->
+    <div class="col-span-2 flex justify-end gap-3 mt-10">
+      <button
+        pButton
+        type="button"
+        class="p-button-outlined p-button-secondary rounded-lg px-5"
+        icon="pi pi-undo"
+        label="Limpiar"
+        (click)="resetFormulario()"
+      ></button>
 
-
-    <!-- ✅ BOTONES -->
-    <div class="col-span-2 flex justify-end gap-4 mt-8">
-      <button pButton type="button" class="p-button-warning" (click)="resetFormulario()">
-        Limpiar
-      </button>
-
-      <button pButton type="button" class="p-button-success" (click)="guardar()">
-        Guardar
-      </button>
+      <button
+        pButton
+        type="button"
+        class="p-button-success rounded-lg px-6 shadow-md"
+        icon="pi pi-check"
+        label="Guardar"
+        (click)="guardar()"
+      ></button>
     </div>
   </form>
 </ng-template>

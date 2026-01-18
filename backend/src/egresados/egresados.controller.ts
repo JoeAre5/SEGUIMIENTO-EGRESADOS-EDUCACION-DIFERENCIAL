@@ -49,7 +49,7 @@ export class EgresadosController {
   @Roles('EGRESADO')
   getMine(@Req() req: any) {
     // El backend decide "quién es" por token, no por URL
-    return this.egresadosService.findOne(Number(req.user.idEstudiante));
+    return this.egresadosService.findMine(Number(req.user.idEstudiante));
   }
 
   // ============================================================

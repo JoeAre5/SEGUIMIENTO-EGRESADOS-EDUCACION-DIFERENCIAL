@@ -149,6 +149,9 @@ export class EgresadosService {
   findMine(): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/mine`);
   }
+  getMine(): Observable<any> {
+  return this.findMine();
+}
 
   // ✅ POST /egresados/mine (con docs)
   createMineWithFiles(formData: FormData): Observable<any> {

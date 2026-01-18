@@ -56,7 +56,8 @@ import {
   UpdateEstudianteDTO,
 } from '../../services/estudiantes.service';
 
-import { switchMap, of, Observable } from 'rxjs';
+import { switchMap, of, Observable, map } from 'rxjs';
+
 
 // ✅ (opcional) roles type
 import { Roles } from '../../models/login.dto';
@@ -714,6 +715,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
         this.formulario.patchValue(mapped.patch);
         this.documentosExistentes = eg.documentos || [];
+        // ✅ Si el backend trae el estudiante dentro del seguimiento, lo guardamos
+        if (!this.estudianteSeleccionado && eg?.Estudiante) {
+          this.estudianteSeleccionado = eg.Estudiante;
+        }
+
 
         if (toast) {
           this.messageService.add({
@@ -731,25 +737,55 @@ export class SeguimientoEgresadosComponent implements OnInit {
       },
     });
   }
+  private cargarEstudianteById$(idEstudiante: number): Observable<EstudianteDTO | null> {
+  const svc: any = this.estudiantesService as any;
+
+  // Si tu servicio tiene alguno de estos métodos, lo usamos:
+  if (typeof svc.findOne === 'function') return svc.findOne(idEstudiante);
+  if (typeof svc.getOne === 'function') return svc.getOne(idEstudiante);
+  if (typeof svc.findById === 'function') return svc.findById(idEstudiante);
+  if (typeof svc.getById === 'function') return svc.getById(idEstudiante);
+
+  // Fallback: traer todos y buscar (por si no tienes endpoint específico)
+  return this.estudiantesService.findAll().pipe(
+    map((list: EstudianteDTO[]) => list.find((e) => e.idEstudiante === idEstudiante) ?? null)
+  );
+}
 
   // ---------------------------
   // EGRESADO (mine)
   // ---------------------------
   private cargarMiSeguimiento() {
-    const id = this.idEstudianteToken;
+  const id = this.idEstudianteToken;
 
-    if (!id || Number.isNaN(id)) {
-      this.loading = false;
-      this.messageService.add({
-        severity: 'warn',
-        summary: 'Sin vínculo',
-        detail: 'No se pudo identificar tu idEstudiante en el token.',
-      });
-      return;
-    }
-
-    this.loadSeguimientoByEstudiante(id, true);
+  if (!id || Number.isNaN(id)) {
+    this.loading = false;
+    this.messageService.add({
+      severity: 'warn',
+      summary: 'Sin vínculo',
+      detail: 'No se pudo identificar tu idEstudiante en el token.',
+    });
+    return;
   }
+
+  // 1) Cargar Estudiante (para tener nombre/rut)
+  this.cargarEstudianteById$(id).subscribe({
+    next: (est) => {
+      if (est) {
+        this.estudianteSeleccionado = est;
+        // opcional: normaliza el rut con tu input libre si quieres
+        // this.onRutInputExistente();
+      }
+      // 2) Cargar Seguimiento (mismo id que usa admin)
+      this.loadSeguimientoByEstudiante(id, true);
+    },
+    error: () => {
+      // si falla cargar estudiante, igual cargamos seguimiento
+      this.loadSeguimientoByEstudiante(id, true);
+    },
+  });
+}
+
 
   // ---------------------------
   // UI actions

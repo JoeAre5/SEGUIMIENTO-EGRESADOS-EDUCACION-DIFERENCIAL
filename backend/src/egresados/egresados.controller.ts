@@ -103,8 +103,8 @@ export class EgresadosController {
   // POST /egresados (con docs)
   // ==========================
   @Post()
-  // ✅ FIX MINIMO: permitir variantes típicas del rol en JWT (sin afectar lógica)
-  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
+  // ✅ Roles reales del enum ROLE (usuarios.prisma)
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
@@ -128,7 +128,7 @@ export class EgresadosController {
   // ✅ GET /egresados/dashboard/cohortes
   // ==========================
   @Get('dashboard/cohortes')
-  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   getDashboardCohortes() {
     return this.egresadosService.getDashboardCohortes();
   }
@@ -137,7 +137,7 @@ export class EgresadosController {
   // GET /egresados
   // ==========================
   @Get()
-  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   findAll() {
     return this.egresadosService.findAll();
   }
@@ -146,7 +146,7 @@ export class EgresadosController {
   // GET /egresados/estudiante/:idEstudiante
   // ==========================
   @Get('estudiante/:idEstudiante')
-  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   findOne(@Param('idEstudiante') idEstudiante: string) {
     return this.egresadosService.findOne(Number(idEstudiante));
   }
@@ -155,7 +155,7 @@ export class EgresadosController {
   // PATCH /egresados/estudiante/:idEstudiante (con o sin docs)
   // ==========================
   @Patch('estudiante/:idEstudiante')
-  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
@@ -180,7 +180,7 @@ export class EgresadosController {
   // DELETE /egresados/documento/:idDocumento
   // ==========================
   @Delete('documento/:idDocumento')
-  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   deleteDocumento(@Param('idDocumento') idDocumento: string) {
     return this.egresadosService.deleteDocumento(Number(idDocumento));
   }
@@ -189,7 +189,7 @@ export class EgresadosController {
   // DELETE /egresados/:idEgresado
   // ==========================
   @Delete(':idEgresado')
-  @Roles('ADMIN', 'ADMINISTRADOR', 'SECRETARIA', 'Secretaria')
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   delete(@Param('idEgresado') idEgresado: string) {
     return this.egresadosService.delete(Number(idEgresado));
   }

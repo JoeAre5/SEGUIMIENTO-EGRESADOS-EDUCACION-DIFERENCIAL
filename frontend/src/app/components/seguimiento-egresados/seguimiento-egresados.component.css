@@ -33,3 +33,36 @@
 :host ::ng-deep .p-datatable .p-datatable-tbody > tr:hover {
   background: rgba(3, 105, 161, 0.06) !important;
 }
+/* =========================================================
+   ✅ Tags: máximo 2 líneas (nombre, rentas, institución)
+   ========================================================= */
+:host ::ng-deep .egresados-table .tag-2line {
+  max-width: 240px;              /* controla el ancho */
+  white-space: normal !important;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;         /* 🔑 máximo 2 líneas */
+  -webkit-box-orient: vertical;
+  line-height: 1.2;
+  text-align: center;
+}
+
+/* Ajuste específico por columna */
+:host ::ng-deep .egresados-table .col-nombre .tag-2line {
+  max-width: 200px;
+}
+
+:host ::ng-deep .egresados-table .col-rentas .tag-2line {
+  max-width: 260px;
+}
+:host ::ng-deep .egresados-table .col-acciones {
+  text-align: center;
+  vertical-align: middle;
+}
+
+:host ::ng-deep .egresados-table .acciones-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}

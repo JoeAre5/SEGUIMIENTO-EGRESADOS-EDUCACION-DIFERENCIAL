@@ -27,7 +27,7 @@
     </div>
 
     <div class="rounded-xl border border-indigo-700 bg-indigo-700 p-4 shadow-sm">
-      <p class="text-xs text-white/90 font-semibold">Año fin estudios</p>
+      <p class="text-xs text-white/90 font-semibold">Año de cohorte a la que pertenece</p>
       <p class="text-2xl font-extrabold text-white">—</p>
       <p class="text-xs text-white/80">en tabla</p>
     </div>
@@ -84,7 +84,7 @@
       [scrollable]="true"
       scrollHeight="flex"
       [tableStyle]="{ 'min-width': '1700px' }"
-      class="p-datatable-sm p-datatable-gridlines"
+      class="p-datatable-sm p-datatable-gridlines egresados-table"
       [showCurrentPageReport]="true"
       currentPageReportTemplate="Mostrando {first} a {last} de {totalRecords} registros"
       [globalFilterFields]="[
@@ -102,28 +102,31 @@
     >
       <ng-template pTemplate="header">
         <tr>
-          <th>Nombre</th>
+          <th class="col-nombre">Nombre</th>
           <th>RUT</th>
           <th>Situación</th>
-          <th>Empresa</th>
+          <th>Institución o establecimiento</th>
           <th>Cargo</th>
-          <th>Nivel de rentas</th>
-          <th>Año fin estudios</th>
-          <th>Teléfono</th>
+          <th class="col-rentas">Nivel de rentas</th>
+          <th>Año de cohorte a la que pertenece</th>
+          <th>Teléfono de contacto</th>
           <th>Correo</th>
           <th style="width: 120px;">Documentos</th>
-          <th style="width: 140px;">Acciones</th>
+          <th class="col-acciones" style="width: 140px;">Acciones</th>
         </tr>
       </ng-template>
 
       <ng-template pTemplate="body" let-row>
         <tr>
-          <td>
+          <!-- ✅ Nombre: tooltip con el nombre completo -->
+          <td class="col-nombre">
             <p-tag
               [value]="row?.Estudiante?.nombreCompleto || '—'"
               severity="info"
               [rounded]="true"
-              styleClass="text-base px-3 py-2"
+              styleClass="text-base px-3 py-2 tag-2line"
+              [pTooltip]="row?.Estudiante?.nombreCompleto || '—'"
+              tooltipPosition="top"
             ></p-tag>
           </td>
 
@@ -154,13 +157,16 @@
             </div>
           </td>
 
+          <!-- ✅ Institución: tooltip opcional (no cambia nada visual) -->
           <td>
             <p-tag
               *ngIf="row?.empresa; else sinEmpresa"
               [value]="row?.empresa"
               severity="info"
               [rounded]="true"
-              styleClass="text-sm px-3 py-2"
+              styleClass="text-sm px-3 py-2 tag-2line"
+              [pTooltip]="row?.empresa"
+              tooltipPosition="top"
             ></p-tag>
             <ng-template #sinEmpresa>—</ng-template>
           </td>
@@ -172,22 +178,27 @@
               severity="secondary"
               [rounded]="true"
               styleClass="text-sm px-3 py-2"
+              [pTooltip]="row?.cargo"
+              tooltipPosition="top"
             ></p-tag>
             <ng-template #sinCargo>—</ng-template>
           </td>
 
-          <td>
+          <!-- ✅ Rentas: tooltip opcional -->
+          <td class="col-rentas">
             <p-tag
               *ngIf="row?.nivelRentas; else sinRenta"
               [value]="row?.nivelRentas"
               severity="info"
               [rounded]="true"
-              styleClass="text-base px-4 py-2"
+              styleClass="text-base px-4 py-2 tag-2line"
+              [pTooltip]="row?.nivelRentas"
+              tooltipPosition="top"
             ></p-tag>
             <ng-template #sinRenta>—</ng-template>
           </td>
 
-          <td>
+          <td class="col-cohorte">
             <p-tag
               *ngIf="row?.anioFinEstudios; else sinAnioFin"
               [value]="row?.anioFinEstudios"
@@ -215,7 +226,9 @@
               [value]="row?.emailContacto"
               severity="info"
               [rounded]="true"
-              styleClass="text-sm px-3 py-2"
+              styleClass="text-sm px-3 py-2 tag-2line"
+              [pTooltip]="row?.emailContacto"
+              tooltipPosition="top"
             ></p-tag>
             <ng-template #sinMail>—</ng-template>
           </td>
@@ -230,22 +243,25 @@
             ></button>
           </td>
 
-          <td class="flex gap-2 justify-center">
-            <button
-              pButton
-              icon="pi pi-pencil"
-              class="p-button-rounded p-button-sm p-button-info"
-              pTooltip="Editar"
-              (click)="abrirEdicion.emit(row)"
-            ></button>
+          <!-- ✅ Acciones centradas -->
+          <td class="col-acciones">
+            <div class="acciones-wrap">
+              <button
+                pButton
+                icon="pi pi-pencil"
+                class="p-button-rounded p-button-sm p-button-info"
+                pTooltip="Editar"
+                (click)="abrirEdicion.emit(row)"
+              ></button>
 
-            <button
-              pButton
-              icon="pi pi-trash"
-              class="p-button-rounded p-button-sm p-button-danger"
-              pTooltip="Eliminar"
-              (click)="eliminar.emit(row)"
-            ></button>
+              <button
+                pButton
+                icon="pi pi-trash"
+                class="p-button-rounded p-button-sm p-button-danger"
+                pTooltip="Eliminar"
+                (click)="eliminar.emit(row)"
+              ></button>
+            </div>
           </td>
         </tr>
       </ng-template>
@@ -264,7 +280,7 @@
       <div>
         <h3 class="text-lg font-bold text-sky-700">📈 Dashboard por cohorte</h3>
         <p class="text-xs text-gray-500">
-          Cohorte = Año fin de estudios. Selecciona una cohorte para ver métricas.
+          Cohorte = Año de cohorte a la que pertenece. Selecciona una cohorte para ver métricas.
         </p>
       </div>
 
@@ -309,12 +325,8 @@
 
       <div class="rounded-xl border border-indigo-700 bg-indigo-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">% con documentos</p>
-        <p class="text-2xl font-extrabold text-white">
-          {{ kpiCohorte.porcentajeConDocs }}%
-        </p>
-        <p class="text-xs text-white/80">
-          ({{ kpiCohorte.conDocs }}/{{ kpiCohorte.total }})
-        </p>
+        <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.porcentajeConDocs }}%</p>
+        <p class="text-xs text-white/80">({{ kpiCohorte.conDocs }}/{{ kpiCohorte.total }})</p>
       </div>
     </div>
 
@@ -326,11 +338,7 @@
           <span class="text-xs text-gray-500">Barra</span>
         </div>
         <div class="h-[300px]">
-          <p-chart
-            type="bar"
-            [data]="barSituacionCohorteData"
-            [options]="chartOptionsCohorte"
-          ></p-chart>
+          <p-chart type="bar" [data]="barSituacionCohorteData" [options]="chartOptionsCohorte"></p-chart>
         </div>
       </div>
 
@@ -340,11 +348,7 @@
           <span class="text-xs text-gray-500">Donut</span>
         </div>
         <div class="h-[300px]">
-          <p-chart
-            type="doughnut"
-            [data]="donutRentasCohorteData"
-            [options]="donutOptions"
-          ></p-chart>
+          <p-chart type="doughnut" [data]="donutRentasCohorteData" [options]="donutOptions"></p-chart>
         </div>
       </div>
     </div>
@@ -367,7 +371,6 @@
           <p class="font-semibold text-gray-700">Distribución por situación</p>
           <span class="text-xs text-gray-500">Global</span>
         </div>
-
         <div class="h-[260px]">
           <p-chart type="doughnut" [data]="donutSituacionData" [options]="donutOptions"></p-chart>
         </div>
@@ -378,7 +381,6 @@
           <p class="font-semibold text-gray-700">Egresados con documentos</p>
           <span class="text-xs text-gray-500">Con / Sin</span>
         </div>
-
         <div class="h-[260px]">
           <p-chart type="doughnut" [data]="donutDocsData" [options]="donutOptions"></p-chart>
         </div>
@@ -386,10 +388,9 @@
 
       <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
         <div class="flex items-center justify-between mb-3">
-          <p class="font-semibold text-gray-700">% por año (fin estudios)</p>
+          <p class="font-semibold text-gray-700">% por cohorte</p>
           <span class="text-xs text-gray-500">Top años</span>
         </div>
-
         <div class="h-[260px]">
           <p-chart type="doughnut" [data]="donutAnioData" [options]="donutOptions"></p-chart>
         </div>

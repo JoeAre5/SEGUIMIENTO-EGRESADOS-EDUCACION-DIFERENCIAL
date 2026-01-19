@@ -7,10 +7,7 @@ export function normalizarSituacionStats(valor: any): string {
 }
 
 export function obtenerAnioFinDesdeEgresado(e: any): number | null {
-  const yRaw =
-    e?.anioFinEstudios ??
-    (e?.fechaEgreso ? new Date(e.fechaEgreso).getFullYear() : null);
-
+  const yRaw = e?.anioFinEstudios ?? (e?.fechaEgreso ? new Date(e.fechaEgreso).getFullYear() : null);
   const y = typeof yRaw === 'number' ? yRaw : parseInt(yRaw, 10);
   return Number.isFinite(y) ? y : null;
 }
@@ -111,62 +108,85 @@ export function buildChartsGlobal(lista: any[], stats: Stats) {
   return { donutSituacionData, donutDocsData, donutAnioData };
 }
 
-export function buildCohortesOptions(egresados: any[]) {
+/**
+ * ✅ FIX: tu componente espera:
+ *  - cohortes.cohortesOptions
+ *  - cohortes.anios
+ */
+export function buildCohortesOptions(egresados: any[]): { cohortesOptions: { label: string; value: number }[]; anios: number[] } {
   const arr = Array.isArray(egresados) ? egresados : [];
   const setAnios = new Set<number>();
+
   for (const e of arr) {
     const y = obtenerAnioFinDesdeEgresado(e);
     if (y) setAnios.add(y);
   }
+
   const anios = Array.from(setAnios.values()).sort((a, b) => b - a);
+
   const cohortesOptions = anios.map((y) => ({ label: y.toString(), value: y }));
+
   return { cohortesOptions, anios };
 }
 
-export function buildCohorteDashboard(egresados: any[], cohorteSeleccionada: number | null) {
-  const cohorte = cohorteSeleccionada;
+export function buildCohorteDashboard(egresados: any[], cohorte: number | null) {
+  const arr = Array.isArray(egresados) ? egresados : [];
+  const lista = cohorte ? arr.filter((x) => obtenerAnioFinDesdeEgresado(x) === cohorte) : [];
 
-  if (!cohorte) {
-    return {
-      kpiCohorte: { total: 0, trabajando: 0, cesante: 0, otro: 0, conDocs: 0, porcentajeConDocs: 0 },
-      barSituacionCohorteData: { labels: ['Trabajando', 'Cesante', 'Otro'], datasets: [{ data: [0, 0, 0], label: 'Cantidad' }] },
-      donutRentasCohorteData: { labels: ['Sin datos'], datasets: [{ data: [1] }] },
-    };
-  }
+  const stats = recalcularStats(lista);
 
-  const arr = (egresados ?? []).filter((e) => obtenerAnioFinDesdeEgresado(e) === cohorte);
+  const conDocs = lista.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
+  const porcentajeConDocs = stats.total ? Math.round((conDocs / stats.total) * 100) : 0;
 
-  const total = arr.length;
-  const trabajando = arr.filter((x) => normalizarSituacionStats(x?.situacionActual) === 'trabajando').length;
-  const cesante = arr.filter((x) => normalizarSituacionStats(x?.situacionActual) === 'cesante').length;
-  const otro = arr.filter((x) => normalizarSituacionStats(x?.situacionActual) === 'otro').length;
-
-  const conDocs = arr.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
-  const porcentajeConDocs = total > 0 ? Math.round((conDocs / total) * 100) : 0;
-
+  // ✅ Bar Situación cohorte (con colores)
   const barSituacionCohorteData = {
     labels: ['Trabajando', 'Cesante', 'Otro'],
-    datasets: [{ label: `Cohorte ${cohorte}`, data: [trabajando, cesante, otro] }],
+    datasets: [
+      {
+        label: `Cohorte ${cohorte ?? ''}`,
+        data: [stats.trabajando, stats.cesante, stats.otro],
+        backgroundColor: ['#22c55e', '#ef4444', '#f59e0b'],
+        hoverBackgroundColor: ['#16a34a', '#dc2626', '#d97706'],
+        borderColor: '#ffffff',
+        borderWidth: 2,
+      },
+    ],
   };
 
+  // ✅ Donut Rentas cohorte (con colores)
   const conteoRentas = new Map<string, number>();
-  for (const e of arr) {
-    const r = (e?.nivelRentas ?? '').toString().trim();
-    if (!r) continue;
-    conteoRentas.set(r, (conteoRentas.get(r) ?? 0) + 1);
+  for (const x of lista) {
+    const k = (x?.nivelRentas ?? 'Sin info').toString();
+    conteoRentas.set(k, (conteoRentas.get(k) ?? 0) + 1);
   }
 
-  const pares = Array.from(conteoRentas.entries()).sort((a, b) => b[1] - a[1]);
-  const donutRentasCohorteData =
-    pares.length === 0
-      ? { labels: ['Sin datos'], datasets: [{ data: [1] }] }
-      : {
-          labels: pares.map(([k]) => k),
-          datasets: [{ data: pares.map(([, v]) => v), borderColor: '#ffffff', borderWidth: 2 }],
-        };
+  const labelsRentas = Array.from(conteoRentas.keys());
+  const countsRentas = labelsRentas.map((k) => conteoRentas.get(k) ?? 0);
+
+  const rentasPalette = ['#0F766E', '#2563EB', '#7C3AED', '#DB2777', '#EA580C', '#16A34A', '#0369A1', '#64748B'];
+
+  const donutRentasCohorteData = {
+    labels: labelsRentas,
+    datasets: [
+      {
+        data: countsRentas,
+        backgroundColor: labelsRentas.map((_, i) => rentasPalette[i % rentasPalette.length]),
+        hoverBackgroundColor: labelsRentas.map((_, i) => rentasPalette[i % rentasPalette.length]),
+        borderColor: '#ffffff',
+        borderWidth: 2,
+      },
+    ],
+  };
 
   return {
-    kpiCohorte: { total, trabajando, cesante, otro, conDocs, porcentajeConDocs },
+    kpiCohorte: {
+      total: stats.total,
+      trabajando: stats.trabajando,
+      cesante: stats.cesante,
+      otro: stats.otro,
+      conDocs,
+      porcentajeConDocs,
+    },
     barSituacionCohorteData,
     donutRentasCohorteData,
   };

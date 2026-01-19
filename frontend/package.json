@@ -21,7 +21,7 @@
     "@angular/platform-browser-dynamic": "^18.2.0",
     "@angular/platform-server": "^18.2.0",
     "@angular/router": "^18.2.0",
-    "@angular/ssr": "^18.2.3",
+    "@angular/ssr": "^18.2.21",
     "chart.js": "^4.5.1",
     "chartjs-plugin-annotation": "^3.1.0",
     "chartjs-plugin-datalabels": "^2.2.0",
@@ -33,7 +33,7 @@
     "primeicons": "^7.0.0",
     "primeng": "^17.18.15",
     "rxjs": "~7.8.0",
-    "sweetalert2": "^11.14.3",
+    "sweetalert2": "^11.22.4",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.10"
   },

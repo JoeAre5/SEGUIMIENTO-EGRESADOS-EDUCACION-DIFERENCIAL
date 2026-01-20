@@ -118,7 +118,6 @@
 
       <ng-template pTemplate="body" let-row>
         <tr>
-          <!-- ✅ Nombre: tooltip con el nombre completo -->
           <td class="col-nombre">
             <p-tag
               [value]="row?.Estudiante?.nombreCompleto || '—'"
@@ -157,7 +156,6 @@
             </div>
           </td>
 
-          <!-- ✅ Institución: tooltip opcional (no cambia nada visual) -->
           <td>
             <p-tag
               *ngIf="row?.empresa; else sinEmpresa"
@@ -184,7 +182,6 @@
             <ng-template #sinCargo>—</ng-template>
           </td>
 
-          <!-- ✅ Rentas: tooltip opcional -->
           <td class="col-rentas">
             <p-tag
               *ngIf="row?.nivelRentas; else sinRenta"
@@ -243,7 +240,6 @@
             ></button>
           </td>
 
-          <!-- ✅ Acciones centradas -->
           <td class="col-acciones">
             <div class="acciones-wrap">
               <button
@@ -274,8 +270,8 @@
     </p-table>
   </div>
 
-  <!-- ✅✅✅ DASHBOARD POR COHORTE (NUEVO) -->
-  <div class="mt-10">
+  <!-- ✅✅✅ DASHBOARD POR COHORTE -->
+  <div class="mt-10" [@fadeSlide]="dashboardAnimKey">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div>
         <h3 class="text-lg font-bold text-sky-700">📈 Dashboard por cohorte</h3>
@@ -287,18 +283,20 @@
       <div class="w-full sm:w-[320px]">
         <p-dropdown
           [options]="cohortesOptions"
-          [(ngModel)]="cohorteSeleccionada"
+          optionLabel="label"
+          optionValue="value"
+          [ngModel]="cohorteSeleccionada"
           [ngModelOptions]="{ standalone: true }"
+          (ngModelChange)="onCohorteDropdownChange($event)"
           placeholder="Selecciona cohorte"
           [showClear]="true"
           class="w-full"
-          (onChange)="onCohorteChange.emit()"
         ></p-dropdown>
       </div>
     </div>
 
     <!-- KPIs -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6" [@kpiPop]="kpiAnimKey">
       <div class="rounded-xl border border-sky-800 bg-sky-800 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Total cohorte</p>
         <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.total }}</p>
@@ -332,23 +330,27 @@
 
     <!-- Gráficos cohorte -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
+      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5" [@chartFade]="chartsAnimKey">
         <div class="flex items-center justify-between mb-3">
           <p class="font-semibold text-gray-700">Situación (cohorte)</p>
           <span class="text-xs text-gray-500">Barra</span>
         </div>
         <div class="h-[300px]">
-          <p-chart type="bar" [data]="barSituacionCohorteData" [options]="chartOptionsCohorte"></p-chart>
+          <ng-container *ngIf="chartsVisible">
+            <p-chart type="bar" [data]="barSituacionCohorteData" [options]="chartOptionsCohorte"></p-chart>
+          </ng-container>
         </div>
       </div>
 
-      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
+      <div class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5" [@chartFade]="chartsAnimKey">
         <div class="flex items-center justify-between mb-3">
           <p class="font-semibold text-gray-700">Nivel de rentas (cohorte)</p>
           <span class="text-xs text-gray-500">Donut</span>
         </div>
         <div class="h-[300px]">
-          <p-chart type="doughnut" [data]="donutRentasCohorteData" [options]="donutOptions"></p-chart>
+          <ng-container *ngIf="chartsVisible">
+            <p-chart type="doughnut" [data]="donutRentasCohorteData" [options]="donutOptions"></p-chart>
+          </ng-container>
         </div>
       </div>
     </div>

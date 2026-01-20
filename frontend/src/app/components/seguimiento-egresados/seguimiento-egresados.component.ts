@@ -1309,14 +1309,47 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return this.situaciones;
   }
 
-  onCohorteChange() {
-    this.recalcularDashboardCohorte();
+  // ✅ FIX REAL: capturar event/value, normalizar a number, y recalcular + refrescar referencias
+  onCohorteChange(event?: any) {
+  const raw = event?.value ?? event ?? this.cohorteSeleccionada;
+
+  let anio: any = raw;
+
+  if (anio && typeof anio === 'object') {
+    anio = (anio as any).value ?? (anio as any).anio ?? null;
   }
 
-  private recalcularDashboardCohorte() {
-    const r = DashboardUtil.buildCohorteDashboard(this.egresados ?? [], this.cohorteSeleccionada);
-    this.kpiCohorte = r.kpiCohorte;
-    this.barSituacionCohorteData = r.barSituacionCohorteData;
-    this.donutRentasCohorteData = r.donutRentasCohorteData;
+  if (anio !== null && anio !== undefined && anio !== '') {
+    const n = Number(anio);
+    this.cohorteSeleccionada = Number.isFinite(n) ? n : null;
+  } else {
+    this.cohorteSeleccionada = null;
   }
+
+  this.recalcularDashboardCohorte();
+}
+
+private recalcularDashboardCohorte() {
+  const r = DashboardUtil.buildCohorteDashboard(this.egresados ?? [], this.cohorteSeleccionada);
+
+  this.kpiCohorte = { ...r.kpiCohorte };
+
+  // ✅ IMPORTANTÍSIMO: crear NUEVAS referencias para que PrimeNG/Chart.js actualicen
+  this.barSituacionCohorteData = r.barSituacionCohorteData
+    ? {
+        ...r.barSituacionCohorteData,
+        labels: [...(r.barSituacionCohorteData.labels ?? [])],
+        datasets: [...(r.barSituacionCohorteData.datasets ?? [])],
+      }
+    : r.barSituacionCohorteData;
+
+  this.donutRentasCohorteData = r.donutRentasCohorteData
+    ? {
+        ...r.donutRentasCohorteData,
+        labels: [...(r.donutRentasCohorteData.labels ?? [])],
+        datasets: [...(r.donutRentasCohorteData.datasets ?? [])],
+      }
+    : r.donutRentasCohorteData;
+}
+
 }

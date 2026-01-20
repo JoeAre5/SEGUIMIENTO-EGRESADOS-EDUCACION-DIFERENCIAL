@@ -7,6 +7,8 @@ export interface EstudianteDTO {
   nombreCompleto: string;
   rut: string;
   agnioIngreso?: number;
+  // ✅ opcional (útil para plan)
+  idPlan?: number;
 }
 
 /**
@@ -44,6 +46,14 @@ export class EstudiantesService {
   private apiUrl = 'http://localhost:3000/estudiantes';
 
   constructor(private http: HttpClient) {}
+
+  // ✅ NUEVO: actualizar plan de estudios del estudiante
+  // Endpoint esperado: PATCH /estudiantes/:idEstudiante/plan  body: { idPlan }
+  updatePlan(idEstudiante: number, idPlan: number): Observable<any> {
+    return this.http.patch<any>(`${this.apiUrl}/${idEstudiante}/plan`, {
+      idPlan: Number(idPlan),
+    });
+  }
 
   // ✅ traer todos (para dropdown egresados)
   findAll(): Observable<EstudianteDTO[]> {

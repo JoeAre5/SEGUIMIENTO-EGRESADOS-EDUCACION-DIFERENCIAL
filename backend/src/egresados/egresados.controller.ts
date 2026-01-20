@@ -1,98 +1,210 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
-  Delete,
+  Req,
   UploadedFiles,
+  UseGuards,
   UseInterceptors,
-  ParseIntPipe,
 } from '@nestjs/common';
-
 import { FilesInterceptor } from '@nestjs/platform-express';
+import { ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
-import { Express } from 'express';
-
 import { EgresadosService } from './egresados.service';
 import { CreateEgresadoDto } from './dto/create-egresado.dto';
 import { UpdateEgresadoDto } from './dto/update-egresado.dto';
 
+// ✅ Guards
+import { AuthGuard } from '@nestjs/passport';
+import { Roles } from 'src/auth/roles.decorator';
+import { RolesGuard } from 'src/auth/roles.guard';
+
+@ApiTags('egresados')
 @Controller('egresados')
+@UseGuards(AuthGuard('jwt'), RolesGuard) // ✅ seguridad base para TODO el controller
 export class EgresadosController {
   constructor(private readonly egresadosService: EgresadosService) {}
 
-  // ✅ POST con múltiples archivos
-  @Post()
+  // ==========================
+  // Config Multer
+  // ==========================
+  private static storage = diskStorage({
+    destination: './documents/egresados',
+    filename: (_req, file, cb) => {
+      const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      cb(null, `${unique}${extname(file.originalname)}`);
+    },
+  });
+
+  // ============================================================
+  // ✅ EGRESADO: GET /egresados/mine
+  // Devuelve el seguimiento del egresado autenticado (si existe)
+  // ============================================================
+  @Get('mine')
+  @Roles('EGRESADO')
+  getMine(@Req() req: any) {
+    // El backend decide "quién es" por token, no por URL
+    return this.egresadosService.findMine(Number(req.user.idEstudiante));
+  }
+
+  // ============================================================
+  // ✅ EGRESADO: POST /egresados/mine (con docs)
+  // Crea (o upsert) el suyo. NO acepta idEstudiante desde frontend.
+  // ============================================================
+  @Post('mine')
+  @Roles('EGRESADO')
+  @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
-      storage: diskStorage({
-        destination: './documents/egresados',
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
-        },
-      }),
+      storage: EgresadosController.storage,
+    }),
+  )
+  createMine(
+    @Req() req: any,
+    @Body() dto: CreateEgresadoDto,
+    @UploadedFiles() archivos: Express.Multer.File[],
+  ) {
+    // ✅ ignoramos cualquier idEstudiante que venga del cliente
+    dto.idEstudiante = Number(req.user.idEstudiante);
+
+    return this.egresadosService.create(dto, archivos);
+  }
+
+  // ============================================================
+  // ✅ EGRESADO: PATCH /egresados/mine (con o sin docs)
+  // Actualiza SOLO el suyo. No hay forma de pasar idEstudiante.
+  // ============================================================
+  @Patch('mine')
+  @Roles('EGRESADO')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('documentos', 10, {
+      storage: EgresadosController.storage,
+    }),
+  )
+  updateMine(
+    @Req() req: any,
+    @Body() dto: UpdateEgresadoDto,
+    @UploadedFiles() archivos: Express.Multer.File[],
+  ) {
+    return this.egresadosService.updateByEstudiante(
+      Number(req.user.idEstudiante),
+      dto,
+      archivos,
+    );
+  }
+
+  // ============================================================
+  // ✅ EGRESADO: DELETE /egresados/mine/documento/:idDocumento
+  // Borra SOLO un documento que pertenezca al egresado autenticado
+  // (evita 403 y evita que borren docs ajenos)
+  // ============================================================
+  @Delete('mine/documento/:idDocumento')
+  @Roles('EGRESADO')
+  deleteDocumentoMine(@Param('idDocumento') idDocumento: string, @Req() req: any) {
+    return this.egresadosService.deleteDocumentoMine(
+      Number(idDocumento),
+      Number(req.user.idEstudiante),
+    );
+  }
+
+  // ==========================
+  // POST /egresados (con docs)
+  // ==========================
+  @Post()
+  // ✅ Roles reales del enum ROLE (usuarios.prisma)
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FilesInterceptor('documentos', 10, {
+      storage: EgresadosController.storage,
     }),
   )
   create(
     @Body() dto: CreateEgresadoDto,
     @UploadedFiles() archivos: Express.Multer.File[],
   ) {
+    // ✅ IMPORTANTE: cuando viene multipart/form-data, números llegan como string
+    // El service ya hace Number() donde corresponde, pero aquí dejamos idEstudiante sólido
+    if (dto?.idEstudiante !== undefined && dto?.idEstudiante !== null) {
+      dto.idEstudiante = Number(dto.idEstudiante);
+    }
+
     return this.egresadosService.create(dto, archivos);
   }
 
-  // ✅ GET todos
+  // ==========================
+  // ✅ GET /egresados/dashboard/cohortes
+  // ==========================
+  @Get('dashboard/cohortes')
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
+  getDashboardCohortes() {
+    return this.egresadosService.getDashboardCohortes();
+  }
+
+  // ==========================
+  // GET /egresados
+  // ==========================
   @Get()
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   findAll() {
     return this.egresadosService.findAll();
   }
 
-  // ✅ GET uno por idEstudiante
+  // ==========================
+  // GET /egresados/estudiante/:idEstudiante
+  // ==========================
   @Get('estudiante/:idEstudiante')
-  findOne(@Param('idEstudiante', ParseIntPipe) idEstudiante: number) {
-    return this.egresadosService.findOne(idEstudiante);
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
+  findOne(@Param('idEstudiante') idEstudiante: string) {
+    return this.egresadosService.findOne(Number(idEstudiante));
   }
 
-  // ✅ PATCH actualizar por idEstudiante (incluye documentos)
+  // ==========================
+  // PATCH /egresados/estudiante/:idEstudiante (con o sin docs)
+  // ==========================
   @Patch('estudiante/:idEstudiante')
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
+  @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FilesInterceptor('documentos', 10, {
-      storage: diskStorage({
-        destination: './documents/egresados',
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
-        },
-      }),
+      storage: EgresadosController.storage,
     }),
   )
   updateByEstudiante(
-    @Param('idEstudiante', ParseIntPipe) idEstudiante: number,
+    @Param('idEstudiante') idEstudiante: string,
     @Body() dto: UpdateEgresadoDto,
     @UploadedFiles() archivos: Express.Multer.File[],
   ) {
+    // ✅ si viene multipart/form-data, todo viene string.
+    // el service se encarga de parsear fecha y números.
     return this.egresadosService.updateByEstudiante(
-      idEstudiante,
+      Number(idEstudiante),
       dto,
-      archivos || [],
+      archivos,
     );
   }
 
-  // ✅ ✅ ✅ DELETE documento individual
-  // ✅ DELETE /egresados/documento/:idDocumento
+  // ==========================
+  // DELETE /egresados/documento/:idDocumento
+  // ==========================
   @Delete('documento/:idDocumento')
-  deleteDocumento(@Param('idDocumento', ParseIntPipe) idDocumento: number) {
-    return this.egresadosService.deleteDocumento(idDocumento);
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
+  deleteDocumento(@Param('idDocumento') idDocumento: string) {
+    return this.egresadosService.deleteDocumento(Number(idDocumento));
   }
 
-  // ✅ DELETE eliminar por idEgresado
+  // ==========================
+  // DELETE /egresados/:idEgresado
+  // ==========================
   @Delete(':idEgresado')
-  remove(@Param('idEgresado', ParseIntPipe) idEgresado: number) {
-    return this.egresadosService.delete(idEgresado);
+  @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
+  delete(@Param('idEgresado') idEgresado: string) {
+    return this.egresadosService.delete(Number(idEgresado));
   }
 }

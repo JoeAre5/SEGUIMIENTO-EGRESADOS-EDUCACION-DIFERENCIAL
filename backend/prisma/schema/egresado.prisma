@@ -1,38 +1,57 @@
 model Egresado {
-  idEgresado          Int       @id @default(autoincrement())
-  idEstudiante        Int       @unique
+  idEgresado   Int @id @default(autoincrement())
+  idEstudiante Int @unique
 
-  // Datos del seguimiento
-  fechaEgreso         DateTime  @db.Date
-  situacionActual     String
-  empresa             String?
-  cargo               String?
-  sueldo              Int?
-  anioIngresoLaboral  Int?
-  anioSeguimiento     Int       @default(2026)
+  fechaEgreso DateTime? @db.Date
 
-  // ✅ Datos de contacto (Opción B)
+  situacionActual    String
+  empresa            String?
+  cargo              String?
+  sueldo             Int?
+  anioIngresoLaboral Int?
+  anioSeguimiento    Int     @default(2026)
+
   telefono            String?
   emailContacto       String?
   direccion           String?
   linkedin            String?
   contactoAlternativo String?
 
-  // Documentos asociados
-  documentos          DocumentoEgresado[]
+  situacionActualOtro String?
+  nivelRentas         String?
 
-  // Relación 1 a 1 con Estudiante
-  Estudiante          Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
+  // ✅ NUEVOS CAMPOS DEL FORMULARIO
+  anioFinEstudios Int?
+
+  viaIngreso     String?
+  viaIngresoOtro String?
+
+  anioIngresoCarrera Int?
+
+  genero                String?
+  tiempoBusquedaTrabajo String?
+
+  sectorLaboral     String?
+  sectorLaboralOtro String?
+
+  tipoEstablecimiento     String?
+  tipoEstablecimientoOtro String?
+
+  // ✅ RELACIÓN DOCUMENTOS
+  documentos DocumentoEgresado[]
+
+  Estudiante Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
 }
 
 model DocumentoEgresado {
-  idDocumento   Int      @id @default(autoincrement())
-  nombre        String
-  url           String
-  fechaSubida   DateTime @default(now())
-  idEgresado    Int
+  idDocumento Int      @id @default(autoincrement())
+  nombre      String
+  url         String
+  fechaSubida DateTime @default(now())
+  idEgresado  Int
 
-  Egresado      Egresado @relation(fields: [idEgresado], references: [idEgresado])
+  // ✅ RELACIÓN INVERSA
+  Egresado Egresado @relation(fields: [idEgresado], references: [idEgresado])
 
   @@index([idEgresado])
 }

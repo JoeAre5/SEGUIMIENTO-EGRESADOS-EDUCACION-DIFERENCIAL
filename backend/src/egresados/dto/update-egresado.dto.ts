@@ -1,14 +1,37 @@
-import { IsOptional, IsString, IsInt, IsNumber } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
 
 export class UpdateEgresadoDto {
+  // ✅ Ya NO se exige (y en el formulario ya no va)
   @IsOptional()
   @IsString()
-  fechaEgreso?: string; // ✅ agregado
+  fechaEgreso?: string;
 
+  // ✅ NUEVO (formulario)
+  @IsOptional()
+  @IsInt()
+  anioFinEstudios?: number;
+
+  // ✅ Solo estas 3 opciones (pero opcional en PATCH)
   @IsOptional()
   @IsString()
+  @IsIn(['Trabajando', 'Cesante', 'Otro'])
   situacionActual?: string;
 
+  // ✅ Si en el PATCH envían situacionActual="Otro", deben especificar
+  @ValidateIf((o) => o.situacionActual === 'Otro')
+  @IsString()
+  @MaxLength(120)
+  situacionActualOtro?: string;
+
+  // Compatibilidad (aún no lo tocamos en el service, solo DTO)
   @IsOptional()
   @IsString()
   empresa?: string;
@@ -18,34 +41,104 @@ export class UpdateEgresadoDto {
   cargo?: string;
 
   @IsOptional()
-  @IsNumber()
   sueldo?: number;
 
   @IsOptional()
-  @IsInt()
+  @IsString()
+  @IsIn([
+    'Sueldo mínimo ($500.000)',
+    'Entre $500.001 y $1.000.000',
+    'Entre $1.000.001 y $1.500.000',
+    'Más de $1.500.001',
+  ])
+  nivelRentas?: string;
+
+  // ✅ NUEVOS CAMPOS (formulario)
+  @IsOptional()
+  @IsString()
+  @IsIn(['PSU/PAES', 'CFT', 'PACE', 'Propedéutico', 'Otro'])
+  viaIngreso?: string;
+
+  @ValidateIf((o) => o.viaIngreso === 'Otro')
+  @IsString()
+  @MaxLength(120)
+  viaIngresoOtro?: string;
+
+  @IsOptional()
+  anioIngresoCarrera?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['Femenino', 'Masculino', 'Prefiero no decirlo'])
+  genero?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'Menos de 2 meses',
+    'Entre 2 a 6 meses',
+    'Entre 6 meses y 1 año',
+    'Más de 1 año',
+    'No he encontrado trabajo',
+  ])
+  tiempoBusquedaTrabajo?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['Público', 'Privado', 'Otro'])
+  sectorLaboral?: string;
+
+  @ValidateIf((o) => o.sectorLaboral === 'Otro')
+  @IsString()
+  @MaxLength(120)
+  sectorLaboralOtro?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'Del Estado',
+    'Particular subvencionado',
+    'Particular',
+    'No aplica',
+    'Otro',
+  ])
+  tipoEstablecimiento?: string;
+
+  @ValidateIf((o) => o.tipoEstablecimiento === 'Otro')
+  @IsString()
+  @MaxLength(120)
+  tipoEstablecimientoOtro?: string;
+
+  // ✅ Ya no van en el formulario, pero opcionales por compatibilidad
+  @IsOptional()
   anioIngresoLaboral?: number;
 
   @IsOptional()
-  @IsInt()
   anioSeguimiento?: number;
 
+  // ✅ Contacto
   @IsOptional()
   @IsString()
+  @MaxLength(20)
   telefono?: string;
 
   @IsOptional()
-  @IsString()
+  @IsEmail()
+  @MaxLength(120)
   emailContacto?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(250)
   direccion?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   linkedin?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
   contactoAlternativo?: string;
 }

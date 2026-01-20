@@ -1,16 +1,11 @@
 import {
   Asignatura,
-  Convenio,
   Cursacion,
   Estudiante,
   LineaAsignatura,
   NIVEL,
-  Plan,
-  PracticaTomada,
-  PrismaClient,
-  PTConvenio,
   ResultadoEND,
-  Usuario,
+  PrismaClient,
 } from '@prisma/client';
 
 import * as constants from './seed-constants';
@@ -23,21 +18,48 @@ async function main() {
   // =============================
   // PLANES
   // =============================
-  const planesInsertados: Plan[] = await prisma.plan.createManyAndReturn({
+  await prisma.plan.createMany({
     data: constants.PLANES,
     skipDuplicates: true,
   });
+
+  // Traemos los IDs reales desde la BD (evita problemas con skipDuplicates)
+  const planesInsertados = await prisma.plan.findMany({
+    select: { idPlan: true },
+  });
+
+  const planIds = planesInsertados.map((p) => p.idPlan).filter(Boolean);
+
+  if (planIds.length === 0) {
+    throw new Error(
+      'No hay planes en la BD para asignar a estudiantes (planIds vacío). Revisa constants.PLANES.',
+    );
+  }
+
   moreLog(planesInsertados);
 
   // =============================
-  // ESTUDIANTES
+  // ESTUDIANTES (FIX: nunca idPlan undefined)
   // =============================
+  const estudiantesData = constants
+    .generarEstudiantes(400, planIds)
+    .map((e: any, idx: number) => {
+      const fallbackIdPlan = planIds[idx % planIds.length];
+      return {
+        ...e,
+        idPlan: e.idPlan ?? fallbackIdPlan,
+      };
+    });
+
+  const invalidos = estudiantesData.filter((e: any) => e.idPlan == null);
+  if (invalidos.length > 0) {
+    console.error('Ejemplos de estudiantes con idPlan inválido:', invalidos.slice(0, 5));
+    throw new Error('Hay estudiantes con idPlan undefined/null. Revisa generarEstudiantes().');
+  }
+
   const estudiantesInsertados: Estudiante[] =
     await prisma.estudiante.createManyAndReturn({
-      data: constants.generarEstudiantes(
-        400,
-        planesInsertados.map((p) => p.idPlan),
-      ),
+      data: estudiantesData,
       skipDuplicates: true,
     });
 
@@ -127,7 +149,11 @@ async function main() {
 
           cursacionesQueries.push({
             idCursacion: cursacionId,
-            agnio: estudiante.agnioIngreso + Math.floor(cursacionId / 12) + intentoActual - 1,
+            agnio:
+              estudiante.agnioIngreso +
+              Math.floor(cursacionId / 12) +
+              intentoActual -
+              1,
             notaFinal: nota,
             grupo: Math.random() > 0.5 ? 'A' : 'B',
             numIntento: intentoActual,
@@ -147,10 +173,6 @@ async function main() {
   const cursacionesInsertadas = await prisma.cursacion.createManyAndReturn({
     data: cursacionesQueries,
     skipDuplicates: true,
-    include: {
-      Asignatura: true,
-      Estudiante: true,
-    },
   });
 
   moreLog(cursacionesInsertadas);
@@ -223,7 +245,7 @@ async function main() {
   console.timeEnd('END SEEDING');
 
   // =============================
-  // PRACTICAS (ARREGLADO COMPLETO)
+  // PRACTICAS
   // =============================
   console.info('Se comienza el seeding de Prácticas');
   console.time('PRACTICA SEEDING');
@@ -354,7 +376,6 @@ async function main() {
 // =============================
 // HELPERS
 // =============================
-
 const moreLog = function (obj: any): void {
   console.log(util.inspect(obj, true, null, true));
 };
@@ -418,7 +439,6 @@ function calcularNroAsignaturasCursadas(
 // =============================
 // RUN
 // =============================
-
 main()
   .then(async () => {
     await prisma.$disconnect();

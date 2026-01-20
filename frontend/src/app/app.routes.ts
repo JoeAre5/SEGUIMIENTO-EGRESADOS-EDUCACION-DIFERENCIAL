@@ -32,7 +32,7 @@ import { PracticasConvenioComponent } from './components/practicas-convenio/prac
  * [/end]               -> [admin, jc]
  * [/avance-individual] -> [admin,jc]
  * [/ver-tendencias]    -> [administrador, jc, docente, coordinador]
- * [/seguimiento-egresados] -> [admin, jc, coordinador]
+ * [/seguimiento-egresados] -> [admin, jc, coordinador, EGRESADO]
  */
 
 export const routes: Routes = [
@@ -40,7 +40,7 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [loginGuard] },
   { path: 'menu', component: MenuComponent, canActivate: [authGuard] },
 
-  // ✅ NUEVA RUTA SEGUIMIENTO EGRESADOS
+  // ✅ RUTA SEGUIMIENTO EGRESADOS (incluye EGRESADO)
   {
     path: 'seguimiento-egresados',
     component: SeguimientoEgresadosComponent,
@@ -50,6 +50,7 @@ export const routes: Routes = [
         Roles.ADMINISTRADOR,
         Roles.JEFA_CARRERA,
         Roles.COORDINADOR,
+        'EGRESADO', // ✅ agregado
       ],
     },
   },

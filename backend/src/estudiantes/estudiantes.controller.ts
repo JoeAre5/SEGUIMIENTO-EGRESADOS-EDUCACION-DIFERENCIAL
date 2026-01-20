@@ -43,6 +43,18 @@ export class EstudiantesController {
     return this.estudianteService.obtAvanceDe(idEstudiante);
   }
 
+  // ✅✅✅ NUEVO: ACTUALIZAR SOLO EL PLAN DEL ESTUDIANTE
+  // PATCH /estudiantes/:idEstudiante/plan
+  @Patch(':idEstudiante/plan')
+  public async updatePlan(
+    @Param('idEstudiante', ParseIntPipe) idEstudiante: number,
+    @Body() body: { idPlan: number },
+  ) {
+    return this.estudianteService.update(idEstudiante, {
+      idPlan: Number(body?.idPlan),
+    } as any);
+  }
+
   // ✅ ACTUALIZAR estudiante por id
   @Patch(':idEstudiante')
   public async update(

@@ -5,6 +5,9 @@ model Usuario {
   hashedPassword String
   nombreCompleto String
   role           ROLE   @default(Docente)
+
+  // ✅ NUEVO (nullable para no romper nada)
+  idEstudiante   Int?
 }
 
 enum ROLE {
@@ -13,4 +16,7 @@ enum ROLE {
   CoordinadorPractica
   Secretario
   Docente
+
+  // ✅ NUEVO
+  EGRESADO
 }

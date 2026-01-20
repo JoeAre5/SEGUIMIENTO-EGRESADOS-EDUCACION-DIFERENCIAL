@@ -6,7 +6,26 @@
   </div>
 </div>
 
-<div class="grid grid-cols-3 gap-12 m-14 bg-white p-10 shadow-lg rounded-md">
+<!-- ✅ Vista SOLO EGRESADO: ve únicamente Seguimiento Egresados -->
+<div
+  class="grid grid-cols-1 gap-12 m-14 bg-white p-10 shadow-lg rounded-md"
+  *ngIf="isEgresado"
+>
+  <p-card
+    *tieneRol="[EGRESADO]"
+    header=""
+    styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
+    (click)="redirigirHacia('seguimiento-egresados')"
+  >
+    <p class="text-4xl font-semibold">Seguimiento Egresados</p>
+  </p-card>
+</div>
+
+<!-- ✅ Vista NORMAL: todos los demás roles ven el menú actual -->
+<div
+  class="grid grid-cols-3 gap-12 m-14 bg-white p-10 shadow-lg rounded-md"
+  *ngIf="!isEgresado"
+>
   <p-card
     *tieneRol="[ADMINISTRADOR, JEFA_CARRERA, SECRETARIO, DOCENTE, COORDINADOR]"
     header=""

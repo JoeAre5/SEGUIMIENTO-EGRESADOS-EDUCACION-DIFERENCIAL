@@ -11,24 +11,104 @@ export class EgresadosService {
   constructor(private prisma: PrismaService) {}
 
   // ✅ Helper: convierte "YYYY-MM-DD" o ISO en Date válida
-  private parseFecha(fecha: string): Date {
+  // (sin afectar lógica: solo tipado correcto)
+  private parseFecha(fecha: string): Date | undefined {
     if (!fecha) return undefined;
-
-    // si ya viene ISO completo
     if (fecha.includes('T')) return new Date(fecha);
-
-    // si viene tipo 2020-05-20
     return new Date(`${fecha}T00:00:00.000Z`);
+  }
+
+  // ✅ Helpers: normalizar tipos (por FormData todo llega string)
+  private toIntOrNull(v: any): number | null {
+    if (v === null || v === undefined || v === '') return null;
+    const n = typeof v === 'number' ? v : parseInt(String(v), 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private toStrOrNull(v: any): string | null {
+    if (v === null || v === undefined) return null;
+    const s = String(v).trim();
+    return s.length ? s : null;
+  }
+
+  /* ============================================================
+    ✅ MINE: devuelve seguimiento del autenticado (si existe)
+    - Si no existe, retorna null (para formulario vacío sin 404)
+  ============================================================ */
+  async findMine(idEstudiante: number) {
+    const id = Number(idEstudiante);
+    if (!id || Number.isNaN(id)) return null;
+
+    const egresado = await this.prisma.egresado.findUnique({
+      where: { idEstudiante: id },
+      include: {
+        documentos: true,
+        Estudiante: {
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // 👇 si no hay seguimiento aún, no es error
+    return egresado ?? null;
+  }
+
+  /* ============================================================
+    ✅ MINE: upsert del autenticado (crea si no existe, si existe actualiza)
+    - Reutiliza create() y updateByEstudiante() para no romper lógica
+  ============================================================ */
+  async upsertMine(
+    idEstudiante: number,
+    dto: CreateEgresadoDto | UpdateEgresadoDto,
+    archivos: Express.Multer.File[],
+  ) {
+    const id = Number(idEstudiante);
+    if (!id || Number.isNaN(id)) {
+      // aquí NO uso ForbiddenException para no cambiar imports,
+      // pero puedes cambiarlo a Forbidden/Unauthorized si prefieres.
+      throw new NotFoundException('No se pudo identificar al egresado autenticado');
+    }
+
+    const existe = await this.prisma.egresado.findUnique({
+      where: { idEstudiante: id },
+    });
+
+    if (existe) {
+      return this.updateByEstudiante(id, dto as any, archivos);
+    }
+
+    // Si no existe, creamos (pero forzamos idEstudiante)
+    const dtoCreate: any = { ...(dto as any), idEstudiante: id };
+    return this.create(dtoCreate, archivos);
   }
 
   /* ===========================
     ✅ CREATE (o update si existe)
   =========================== */
   async create(dto: CreateEgresadoDto, archivos: Express.Multer.File[]) {
-    dto.idEstudiante = Number(dto.idEstudiante);
+    // ✅ SIN afectar lógica: evitar NaN si viene vacío/undefined
+    const idEst =
+      dto?.idEstudiante !== undefined && dto?.idEstudiante !== null
+        ? Number(dto.idEstudiante)
+        : NaN;
+    dto.idEstudiante = idEst as any;
+
     dto.fechaEgreso = dto.fechaEgreso?.toString();
 
-    const fechaConvertida = this.parseFecha(dto.fechaEgreso);
+    const fechaConvertida = dto.fechaEgreso ? this.parseFecha(dto.fechaEgreso) : null;
 
     const existe = await this.prisma.egresado.findUnique({
       where: { idEstudiante: dto.idEstudiante },
@@ -38,29 +118,69 @@ export class EgresadosService {
       return this.updateByEstudiante(dto.idEstudiante, dto as any, archivos);
     }
 
+    const { planEstudios, ..._rest } = dto as any;
+
     const egresado = await this.prisma.egresado.create({
       data: {
-        idEstudiante: dto.idEstudiante,
+        // ✅ relación obligatoria => connect
+        Estudiante: { connect: { idEstudiante: dto.idEstudiante } },
+
         fechaEgreso: fechaConvertida,
+
+        anioFinEstudios: this.toIntOrNull((dto as any).anioFinEstudios),
+
         situacionActual: dto.situacionActual,
-        empresa: dto.empresa || null,
-        cargo: dto.cargo || null,
-        sueldo: dto.sueldo ? Number(dto.sueldo) : null,
-        anioIngresoLaboral: dto.anioIngresoLaboral
-          ? Number(dto.anioIngresoLaboral)
-          : null,
-        anioSeguimiento: dto.anioSeguimiento
-          ? Number(dto.anioSeguimiento)
-          : null,
-        telefono: dto.telefono || null,
-        emailContacto: dto.emailContacto || null,
-        direccion: dto.direccion || null,
-        linkedin: dto.linkedin || null,
-        contactoAlternativo: dto.contactoAlternativo || null,
+        situacionActualOtro:
+          dto.situacionActual === 'Otro'
+            ? this.toStrOrNull((dto as any).situacionActualOtro)
+            : null,
+
+        empresa: this.toStrOrNull(dto.empresa),
+        cargo: this.toStrOrNull(dto.cargo),
+        sueldo: dto.sueldo !== undefined ? this.toIntOrNull(dto.sueldo) : null,
+        nivelRentas: (dto as any).nivelRentas ?? null,
+
+        viaIngreso: this.toStrOrNull((dto as any).viaIngreso),
+        viaIngresoOtro:
+          (dto as any).viaIngreso === 'Otro'
+            ? this.toStrOrNull((dto as any).viaIngresoOtro)
+            : null,
+
+        anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera),
+
+        genero: this.toStrOrNull((dto as any).genero),
+        tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo),
+
+        sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral),
+        sectorLaboralOtro:
+          (dto as any).sectorLaboral === 'Otro'
+            ? this.toStrOrNull((dto as any).sectorLaboralOtro)
+            : null,
+
+        tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento),
+        tipoEstablecimientoOtro:
+          (dto as any).tipoEstablecimiento === 'Otro'
+            ? this.toStrOrNull((dto as any).tipoEstablecimientoOtro)
+            : null,
+
+        anioIngresoLaboral:
+          dto.anioIngresoLaboral !== undefined
+            ? this.toIntOrNull(dto.anioIngresoLaboral)
+            : null,
+
+        // ✅ FIX: NO enviar null; si no viene, Prisma usa @default(2026)
+        ...(dto.anioSeguimiento !== undefined
+          ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) }
+          : {}),
+
+        telefono: this.toStrOrNull(dto.telefono),
+        emailContacto: this.toStrOrNull(dto.emailContacto),
+        direccion: this.toStrOrNull(dto.direccion),
+        linkedin: this.toStrOrNull(dto.linkedin),
+        contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo),
       },
     });
 
-    // ✅ Guardar archivos (si vienen)
     if (archivos && archivos.length > 0) {
       const docs = archivos.map((f) => ({
         nombre: f.originalname,
@@ -82,7 +202,20 @@ export class EgresadosService {
       include: {
         documentos: true,
         Estudiante: {
-          select: { rut: true, nombreCompleto: true },
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
         },
       },
       orderBy: { idEgresado: 'desc' },
@@ -93,15 +226,33 @@ export class EgresadosService {
     ✅ GET ONE (por idEstudiante)
   =========================== */
   async findOne(idEstudiante: number) {
-    return this.prisma.egresado.findUnique({
-      where: { idEstudiante: Number(idEstudiante) },
+    idEstudiante = Number(idEstudiante);
+
+    const egresado = await this.prisma.egresado.findUnique({
+      where: { idEstudiante },
       include: {
         documentos: true,
         Estudiante: {
-          select: { rut: true, nombreCompleto: true },
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
         },
       },
     });
+
+    if (!egresado) throw new NotFoundException('Egresado no encontrado');
+    return egresado;
   }
 
   /* ===========================
@@ -120,52 +271,126 @@ export class EgresadosService {
 
     if (!existe) throw new NotFoundException('Egresado no encontrado');
 
-    const fechaConvertida = dto.fechaEgreso
-      ? this.parseFecha(dto.fechaEgreso.toString())
+    const { planEstudios, ..._rest } = dto as any;
+
+    const fechaConvertida = (dto as any).fechaEgreso
+      ? this.parseFecha((dto as any).fechaEgreso.toString())
       : undefined;
 
-    // ✅ Construimos solo lo que venga en dto
     const dataUpdate: any = {
       ...(fechaConvertida ? { fechaEgreso: fechaConvertida } : {}),
+
+      ...((dto as any).anioFinEstudios !== undefined
+        ? { anioFinEstudios: this.toIntOrNull((dto as any).anioFinEstudios) }
+        : {}),
+
       ...(dto.situacionActual !== undefined
-        ? { situacionActual: dto.situacionActual }
-        : {}),
-      ...(dto.empresa !== undefined ? { empresa: dto.empresa } : {}),
-      ...(dto.cargo !== undefined ? { cargo: dto.cargo } : {}),
-      ...(dto.sueldo !== undefined
-        ? { sueldo: dto.sueldo ? Number(dto.sueldo) : null }
-        : {}),
-      ...(dto.anioIngresoLaboral !== undefined
         ? {
-            anioIngresoLaboral: dto.anioIngresoLaboral
-              ? Number(dto.anioIngresoLaboral)
-              : null,
+            situacionActual: dto.situacionActual,
+            situacionActualOtro:
+              dto.situacionActual === 'Otro'
+                ? this.toStrOrNull((dto as any).situacionActualOtro)
+                : null,
           }
+        : {}),
+
+      ...(dto.situacionActualOtro !== undefined && dto.situacionActual === undefined
+        ? { situacionActualOtro: this.toStrOrNull((dto as any).situacionActualOtro) }
+        : {}),
+
+      ...(dto.empresa !== undefined ? { empresa: this.toStrOrNull(dto.empresa) } : {}),
+      ...(dto.cargo !== undefined ? { cargo: this.toStrOrNull(dto.cargo) } : {}),
+      ...(dto.sueldo !== undefined
+        ? {
+            sueldo:
+              dto.sueldo !== null && dto.sueldo !== ('' as any)
+                ? this.toIntOrNull(dto.sueldo)
+                : null,
+          }
+        : {}),
+      ...((dto as any).nivelRentas !== undefined
+        ? { nivelRentas: (dto as any).nivelRentas ?? null }
+        : {}),
+
+      ...((dto as any).viaIngreso !== undefined
+        ? { viaIngreso: this.toStrOrNull((dto as any).viaIngreso) }
+        : {}),
+      ...((dto as any).viaIngresoOtro !== undefined || (dto as any).viaIngreso !== undefined
+        ? {
+            viaIngresoOtro:
+              (dto as any).viaIngreso === 'Otro'
+                ? this.toStrOrNull((dto as any).viaIngresoOtro)
+                : (dto as any).viaIngreso !== undefined
+                ? null
+                : undefined,
+          }
+        : {}),
+
+      ...((dto as any).anioIngresoCarrera !== undefined
+        ? { anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera) }
+        : {}),
+
+      ...((dto as any).genero !== undefined
+        ? { genero: this.toStrOrNull((dto as any).genero) }
+        : {}),
+      ...((dto as any).tiempoBusquedaTrabajo !== undefined
+        ? { tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo) }
+        : {}),
+
+      ...((dto as any).sectorLaboral !== undefined
+        ? { sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral) }
+        : {}),
+      ...((dto as any).sectorLaboralOtro !== undefined || (dto as any).sectorLaboral !== undefined
+        ? {
+            sectorLaboralOtro:
+              (dto as any).sectorLaboral === 'Otro'
+                ? this.toStrOrNull((dto as any).sectorLaboralOtro)
+                : (dto as any).sectorLaboral !== undefined
+                ? null
+                : undefined,
+          }
+        : {}),
+
+      ...((dto as any).tipoEstablecimiento !== undefined
+        ? { tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento) }
+        : {}),
+      ...((dto as any).tipoEstablecimientoOtro !== undefined ||
+      (dto as any).tipoEstablecimiento !== undefined
+        ? {
+            tipoEstablecimientoOtro:
+              (dto as any).tipoEstablecimiento === 'Otro'
+                ? this.toStrOrNull((dto as any).tipoEstablecimientoOtro)
+                : (dto as any).tipoEstablecimiento !== undefined
+                ? null
+                : undefined,
+          }
+        : {}),
+
+      ...(dto.anioIngresoLaboral !== undefined
+        ? { anioIngresoLaboral: this.toIntOrNull(dto.anioIngresoLaboral) }
         : {}),
       ...(dto.anioSeguimiento !== undefined
-        ? {
-            anioSeguimiento: dto.anioSeguimiento
-              ? Number(dto.anioSeguimiento)
-              : null,
-          }
+        ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) }
         : {}),
-      ...(dto.telefono !== undefined ? { telefono: dto.telefono } : {}),
+
+      ...(dto.telefono !== undefined ? { telefono: this.toStrOrNull(dto.telefono) } : {}),
       ...(dto.emailContacto !== undefined
-        ? { emailContacto: dto.emailContacto }
+        ? { emailContacto: this.toStrOrNull(dto.emailContacto) }
         : {}),
-      ...(dto.direccion !== undefined ? { direccion: dto.direccion } : {}),
-      ...(dto.linkedin !== undefined ? { linkedin: dto.linkedin } : {}),
+      ...(dto.direccion !== undefined ? { direccion: this.toStrOrNull(dto.direccion) } : {}),
+      ...(dto.linkedin !== undefined ? { linkedin: this.toStrOrNull(dto.linkedin) } : {}),
       ...(dto.contactoAlternativo !== undefined
-        ? { contactoAlternativo: dto.contactoAlternativo }
+        ? { contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo) }
         : {}),
     };
+
+    Object.keys(dataUpdate).forEach((k) => dataUpdate[k] === undefined && delete dataUpdate[k]);
 
     await this.prisma.egresado.update({
       where: { idEstudiante },
       data: dataUpdate,
     });
 
-    // ✅ Guardar nuevos documentos sin borrar anteriores
     if (archivos && archivos.length > 0) {
       const docs = archivos.map((f) => ({
         nombre: f.originalname,
@@ -180,47 +405,202 @@ export class EgresadosService {
   }
 
   /* ===========================
-    ✅ ✅ ✅ DELETE DOCUMENTO INDIVIDUAL (NUEVO)
-    ✅ DELETE /egresados/documento/:idDocumento
+    ✅ DASHBOARD POR COHORTE
+    Cohorte = anioFinEstudios
+  =========================== */
+  async getDashboardCohortes() {
+    // 1) Total por cohorte
+    const porCohorte = await this.prisma.egresado.groupBy({
+      by: ['anioFinEstudios'],
+      _count: { _all: true },
+      where: { anioFinEstudios: { not: null } },
+      orderBy: { anioFinEstudios: 'desc' },
+    });
+
+    // 2) Por cohorte + situacion
+    const porCohorteSituacion = await this.prisma.egresado.groupBy({
+      by: ['anioFinEstudios', 'situacionActual'],
+      _count: { _all: true },
+      where: { anioFinEstudios: { not: null } },
+    });
+
+    // 3) Por cohorte + nivelRentas
+    const porCohorteRentas = await this.prisma.egresado.groupBy({
+      by: ['anioFinEstudios', 'nivelRentas'],
+      _count: { _all: true },
+      where: { anioFinEstudios: { not: null } },
+    });
+
+    // 4) Docs por cohorte (contar con/sin docs)
+    const egresadosMin = await this.prisma.egresado.findMany({
+      where: { anioFinEstudios: { not: null } },
+      select: {
+        anioFinEstudios: true,
+        documentos: { select: { idDocumento: true } },
+      },
+    });
+
+    const docsPorCohorte = new Map<number, { conDocs: number; sinDocs: number }>();
+    for (const e of egresadosMin) {
+      const anio = e.anioFinEstudios as number;
+      const tiene = (e.documentos?.length ?? 0) > 0;
+
+      if (!docsPorCohorte.has(anio)) docsPorCohorte.set(anio, { conDocs: 0, sinDocs: 0 });
+      const ref = docsPorCohorte.get(anio)!;
+      if (tiene) ref.conDocs += 1;
+      else ref.sinDocs += 1;
+    }
+
+    // Normalizar shape amigable
+    const cohortes = porCohorte
+      .filter((x) => x.anioFinEstudios !== null)
+      .map((x) => {
+        const anio = x.anioFinEstudios as number;
+
+        const situacion = { Trabajando: 0, Cesante: 0, Otro: 0 };
+
+        for (const s of porCohorteSituacion) {
+          if ((s.anioFinEstudios as number) !== anio) continue;
+          const key = (s.situacionActual ?? 'Otro') as 'Trabajando' | 'Cesante' | 'Otro';
+          if (situacion[key] !== undefined) situacion[key] = s._count._all;
+        }
+
+        const rentas: Record<string, number> = {};
+        for (const r of porCohorteRentas) {
+          if ((r.anioFinEstudios as number) !== anio) continue;
+          const key = r.nivelRentas ?? 'Sin dato';
+          rentas[key] = r._count._all;
+        }
+
+        const docs = docsPorCohorte.get(anio) ?? { conDocs: 0, sinDocs: 0 };
+
+        return {
+          anio,
+          total: x._count._all,
+          situacion,
+          rentas,
+          docs,
+        };
+      });
+
+    return { cohortes };
+  }
+
+  /* ===========================
+    ✅ DELETE DOCUMENTO POR ID
   =========================== */
   async deleteDocumento(idDocumento: number) {
     idDocumento = Number(idDocumento);
 
-    // ✅ 1. Buscar documento
     const doc = await this.prisma.documentoEgresado.findUnique({
       where: { idDocumento },
     });
 
     if (!doc) throw new NotFoundException('Documento no encontrado');
 
-    // ✅ 2. Eliminar archivo físico
     try {
-      // ✅ convierte "/documents/egresados/file.pdf" → "documents/egresados/file.pdf"
       const rutaRelativa = doc.url.replace('/documents/', 'documents/');
       const ruta = join(process.cwd(), rutaRelativa);
-
       await unlink(ruta);
-    } catch (err: any) {
+    } catch (err) {
       console.warn('⚠️ No se pudo eliminar el archivo físico:', err.message);
     }
 
-    // ✅ 3. Eliminar registro en BD
     await this.prisma.documentoEgresado.delete({
       where: { idDocumento },
     });
 
-    // ✅ 4. Retornar egresado actualizado
     const egresado = await this.prisma.egresado.findUnique({
       where: { idEgresado: doc.idEgresado },
       include: {
         documentos: true,
         Estudiante: {
-          select: { rut: true, nombreCompleto: true },
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
         },
       },
     });
 
     return egresado;
+  }
+
+  /* ============================================================
+    ✅ NUEVO: DELETE DOCUMENTO (MINE)
+    - El egresado autenticado SOLO puede borrar documentos de SU seguimiento
+    - Reutiliza la misma lógica física de borrado del método deleteDocumento
+    - NO afecta el flujo Admin/Secretaría
+  ============================================================ */
+  async deleteDocumentoMine(idDocumento: number, idEstudiante: number) {
+    idDocumento = Number(idDocumento);
+    idEstudiante = Number(idEstudiante);
+
+    const doc = await this.prisma.documentoEgresado.findUnique({
+      where: { idDocumento },
+    });
+
+    if (!doc) throw new NotFoundException('Documento no encontrado');
+
+    // ✅ validar que el documento pertenezca al egresado del token
+    const egresado = await this.prisma.egresado.findUnique({
+      where: { idEstudiante },
+      select: { idEgresado: true },
+    });
+
+    if (!egresado) throw new NotFoundException('Egresado no encontrado');
+
+    // si el documento no es del egresado autenticado, lo tratamos como no encontrado
+    // para no filtrar información
+    if (doc.idEgresado !== egresado.idEgresado) {
+      throw new NotFoundException('Documento no encontrado');
+    }
+
+    try {
+      const rutaRelativa = doc.url.replace('/documents/', 'documents/');
+      const ruta = join(process.cwd(), rutaRelativa);
+      await unlink(ruta);
+    } catch (err) {
+      console.warn('⚠️ No se pudo eliminar el archivo físico:', err.message);
+    }
+
+    await this.prisma.documentoEgresado.delete({
+      where: { idDocumento },
+    });
+
+    // devolver egresado actualizado (mismo shape que findOne/findMine)
+    return this.prisma.egresado.findUnique({
+      where: { idEstudiante },
+      include: {
+        documentos: true,
+        Estudiante: {
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 
   /* ===========================

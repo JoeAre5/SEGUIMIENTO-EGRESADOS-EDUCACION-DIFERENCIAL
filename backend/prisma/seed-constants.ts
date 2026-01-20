@@ -1942,6 +1942,7 @@ export const USUARIOS: Usuario[] = [
     role: 'Administrador',
     hashedPassword: 'admin',
     nombreCompleto: 'Administrador',
+    idEstudiante: null,
   },
   {
     id: undefined,
@@ -1950,6 +1951,7 @@ export const USUARIOS: Usuario[] = [
     email: 'jc@jc.com',
     hashedPassword: 'jc',
     nombreCompleto: 'Jefe de Carrera',
+    idEstudiante: null,
   },
   {
     id: undefined,
@@ -1958,6 +1960,7 @@ export const USUARIOS: Usuario[] = [
     email: 'coordinador@practica.com',
     hashedPassword: 'coordinador',
     nombreCompleto: 'Coordinador de Práctica',
+    idEstudiante: null,
   },
   {
     id: undefined,
@@ -1966,6 +1969,7 @@ export const USUARIOS: Usuario[] = [
     email: 'secretario@secretario.com',
     hashedPassword: 'secretario',
     nombreCompleto: 'Secretario',
+    idEstudiante: null,
   },
   {
     id: undefined,
@@ -1974,6 +1978,7 @@ export const USUARIOS: Usuario[] = [
     email: 'docente@docente.com',
     hashedPassword: 'docente',
     nombreCompleto: 'Docente',
+    idEstudiante: null,
   },
 ];
 

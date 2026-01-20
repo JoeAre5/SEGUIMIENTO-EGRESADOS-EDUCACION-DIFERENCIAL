@@ -46,67 +46,65 @@ export class EstudiantesService {
 
   // ✅✅ NUEVO: CREAR ESTUDIANTE
   async create(dto: CreateEstudianteDto) {
-  const existe = await this.prisma.estudiante.findUnique({
-    where: { rut: dto.rut },
-  });
-
-  if (existe) {
-    throw new BadRequestException('Ya existe un estudiante con ese RUT');
-  }
-
-  return this.prisma.estudiante.create({
-    data: {
-      rut: dto.rut,
-      nombreCompleto: `${dto.nombre} ${dto.apellido}`.trim(), // ✅ se construye aquí
-      nombreSocial: dto.nombreSocial,
-      agnioIngreso: dto.agnioIngreso,
-      idPlan: dto.idPlan,
-    },
-  });
-}
-
-
-  // ✅✅ NUEVO: ACTUALIZAR ESTUDIANTE
-  async update(idEstudiante: number, dto: UpdateEstudianteDto) {
-  const existe = await this.prisma.estudiante.findUnique({
-    where: { idEstudiante },
-  });
-
-  if (!existe) throw new NotFoundException('Estudiante no encontrado');
-
-  // ✅ validar rut si cambia
-  if (dto.rut && dto.rut !== existe.rut) {
-    const rutExiste = await this.prisma.estudiante.findUnique({
+    const existe = await this.prisma.estudiante.findUnique({
       where: { rut: dto.rut },
     });
 
-    if (rutExiste)
-      throw new BadRequestException('Ya existe otro estudiante con ese RUT');
+    if (existe) {
+      throw new BadRequestException('Ya existe un estudiante con ese RUT');
+    }
+
+    return this.prisma.estudiante.create({
+      data: {
+        rut: dto.rut,
+        nombreCompleto: `${dto.nombre} ${dto.apellido}`.trim(), // ✅ se construye aquí
+        nombreSocial: dto.nombreSocial,
+        agnioIngreso: dto.agnioIngreso,
+        idPlan: dto.idPlan,
+      },
+    });
   }
 
-  // ✅ construir nombreCompleto si llega nombre o apellido
-  let nombreCompleto = existe.nombreCompleto;
+  // ✅✅ NUEVO: ACTUALIZAR ESTUDIANTE
+  async update(idEstudiante: number, dto: UpdateEstudianteDto) {
+    const existe = await this.prisma.estudiante.findUnique({
+      where: { idEstudiante },
+    });
 
-  const nombreActual = dto.nombre ?? existe.nombreCompleto.split(' ')[0];
-  const apellidoActual =
-    dto.apellido ?? existe.nombreCompleto.split(' ').slice(1).join(' ');
+    if (!existe) throw new NotFoundException('Estudiante no encontrado');
 
-  if (dto.nombre || dto.apellido) {
-    nombreCompleto = `${nombreActual} ${apellidoActual}`.trim();
+    // ✅ validar rut si cambia
+    if (dto.rut && dto.rut !== existe.rut) {
+      const rutExiste = await this.prisma.estudiante.findUnique({
+        where: { rut: dto.rut },
+      });
+
+      if (rutExiste)
+        throw new BadRequestException('Ya existe otro estudiante con ese RUT');
+    }
+
+    // ✅ construir nombreCompleto si llega nombre o apellido
+    let nombreCompleto = existe.nombreCompleto;
+
+    const nombreActual = dto.nombre ?? existe.nombreCompleto.split(' ')[0];
+    const apellidoActual =
+      dto.apellido ?? existe.nombreCompleto.split(' ').slice(1).join(' ');
+
+    if (dto.nombre || dto.apellido) {
+      nombreCompleto = `${nombreActual} ${apellidoActual}`.trim();
+    }
+
+    return this.prisma.estudiante.update({
+      where: { idEstudiante },
+      data: {
+        rut: dto.rut ?? undefined,
+        nombreCompleto,
+        nombreSocial: dto.nombreSocial ?? undefined,
+        agnioIngreso: dto.agnioIngreso ?? undefined,
+        idPlan: dto.idPlan ?? undefined,
+      },
+    });
   }
-
-  return this.prisma.estudiante.update({
-    where: { idEstudiante },
-    data: {
-      rut: dto.rut ?? undefined,
-      nombreCompleto,
-      nombreSocial: dto.nombreSocial ?? undefined,
-      agnioIngreso: dto.agnioIngreso ?? undefined,
-      idPlan: dto.idPlan ?? undefined,
-    },
-  });
-}
-
 
   // ✅✅ NUEVO: ELIMINAR ESTUDIANTE
   async delete(idEstudiante: number) {
@@ -125,19 +123,24 @@ export class EstudiantesService {
   // 🔥 TU CÓDIGO ORIGINAL COMPLETO
   // ===============================
 
-  async getEstudianteById(idEstudiante: number) {
+  // ✅ FIX: si no hay resultados, retornar null (evita undefined silencioso)
+  async getEstudianteById(idEstudiante: number): Promise<InfoEstudianteDTO | null> {
     const infoEstudiante = await this.prisma.$queryRawTyped(
       estudiantesGetEstudiante(idEstudiante),
     );
-    return infoEstudiante.map((value) => {
-      return {
-        nombreCompleto: value.nombreCompleto,
-        rut: value.rut,
-        agnioIngreso: value.agnioIngreso,
-        plan: value.plan,
-        promedio: value.promedio,
-      };
-    })[0] as InfoEstudianteDTO;
+
+    if (!infoEstudiante || infoEstudiante.length === 0) return null;
+
+    return infoEstudiante
+      .map((value) => {
+        return {
+          nombreCompleto: value.nombreCompleto,
+          rut: value.rut,
+          agnioIngreso: value.agnioIngreso,
+          plan: value.plan,
+          promedio: value.promedio,
+        };
+      })[0] as InfoEstudianteDTO;
   }
 
   async getInfoCursosDeEstudiante(rut: string) {
@@ -185,13 +188,17 @@ export class EstudiantesService {
     }) as SemestreRealizadoDTO[];
   }
 
+  // ✅ FIX PRINCIPAL: validar infoEstudiante antes de leer .rut
   async obtAvanceDe(idEstudiante: number) {
     const infoEstudiante = await this.getEstudianteById(idEstudiante);
-    if (!infoEstudiante.rut)
+
+    if (!infoEstudiante || !infoEstudiante.rut) {
       throw new NotFoundException('El estudiante con ese id no existe');
+    }
 
     const rut = infoEstudiante.rut;
     const cohorte = infoEstudiante.agnioIngreso;
+
     const [cursosRealizados, avanceIndividual, avanceCohorte] =
       await Promise.all([
         this.getInfoCursosDeEstudiante(rut),

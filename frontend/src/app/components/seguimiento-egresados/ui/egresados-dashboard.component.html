@@ -2,31 +2,32 @@
 <div class="m-10 bg-white p-8 shadow-lg rounded-md" *ngIf="!isEgresado">
   <!-- ✅✅✅ Tarjetas resumen arriba de la tabla -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-    <div class="rounded-xl border border-sky-800 bg-sky-800 p-4 shadow-sm">
+    <!-- ✅ Mismo tono del título: bg-sky-700 + border-sky-700 -->
+    <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
       <p class="text-xs text-white/90 font-semibold">Total Egresados</p>
       <p class="text-2xl font-extrabold text-white">{{ stats.total }}</p>
       <p class="text-xs text-white/80">registros</p>
     </div>
 
-    <div class="rounded-xl border border-emerald-700 bg-emerald-700 p-4 shadow-sm">
+    <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
       <p class="text-xs text-white/90 font-semibold">Trabajando</p>
       <p class="text-2xl font-extrabold text-white">{{ stats.trabajando }}</p>
       <p class="text-xs text-white/80">activos</p>
     </div>
 
-    <div class="rounded-xl border border-rose-600 bg-rose-600 p-4 shadow-sm">
+    <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
       <p class="text-xs text-white/90 font-semibold">Cesante</p>
       <p class="text-2xl font-extrabold text-white">{{ stats.cesante }}</p>
       <p class="text-xs text-white/80">sin trabajo</p>
     </div>
 
-    <div class="rounded-xl border border-amber-600 bg-amber-600 p-4 shadow-sm">
+    <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
       <p class="text-xs text-white/90 font-semibold">Otro</p>
       <p class="text-2xl font-extrabold text-white">{{ stats.otro }}</p>
       <p class="text-xs text-white/80">otros casos</p>
     </div>
 
-    <div class="rounded-xl border border-indigo-700 bg-indigo-700 p-4 shadow-sm">
+    <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
       <p class="text-xs text-white/90 font-semibold">Año de cohorte a la que pertenece</p>
       <p class="text-2xl font-extrabold text-white">—</p>
       <p class="text-xs text-white/80">en tabla</p>
@@ -118,34 +119,30 @@
 
       <ng-template pTemplate="body" let-row>
         <tr>
+          <!-- ✅ Nombre (SIN CHIP) -->
           <td class="col-nombre">
-            <p-tag
-              [value]="row?.Estudiante?.nombreCompleto || '—'"
-              severity="info"
-              [rounded]="true"
-              styleClass="text-base px-3 py-2 tag-2line"
+            <span
+              class="font-semibold text-slate-900"
               [pTooltip]="row?.Estudiante?.nombreCompleto || '—'"
               tooltipPosition="top"
-            ></p-tag>
+            >
+              {{ row?.Estudiante?.nombreCompleto || '—' }}
+            </span>
           </td>
 
+          <!-- ✅ RUT (SIN CHIP) -->
           <td>
-            <p-tag
-              *ngIf="row?.Estudiante?.rut; else sinRut"
-              [value]="row?.Estudiante?.rut"
-              severity="secondary"
-              [rounded]="true"
-              styleClass="text-sm px-3 py-2"
-            ></p-tag>
-            <ng-template #sinRut>—</ng-template>
+            <span class="text-slate-800">
+              {{ row?.Estudiante?.rut || '—' }}
+            </span>
           </td>
 
+          <!-- ✅ Situación (CHIP OUTLINE BLANCO + TEXTO EN NEGRITA) -->
           <td>
             <p-tag
               [value]="row?.situacionActual || '—'"
-              [severity]="severity(row?.situacionActual)"
               [rounded]="true"
-              styleClass="text-base px-3 py-2"
+              styleClass="bg-white text-sky-800 border border-sky-700 text-sm px-3 py-2 font-bold"
             ></p-tag>
 
             <div
@@ -156,77 +153,73 @@
             </div>
           </td>
 
+          <!-- ✅ Institución (SIN CHIP) -->
           <td>
-            <p-tag
+            <span
+              class="text-slate-800"
               *ngIf="row?.empresa; else sinEmpresa"
-              [value]="row?.empresa"
-              severity="info"
-              [rounded]="true"
-              styleClass="text-sm px-3 py-2 tag-2line"
               [pTooltip]="row?.empresa"
               tooltipPosition="top"
-            ></p-tag>
+            >
+              {{ row?.empresa }}
+            </span>
             <ng-template #sinEmpresa>—</ng-template>
           </td>
 
+          <!-- ✅ Cargo (SIN CHIP) -->
           <td>
-            <p-tag
+            <span
+              class="text-slate-800"
               *ngIf="row?.cargo; else sinCargo"
-              [value]="row?.cargo"
-              severity="secondary"
-              [rounded]="true"
-              styleClass="text-sm px-3 py-2"
               [pTooltip]="row?.cargo"
               tooltipPosition="top"
-            ></p-tag>
+            >
+              {{ row?.cargo }}
+            </span>
             <ng-template #sinCargo>—</ng-template>
           </td>
 
+          <!-- ✅ Rentas (SIN CHIP) -->
           <td class="col-rentas">
-            <p-tag
+            <span
+              class="text-slate-800"
               *ngIf="row?.nivelRentas; else sinRenta"
-              [value]="row?.nivelRentas"
-              severity="info"
-              [rounded]="true"
-              styleClass="text-base px-4 py-2 tag-2line"
               [pTooltip]="row?.nivelRentas"
               tooltipPosition="top"
-            ></p-tag>
+            >
+              {{ row?.nivelRentas }}
+            </span>
             <ng-template #sinRenta>—</ng-template>
           </td>
 
+          <!-- ✅ Cohorte (CHIP OUTLINE BLANCO + TEXTO EN NEGRITA) -->
           <td class="col-cohorte">
             <p-tag
               *ngIf="row?.anioFinEstudios; else sinAnioFin"
               [value]="row?.anioFinEstudios"
-              severity="warning"
               [rounded]="true"
-              styleClass="text-sm px-3 py-2"
+              styleClass="bg-white text-sky-800 border border-sky-700 text-sm px-3 py-2 font-bold"
             ></p-tag>
             <ng-template #sinAnioFin>—</ng-template>
           </td>
 
+          <!-- ✅ Teléfono (SIN CHIP) -->
           <td>
-            <p-tag
-              *ngIf="row?.telefono; else sinTel"
-              [value]="row?.telefono"
-              severity="success"
-              [rounded]="true"
-              styleClass="text-sm px-3 py-2"
-            ></p-tag>
-            <ng-template #sinTel>—</ng-template>
+            <span class="text-slate-800">
+              {{ row?.telefono || '—' }}
+            </span>
           </td>
 
+          <!-- ✅ Correo (SIN CHIP) -->
           <td>
-            <p-tag
+            <span
+              class="text-slate-800"
               *ngIf="row?.emailContacto; else sinMail"
-              [value]="row?.emailContacto"
-              severity="info"
-              [rounded]="true"
-              styleClass="text-sm px-3 py-2 tag-2line"
               [pTooltip]="row?.emailContacto"
               tooltipPosition="top"
-            ></p-tag>
+            >
+              {{ row?.emailContacto }}
+            </span>
             <ng-template #sinMail>—</ng-template>
           </td>
 
@@ -297,31 +290,31 @@
 
     <!-- KPIs -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6" [@kpiPop]="kpiAnimKey">
-      <div class="rounded-xl border border-sky-800 bg-sky-800 p-4 shadow-sm">
+      <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Total cohorte</p>
         <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.total }}</p>
         <p class="text-xs text-white/80">registros</p>
       </div>
 
-      <div class="rounded-xl border border-emerald-700 bg-emerald-700 p-4 shadow-sm">
+      <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Trabajando</p>
         <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.trabajando }}</p>
         <p class="text-xs text-white/80">activos</p>
       </div>
 
-      <div class="rounded-xl border border-rose-600 bg-rose-600 p-4 shadow-sm">
+      <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Cesante</p>
         <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.cesante }}</p>
         <p class="text-xs text-white/80">sin trabajo</p>
       </div>
 
-      <div class="rounded-xl border border-amber-600 bg-amber-600 p-4 shadow-sm">
+      <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Otro</p>
         <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.otro }}</p>
         <p class="text-xs text-white/80">otros casos</p>
       </div>
 
-      <div class="rounded-xl border border-indigo-700 bg-indigo-700 p-4 shadow-sm">
+      <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">% con documentos</p>
         <p class="text-2xl font-extrabold text-white">{{ kpiCohorte.porcentajeConDocs }}%</p>
         <p class="text-xs text-white/80">({{ kpiCohorte.conDocs }}/{{ kpiCohorte.total }})</p>

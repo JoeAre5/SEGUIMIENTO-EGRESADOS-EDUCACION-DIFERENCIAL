@@ -16,7 +16,7 @@
     <div class="bg-sky-700 w-6/12 rounded-r-xl py-4">
       <h1 class="text-3xl text-white text-center font-bold">
         Seguimiento de Egresados
-      </h1> 
+      </h1>
     </div>
   </div>
 </div>
@@ -182,8 +182,8 @@
       </small>
     </div>
 
-    <!-- ✅✅✅ EXISTENTE: Plan editable -->
-    <div class="col-span-2" *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado">
+    <!-- ✅✅✅ EXISTENTE: Plan editable (SOLO NO EGRESADO) -->
+    <div class="col-span-2" *ngIf="!isEgresado && modoEstudiante === 'existente' && estudianteSeleccionado">
       <label class="block font-semibold mb-2">Plan de estudios (editable) *</label>
 
       <p-dropdown

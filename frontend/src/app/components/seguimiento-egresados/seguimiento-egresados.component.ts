@@ -44,10 +44,7 @@ import { ChartModule } from 'primeng/chart';
 // ✅ RadioButton
 import { RadioButtonModule } from 'primeng/radiobutton';
 
-import {
-  EgresadosService,
-  UpdateEgresadoDto,
-} from '../../services/egresados.service';
+import { EgresadosService, UpdateEgresadoDto } from '../../services/egresados.service';
 
 import {
   EstudiantesService,
@@ -70,7 +67,6 @@ import * as Helpers from './_refactor/helpers.util';
 import { EgresadosDashboardComponent } from './ui/egresados-dashboard.component';
 
 import * as JwtUtil from '../../utils/jwt.util';
-import * as RutUtil from '../../utils/rut.util';
 import * as SsrStorage from '../../utils/ssr-storage.util';
 
 interface PlanDTO {
@@ -121,12 +117,8 @@ interface PlanDTO {
       ]),
     ]),
     trigger('cardsStagger', [
-      transition(':enter', [
-        query('@cardItem', stagger(70, animateChild()), { optional: true }),
-      ]),
-      transition('* => *', [
-        query('@cardItem', stagger(70, animateChild()), { optional: true }),
-      ]),
+      transition(':enter', [query('@cardItem', stagger(70, animateChild()), { optional: true })]),
+      transition('* => *', [query('@cardItem', stagger(70, animateChild()), { optional: true })]),
     ]),
     trigger('cardItem', [
       transition(':enter', [
@@ -143,7 +135,7 @@ interface PlanDTO {
   ],
 })
 export class SeguimientoEgresadosComponent implements OnInit {
-  @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
   @ViewChild('dt') dt!: Table;
 
   formulario!: FormGroup;
@@ -166,6 +158,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
   modalFiltrosVisible = false;
   filtroValores: Record<string, any> = {};
 
+  // ✅ CONSENTIMIENTO (tu modal)
+  consentimientoVisible = false;
+  consentimientoEstado: 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO' = 'PENDIENTE';
+  consentimientoCargando = false;
+
   // ✅ SSR
   private readonly isBrowser: boolean;
 
@@ -173,6 +170,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
   public EGRESADO = 'Egresado';
   public isEgresado = false;
   private idEstudianteToken: number | null = null;
+
+  // ✅ FIX CONSENTIMIENTO: cache local para que NO reaparezca
+  private consentimientoCacheAceptado = false;
 
   nivelesRentasOptions = [
     { label: 'Sueldo mínimo ($500.000)', value: 'Sueldo mínimo ($500.000)' },
@@ -306,7 +306,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
       const payload = this.decodeJwtSafe(token);
       const role = payload?.role as Roles | undefined;
 
-      // ✅ FIX: idEstudianteToken debe ser numérico real (evita /estudiantes/401)
       const rawIdEst =
         payload?.idEstudiante ?? payload?.id_estudiante ?? payload?.estudianteId ?? null;
 
@@ -315,9 +314,53 @@ export class SeguimientoEgresadosComponent implements OnInit {
       this.idEstudianteToken = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 
       this.isEgresado = role === (this.EGRESADO as any) || role === ('EGRESADO' as any);
+
+      // ✅ FIX CONSENTIMIENTO (AJUSTE): cache existe, pero NO debe bloquear para siempre si BD cambió
+      this.consentimientoCacheAceptado = this.readConsentimientoCache() === 'ACEPTADO';
+
+      // ✅ NO aplicamos estado aquí de forma definitiva; lo decide verificarConsentimientoEgresado()
+      // (esto permite que si cambiaste BD a PENDIENTE/RECHAZADO, el modal vuelva a aparecer)
     } else {
       this.idEstudianteToken = null;
       this.isEgresado = false;
+    }
+  }
+
+  // ---------------------------
+  // ✅ FIX CONSENTIMIENTO: helpers cache
+  // ---------------------------
+  private consentimientoCacheKey(): string {
+    const id = this.idEstudianteToken ?? 'anon';
+    return `consentimiento_egresado_${id}`;
+  }
+
+  private readConsentimientoCache(): 'ACEPTADO' | 'RECHAZADO' | 'PENDIENTE' | null {
+    if (!this.isBrowser) return null;
+    try {
+      const v = localStorage.getItem(this.consentimientoCacheKey());
+      if (v === 'ACEPTADO' || v === 'RECHAZADO' || v === 'PENDIENTE') return v;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private writeConsentimientoCache(v: 'ACEPTADO' | 'RECHAZADO' | 'PENDIENTE') {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.setItem(this.consentimientoCacheKey(), v);
+    } catch {
+      // ignore
+    }
+  }
+
+  // ✅ NUEVO: borrar cache (para cuando cambias BD a PENDIENTE/RECHAZADO y quieras que aparezca el modal)
+  private clearConsentimientoCache() {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.removeItem(this.consentimientoCacheKey());
+    } catch {
+      // ignore
     }
   }
 
@@ -377,6 +420,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
       return;
     }
 
+    // ✅ SIEMPRE verificar en backend (esto arregla que no reaparezca cuando cambias BD a PENDIENTE/RECHAZADO)
+    if (this.isEgresado) {
+      this.verificarConsentimientoEgresado();
+    }
+
     this.chartOptionsCohorte = {
       responsive: true,
       maintainAspectRatio: false,
@@ -401,6 +449,142 @@ export class SeguimientoEgresadosComponent implements OnInit {
     this.cargarEstudiantes();
   }
 
+  /* ===============================
+  CONSENTIMIENTO EGRESADO
+  ================================ */
+
+  private aplicarEstadoConsentimiento(estado: any) {
+    const st = (estado || 'PENDIENTE') as 'PENDIENTE' | 'ACEPTADO' | 'RECHAZADO';
+
+    // ✅ AJUSTE CLAVE:
+    // Si BD dice PENDIENTE/RECHAZADO, entonces NO puede quedar "aceptado" por cache.
+    if (this.isEgresado && st !== 'ACEPTADO') {
+      this.consentimientoCacheAceptado = false;
+      this.clearConsentimientoCache();
+    }
+
+    this.consentimientoEstado = st;
+
+    if (this.isEgresado && st !== 'ACEPTADO') {
+      this.consentimientoVisible = true;
+      this.formulario.disable({ emitEvent: false });
+    } else {
+      this.consentimientoVisible = false;
+      this.formulario.enable({ emitEvent: false });
+    }
+  }
+
+  verificarConsentimientoEgresado() {
+    if (!this.isEgresado) return;
+
+    // ✅ Siempre consulta backend para que refleje la BD aunque hayas tocado Prisma Studio
+    this.egresadosService.getConsentimientoMine().subscribe({
+      next: (r: any) => {
+        const data = r?.data ? r.data : r;
+
+        const estado =
+          data?.consentimientoEstado ??
+          data?.estadoConsentimiento ??
+          data?.consentimiento ??
+          data?.estado ??
+          'PENDIENTE';
+
+        // ✅ Si backend confirma ACEPTADO -> cachear
+        if (estado === 'ACEPTADO') {
+          this.consentimientoCacheAceptado = true;
+          this.writeConsentimientoCache('ACEPTADO');
+        } else {
+          // ✅ Si NO es aceptado -> limpiar cache para que el modal vuelva a salir
+          this.consentimientoCacheAceptado = false;
+          this.clearConsentimientoCache();
+        }
+
+        this.aplicarEstadoConsentimiento(estado);
+      },
+      error: () => {
+        // Si falla, por seguridad lo dejamos pendiente (muestra modal y bloquea)
+        this.consentimientoCacheAceptado = false;
+        this.clearConsentimientoCache();
+        this.aplicarEstadoConsentimiento('PENDIENTE');
+      },
+    });
+  }
+
+  // ✅ FIX CONSENTIMIENTO: aceptar = cerrar + habilitar + cachear
+  aceptarConsentimiento() {
+    // UX inmediato
+    this.consentimientoCargando = true;
+
+    this.consentimientoCacheAceptado = true;
+    this.writeConsentimientoCache('ACEPTADO');
+
+    this.aplicarEstadoConsentimiento('ACEPTADO');
+
+    this.egresadosService.setConsentimientoMine(true).subscribe({
+      next: (r: any) => {
+        const data = r?.data ? r.data : r;
+        this.consentimientoCargando = false;
+
+        const estado =
+          data?.consentimientoEstado ??
+          data?.estadoConsentimiento ??
+          data?.consentimiento ??
+          data?.estado ??
+          'ACEPTADO';
+
+        if (estado === 'ACEPTADO') {
+          this.consentimientoCacheAceptado = true;
+          this.writeConsentimientoCache('ACEPTADO');
+        }
+
+        this.aplicarEstadoConsentimiento('ACEPTADO');
+      },
+      error: () => {
+        // si falla: por seguridad puedes decidir si quieres reabrir o dejar editar.
+        // Para cumplir tu requerimiento (que NO se reabra y deje editar), dejamos aceptado.
+        this.consentimientoCargando = false;
+
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Advertencia',
+          detail:
+            'Se habilitó el formulario, pero falló guardar el consentimiento en el servidor. Revisa el endpoint.',
+        });
+
+        this.consentimientoCacheAceptado = true;
+        this.writeConsentimientoCache('ACEPTADO');
+        this.aplicarEstadoConsentimiento('ACEPTADO');
+      },
+    });
+  }
+
+  rechazarConsentimiento() {
+    this.consentimientoVisible = false;
+    this.consentimientoCargando = true;
+
+    // ✅ si rechaza, guardamos cache RECHAZADO (opcional)
+    this.consentimientoCacheAceptado = false;
+    this.writeConsentimientoCache('RECHAZADO');
+
+    this.egresadosService.setConsentimientoMine(false).subscribe({
+      next: () => {
+        this.consentimientoCargando = false;
+
+        this.messageService.add({
+          severity: 'warn',
+          summary: 'Consentimiento no otorgado',
+          detail: 'No podrás acceder al formulario sin aceptar el consentimiento.',
+        });
+
+        this.volverMenu();
+      },
+      error: () => {
+        this.consentimientoCargando = false;
+        this.volverMenu();
+      },
+    });
+  }
+
   // ---------------------------
   // UI helpers
   // ---------------------------
@@ -414,10 +598,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   }
 
   formHasError(errorKey: string): boolean {
-    return !!(
-      this.formulario?.errors?.[errorKey] &&
-      (this.formulario.touched || this.intentoGuardar)
-    );
+    return !!(this.formulario?.errors?.[errorKey] && (this.formulario.touched || this.intentoGuardar));
   }
 
   // ---------------------------
@@ -430,11 +611,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
         anioFinEstudios: [
           null,
-          [
-            Validators.required,
-            Validators.min(this.MIN_ANIO_INGRESO),
-            Validators.max(this.CURRENT_YEAR + 5),
-          ],
+          [Validators.required, Validators.min(this.MIN_ANIO_INGRESO), Validators.max(this.CURRENT_YEAR + 5)],
         ],
 
         situacionActual: [null, Validators.required],
@@ -448,13 +625,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         viaIngreso: [null],
         viaIngresoOtro: [''],
 
-        anioIngresoCarrera: [
-          null,
-          [
-            Validators.min(this.MIN_ANIO_INGRESO),
-            Validators.max(this.CURRENT_YEAR + 1),
-          ],
-        ],
+        anioIngresoCarrera: [null, [Validators.min(this.MIN_ANIO_INGRESO), Validators.max(this.CURRENT_YEAR + 1)]],
 
         genero: [null],
         tiempoBusquedaTrabajo: [null],
@@ -467,13 +638,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
         sueldo: [null],
 
-        anioIngresoLaboral: [
-          null,
-          [
-            Validators.min(this.MIN_ANIO_INGRESO),
-            Validators.max(this.CURRENT_YEAR + 1),
-          ],
-        ],
+        anioIngresoLaboral: [null, [Validators.min(this.MIN_ANIO_INGRESO), Validators.max(this.CURRENT_YEAR + 1)]],
 
         telefono: ['', [Validators.maxLength(20), Validators.pattern(this.PHONE_8_REGEX)]],
         emailContacto: ['', [Validators.maxLength(120), Validators.pattern(this.EMAIL_REGEX)]],
@@ -697,6 +862,12 @@ export class SeguimientoEgresadosComponent implements OnInit {
       next: (egresado: any) => {
         const eg = egresado?.data ? egresado.data : egresado;
 
+        // ✅ FIX CONSENTIMIENTO: NO vuelvas a llamar verificar aquí (causaba reapertura)
+        // Si necesitas forzar, solo si está pendiente y NO hay cache:
+        if (this.isEgresado && !this.consentimientoCacheAceptado && this.consentimientoEstado !== 'ACEPTADO') {
+          this.verificarConsentimientoEgresado();
+        }
+
         if (!eg || Object.keys(eg).length === 0) {
           this.resetSeguimientoState();
           this.loading = false;
@@ -754,8 +925,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
   private cargarMiSeguimiento() {
     const id = this.idEstudianteToken;
 
-    // ✅ FIX: si no hay idEstudiante en token, igual cargamos por /egresados/mine
-    // (evita warning y evita GET /estudiantes/401)
     if (!id || Number.isNaN(id)) {
       this.loadSeguimientoByEstudiante(0 as any, true);
       return;
@@ -873,7 +1042,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   limpiarInputArchivos() {
     this.documentosSeleccionados = [];
-    if (this.fileInput) this.fileInput.nativeElement.value = '';
+    this.fileInput?.nativeElement && (this.fileInput.nativeElement.value = '');
   }
 
   // ---------------------------
@@ -899,12 +1068,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
       const raw = this.formulario.getRawValue();
       const hasDocs = (this.documentosSeleccionados?.length ?? 0) > 0;
 
-      // ✅ FIX: el check obs === of(null) no sirve (comparación por referencia)
       let missingMine = false;
 
-      // ✅ IMPORTANTE:
-      // Para EGRESADO NUNCA debemos llamar a updateByEstudiante() (eso es admin/secretaría)
-      // Siempre usar endpoints /egresados/mine
       const obs: Observable<any> = (() => {
         // sin docs -> JSON
         if (!hasDocs) {
@@ -920,11 +1085,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
         }
 
         // con docs -> multipart (FormData)
-        const fd = buildFormDataFromRaw(
-          raw,
-          this.documentosSeleccionados,
-          this.idEstudianteToken ?? undefined
-        );
+        const fd = buildFormDataFromRaw(raw, this.documentosSeleccionados, this.idEstudianteToken ?? undefined);
 
         if (this.existeSeguimiento) {
           if (typeof svc.updateMineWithFiles === 'function') return svc.updateMineWithFiles(fd);
@@ -939,7 +1100,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
         }
       })();
 
-      // ✅ FIX: ahora detecta correctamente si faltan métodos mine
       if (missingMine) {
         this.messageService.add({
           severity: 'error',
@@ -998,7 +1158,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
         ? this.estudianteSeleccionado?.rut ?? ''
         : this.nuevoEstudiante?.rut ?? '';
 
-    // ✅ por requerimiento: no validar rut real/falso
     if (!this.isRutValido(rutActual)) {
       logStop('RUT inválido.');
       return;
@@ -1028,8 +1187,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
       this.modoEstudiante === 'existente'
         ? of(this.estudianteSeleccionado)
         : (() => {
-            this.nuevoEstudiante.nombreSocial =
-              `${this.nuevoEstudiante.nombre} ${this.nuevoEstudiante.apellido}`.trim();
+            this.nuevoEstudiante.nombreSocial = `${this.nuevoEstudiante.nombre} ${this.nuevoEstudiante.apellido}`.trim();
             return this.estudiantesService.create(this.nuevoEstudiante);
           })();
 
@@ -1101,7 +1259,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
   eliminarDocumento(doc: any) {
     if (!doc?.idDocumento) return;
 
-    // ✅ CAMBIO: EGRESADO ahora SÍ puede eliminar docs (por endpoint mine si existe)
     this.confirmationService.confirm({
       message: `¿Seguro que deseas eliminar el documento "${doc.nombre}"?`,
       header: 'Eliminar documento',
@@ -1125,7 +1282,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
               detail: '✅ Documento eliminado correctamente.',
             });
 
-            // admin refresca global; egresado refresca su propio seguimiento
             if (this.isEgresado) {
               this.cargarMiSeguimiento();
             } else {
@@ -1309,47 +1465,44 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return this.situaciones;
   }
 
-  // ✅ FIX REAL: capturar event/value, normalizar a number, y recalcular + refrescar referencias
   onCohorteChange(event?: any) {
-  const raw = event?.value ?? event ?? this.cohorteSeleccionada;
+    const raw = event?.value ?? event ?? this.cohorteSeleccionada;
 
-  let anio: any = raw;
+    let anio: any = raw;
 
-  if (anio && typeof anio === 'object') {
-    anio = (anio as any).value ?? (anio as any).anio ?? null;
+    if (anio && typeof anio === 'object') {
+      anio = (anio as any).value ?? (anio as any).anio ?? null;
+    }
+
+    if (anio !== null && anio !== undefined && anio !== '') {
+      const n = Number(anio);
+      this.cohorteSeleccionada = Number.isFinite(n) ? n : null;
+    } else {
+      this.cohorteSeleccionada = null;
+    }
+
+    this.recalcularDashboardCohorte();
   }
 
-  if (anio !== null && anio !== undefined && anio !== '') {
-    const n = Number(anio);
-    this.cohorteSeleccionada = Number.isFinite(n) ? n : null;
-  } else {
-    this.cohorteSeleccionada = null;
+  private recalcularDashboardCohorte() {
+    const r = DashboardUtil.buildCohorteDashboard(this.egresados ?? [], this.cohorteSeleccionada);
+
+    this.kpiCohorte = { ...r.kpiCohorte };
+
+    this.barSituacionCohorteData = r.barSituacionCohorteData
+      ? {
+          ...r.barSituacionCohorteData,
+          labels: [...(r.barSituacionCohorteData.labels ?? [])],
+          datasets: [...(r.barSituacionCohorteData.datasets ?? [])],
+        }
+      : r.barSituacionCohorteData;
+
+    this.donutRentasCohorteData = r.donutRentasCohorteData
+      ? {
+          ...r.donutRentasCohorteData,
+          labels: [...(r.donutRentasCohorteData.labels ?? [])],
+          datasets: [...(r.donutRentasCohorteData.datasets ?? [])],
+        }
+      : r.donutRentasCohorteData;
   }
-
-  this.recalcularDashboardCohorte();
-}
-
-private recalcularDashboardCohorte() {
-  const r = DashboardUtil.buildCohorteDashboard(this.egresados ?? [], this.cohorteSeleccionada);
-
-  this.kpiCohorte = { ...r.kpiCohorte };
-
-  // ✅ IMPORTANTÍSIMO: crear NUEVAS referencias para que PrimeNG/Chart.js actualicen
-  this.barSituacionCohorteData = r.barSituacionCohorteData
-    ? {
-        ...r.barSituacionCohorteData,
-        labels: [...(r.barSituacionCohorteData.labels ?? [])],
-        datasets: [...(r.barSituacionCohorteData.datasets ?? [])],
-      }
-    : r.barSituacionCohorteData;
-
-  this.donutRentasCohorteData = r.donutRentasCohorteData
-    ? {
-        ...r.donutRentasCohorteData,
-        labels: [...(r.donutRentasCohorteData.labels ?? [])],
-        datasets: [...(r.donutRentasCohorteData.datasets ?? [])],
-      }
-    : r.donutRentasCohorteData;
-}
-
 }

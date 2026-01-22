@@ -5,6 +5,7 @@ import { UpdateEgresadoDto } from './dto/update-egresado.dto';
 import { Express } from 'express';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
+import { ForbiddenException } from '@nestjs/common';
 
 @Injectable()
 export class EgresadosService {
@@ -29,6 +30,67 @@ export class EgresadosService {
     if (v === null || v === undefined) return null;
     const s = String(v).trim();
     return s.length ? s : null;
+  }
+
+  // ===========================
+  // ✅ CONSENTIMIENTO (EGRESADO)
+  // ===========================
+
+  async getConsentimientoMine(user: any) {
+    const idEstudiante = user?.idEstudiante;
+    if (!idEstudiante) {
+      // si tu token no trae idEstudiante, igual devolvemos PENDIENTE
+      return { consentimientoEstado: 'PENDIENTE', consentimientoFecha: null };
+    }
+
+    const eg = await this.prisma.egresado.upsert({
+      where: { idEstudiante },
+      create: {
+        Estudiante: { connect: { idEstudiante } },
+        situacionActual: 'Otro', // ✅ requerido por Prisma
+      },
+      update: {},
+      select: {
+        consentimientoEstado: true,
+        consentimientoFecha: true,
+      },
+    });
+
+    return eg;
+  }
+
+  async setConsentimientoMine(user: any, acepta: boolean) {
+    const idEstudiante = user?.idEstudiante;
+    if (!idEstudiante) {
+      throw new ForbiddenException('No se pudo identificar al egresado.');
+    }
+
+    const estado = acepta ? 'ACEPTADO' : 'RECHAZADO';
+
+    const eg = await this.prisma.egresado.upsert({
+      where: { idEstudiante },
+      create: {
+        // ✅ IMPORTANTÍSIMO: conectar estudiante, NO pasar idEstudiante directo
+        Estudiante: { connect: { idEstudiante } },
+        // ✅ requerido por Prisma
+        situacionActual: 'Otro',
+        consentimientoEstado: estado,
+        consentimientoFecha: new Date(),
+      },
+
+      // ✅ FIX MÍNIMO: si YA EXISTE, aquí ES donde se actualiza
+      update: {
+        consentimientoEstado: estado,
+        consentimientoFecha: new Date(),
+      },
+
+      select: {
+        consentimientoEstado: true,
+        consentimientoFecha: true,
+      },
+    });
+
+    return eg;
   }
 
   /* ============================================================
@@ -81,6 +143,15 @@ export class EgresadosService {
       // pero puedes cambiarlo a Forbidden/Unauthorized si prefieres.
       throw new NotFoundException('No se pudo identificar al egresado autenticado');
     }
+    // ✅ bloquear si no aceptó consentimiento (solo para el flujo "mine")
+    const estado = await this.prisma.egresado.findUnique({
+      where: { idEstudiante: id },
+      select: { consentimientoEstado: true },
+    });
+
+    if (!estado || estado.consentimientoEstado !== 'ACEPTADO') {
+      throw new ForbiddenException('Debes aceptar el consentimiento para poder editar tu información.');
+    }
 
     const existe = await this.prisma.egresado.findUnique({
       where: { idEstudiante: id },
@@ -101,9 +172,7 @@ export class EgresadosService {
   async create(dto: CreateEgresadoDto, archivos: Express.Multer.File[]) {
     // ✅ SIN afectar lógica: evitar NaN si viene vacío/undefined
     const idEst =
-      dto?.idEstudiante !== undefined && dto?.idEstudiante !== null
-        ? Number(dto.idEstudiante)
-        : NaN;
+      dto?.idEstudiante !== undefined && dto?.idEstudiante !== null ? Number(dto.idEstudiante) : NaN;
     dto.idEstudiante = idEst as any;
 
     dto.fechaEgreso = dto.fechaEgreso?.toString();
@@ -131,9 +200,7 @@ export class EgresadosService {
 
         situacionActual: dto.situacionActual,
         situacionActualOtro:
-          dto.situacionActual === 'Otro'
-            ? this.toStrOrNull((dto as any).situacionActualOtro)
-            : null,
+          dto.situacionActual === 'Otro' ? this.toStrOrNull((dto as any).situacionActualOtro) : null,
 
         empresa: this.toStrOrNull(dto.empresa),
         cargo: this.toStrOrNull(dto.cargo),
@@ -142,9 +209,7 @@ export class EgresadosService {
 
         viaIngreso: this.toStrOrNull((dto as any).viaIngreso),
         viaIngresoOtro:
-          (dto as any).viaIngreso === 'Otro'
-            ? this.toStrOrNull((dto as any).viaIngresoOtro)
-            : null,
+          (dto as any).viaIngreso === 'Otro' ? this.toStrOrNull((dto as any).viaIngresoOtro) : null,
 
         anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera),
 
@@ -164,14 +229,10 @@ export class EgresadosService {
             : null,
 
         anioIngresoLaboral:
-          dto.anioIngresoLaboral !== undefined
-            ? this.toIntOrNull(dto.anioIngresoLaboral)
-            : null,
+          dto.anioIngresoLaboral !== undefined ? this.toIntOrNull(dto.anioIngresoLaboral) : null,
 
         // ✅ FIX: NO enviar null; si no viene, Prisma usa @default(2026)
-        ...(dto.anioSeguimiento !== undefined
-          ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) }
-          : {}),
+        ...(dto.anioSeguimiento !== undefined ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) } : {}),
 
         telefono: this.toStrOrNull(dto.telefono),
         emailContacto: this.toStrOrNull(dto.emailContacto),
@@ -303,18 +364,12 @@ export class EgresadosService {
       ...(dto.sueldo !== undefined
         ? {
             sueldo:
-              dto.sueldo !== null && dto.sueldo !== ('' as any)
-                ? this.toIntOrNull(dto.sueldo)
-                : null,
+              dto.sueldo !== null && dto.sueldo !== ('' as any) ? this.toIntOrNull(dto.sueldo) : null,
           }
         : {}),
-      ...((dto as any).nivelRentas !== undefined
-        ? { nivelRentas: (dto as any).nivelRentas ?? null }
-        : {}),
+      ...((dto as any).nivelRentas !== undefined ? { nivelRentas: (dto as any).nivelRentas ?? null } : {}),
 
-      ...((dto as any).viaIngreso !== undefined
-        ? { viaIngreso: this.toStrOrNull((dto as any).viaIngreso) }
-        : {}),
+      ...((dto as any).viaIngreso !== undefined ? { viaIngreso: this.toStrOrNull((dto as any).viaIngreso) } : {}),
       ...((dto as any).viaIngresoOtro !== undefined || (dto as any).viaIngreso !== undefined
         ? {
             viaIngresoOtro:
@@ -330,9 +385,7 @@ export class EgresadosService {
         ? { anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera) }
         : {}),
 
-      ...((dto as any).genero !== undefined
-        ? { genero: this.toStrOrNull((dto as any).genero) }
-        : {}),
+      ...((dto as any).genero !== undefined ? { genero: this.toStrOrNull((dto as any).genero) } : {}),
       ...((dto as any).tiempoBusquedaTrabajo !== undefined
         ? { tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo) }
         : {}),
@@ -354,8 +407,7 @@ export class EgresadosService {
       ...((dto as any).tipoEstablecimiento !== undefined
         ? { tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento) }
         : {}),
-      ...((dto as any).tipoEstablecimientoOtro !== undefined ||
-      (dto as any).tipoEstablecimiento !== undefined
+      ...((dto as any).tipoEstablecimientoOtro !== undefined || (dto as any).tipoEstablecimiento !== undefined
         ? {
             tipoEstablecimientoOtro:
               (dto as any).tipoEstablecimiento === 'Otro'
@@ -366,22 +418,14 @@ export class EgresadosService {
           }
         : {}),
 
-      ...(dto.anioIngresoLaboral !== undefined
-        ? { anioIngresoLaboral: this.toIntOrNull(dto.anioIngresoLaboral) }
-        : {}),
-      ...(dto.anioSeguimiento !== undefined
-        ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) }
-        : {}),
+      ...(dto.anioIngresoLaboral !== undefined ? { anioIngresoLaboral: this.toIntOrNull(dto.anioIngresoLaboral) } : {}),
+      ...(dto.anioSeguimiento !== undefined ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) } : {}),
 
       ...(dto.telefono !== undefined ? { telefono: this.toStrOrNull(dto.telefono) } : {}),
-      ...(dto.emailContacto !== undefined
-        ? { emailContacto: this.toStrOrNull(dto.emailContacto) }
-        : {}),
+      ...(dto.emailContacto !== undefined ? { emailContacto: this.toStrOrNull(dto.emailContacto) } : {}),
       ...(dto.direccion !== undefined ? { direccion: this.toStrOrNull(dto.direccion) } : {}),
       ...(dto.linkedin !== undefined ? { linkedin: this.toStrOrNull(dto.linkedin) } : {}),
-      ...(dto.contactoAlternativo !== undefined
-        ? { contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo) }
-        : {}),
+      ...(dto.contactoAlternativo !== undefined ? { contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo) } : {}),
     };
 
     Object.keys(dataUpdate).forEach((k) => dataUpdate[k] === undefined && delete dataUpdate[k]);

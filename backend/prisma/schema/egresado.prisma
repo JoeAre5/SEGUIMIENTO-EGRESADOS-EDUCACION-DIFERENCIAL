@@ -37,6 +37,10 @@ model Egresado {
   tipoEstablecimiento     String?
   tipoEstablecimientoOtro String?
 
+  // ✅ CONSENTIMIENTO EGRESADO
+  consentimientoEstado String   @default("PENDIENTE") // PENDIENTE | ACEPTADO | RECHAZADO
+  consentimientoFecha  DateTime?
+
   // ✅ RELACIÓN DOCUMENTOS
   documentos DocumentoEgresado[]
 

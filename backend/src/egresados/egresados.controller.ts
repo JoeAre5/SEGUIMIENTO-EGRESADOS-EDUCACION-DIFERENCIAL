@@ -23,6 +23,8 @@ import { UpdateEgresadoDto } from './dto/update-egresado.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
+import { ConsentimientoDto } from './dto/consentimiento.dto';
+
 
 @ApiTags('egresados')
 @Controller('egresados')
@@ -50,6 +52,22 @@ export class EgresadosController {
   getMine(@Req() req: any) {
     // El backend decide "quién es" por token, no por URL
     return this.egresadosService.findMine(Number(req.user.idEstudiante));
+  }
+
+    // ===========================
+  // ✅ CONSENTIMIENTO (EGRESADO)
+  // ===========================
+
+  @Roles('EGRESADO')
+  @Get('mine/consentimiento')
+  getConsentimientoMine(@Req() req: any) {
+    return this.egresadosService.getConsentimientoMine(req.user);
+  }
+
+  @Roles('EGRESADO')
+  @Patch('mine/consentimiento')
+  setConsentimientoMine(@Req() req: any, @Body() dto: ConsentimientoDto) {
+    return this.egresadosService.setConsentimientoMine(req.user, dto.acepta);
   }
 
   // ============================================================

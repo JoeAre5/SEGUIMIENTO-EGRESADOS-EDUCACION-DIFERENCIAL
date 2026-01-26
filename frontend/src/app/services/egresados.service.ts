@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 /* ===========================
@@ -40,11 +40,36 @@ export class EgresadosService {
   constructor(private http: HttpClient) {}
 
   /* ===========================
+   ✅ AUTH (NO ROMPE NADA)
+   - Solo agrega Bearer token si existe en storage
+   - Esto elimina los 401 en /mine y /planes-de-estudio
+  =========================== */
+  private getAuthHeaders(): HttpHeaders | undefined {
+    try {
+      const token =
+        localStorage.getItem('access_token') ||
+        localStorage.getItem('token') ||
+        sessionStorage.getItem('access_token') ||
+        sessionStorage.getItem('token');
+
+      if (!token) return undefined;
+
+      return new HttpHeaders({
+        Authorization: `Bearer ${token}`,
+      });
+    } catch {
+      // SSR o storage bloqueado
+      return undefined;
+    }
+  }
+
+  /* ===========================
    ✅ CREAR con archivos
    ✅ POST /egresados
   =========================== */
   createWithFiles(formData: FormData): Observable<any> {
-    return this.http.post<any>(this.apiUrl, formData);
+    const headers = this.getAuthHeaders();
+    return this.http.post<any>(this.apiUrl, formData, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -52,7 +77,8 @@ export class EgresadosService {
    ✅ GET /egresados
   =========================== */
   findAll(): Observable<any[]> {
-    return this.http.get<any[]>(this.apiUrl);
+    const headers = this.getAuthHeaders();
+    return this.http.get<any[]>(this.apiUrl, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -60,7 +86,8 @@ export class EgresadosService {
    ✅ GET /egresados/estudiante/:idEstudiante
   =========================== */
   findOneByEstudiante(idEstudiante: number): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/estudiante/${idEstudiante}`);
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -68,7 +95,8 @@ export class EgresadosService {
    ✅ GET /egresados/dashboard/cohortes
   =========================== */
   getDashboardCohortes(): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/dashboard/cohortes`);
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${this.apiUrl}/dashboard/cohortes`, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -76,7 +104,8 @@ export class EgresadosService {
    ✅ PATCH /egresados/estudiante/:idEstudiante
   =========================== */
   updateByEstudiante(idEstudiante: number, dto: UpdateEgresadoDto): Observable<any> {
-    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, dto);
+    const headers = this.getAuthHeaders();
+    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, dto, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -85,7 +114,8 @@ export class EgresadosService {
    ✅ Sirve para agregar documentos sin borrar los anteriores
   =========================== */
   updateWithFilesByEstudiante(idEstudiante: number, formData: FormData): Observable<any> {
-    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, formData);
+    const headers = this.getAuthHeaders();
+    return this.http.patch<any>(`${this.apiUrl}/estudiante/${idEstudiante}`, formData, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -93,7 +123,8 @@ export class EgresadosService {
    ✅ DELETE /egresados/:idEgresado
   =========================== */
   delete(idEgresado: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/${idEgresado}`);
+    const headers = this.getAuthHeaders();
+    return this.http.delete<any>(`${this.apiUrl}/${idEgresado}`, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -107,8 +138,12 @@ export class EgresadosService {
 
   // ✅ descarga como blob (forzada)
   downloadDocumento(url: string): Observable<Blob> {
+    const headers = this.getAuthHeaders();
     const fullUrl = this.getDocumentoUrl(url);
-    return this.http.get(fullUrl, { responseType: 'blob' });
+    return this.http.get(fullUrl, {
+      responseType: 'blob',
+      ...(headers ? { headers } : {}),
+    });
   }
 
   /* ===========================
@@ -116,7 +151,8 @@ export class EgresadosService {
    ✅ DELETE /egresados/documento/:idDocumento
   =========================== */
   deleteDocumento(idDocumento: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/documento/${idDocumento}`);
+    const headers = this.getAuthHeaders();
+    return this.http.delete<any>(`${this.apiUrl}/documento/${idDocumento}`, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -125,7 +161,8 @@ export class EgresadosService {
    ✅ (este es el que evita el 403 en rol EGRESADO)
   =========================== */
   deleteDocumentoMine(idDocumento: number): Observable<any> {
-    return this.http.delete<any>(`${this.apiUrl}/mine/documento/${idDocumento}`);
+    const headers = this.getAuthHeaders();
+    return this.http.delete<any>(`${this.apiUrl}/mine/documento/${idDocumento}`, headers ? { headers } : {});
   }
 
   /* ===========================
@@ -133,7 +170,8 @@ export class EgresadosService {
    ✅ GET /planes-de-estudio
   =========================== */
   getPlanesEstudio(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiFilesUrl}/planes-de-estudio`);
+    const headers = this.getAuthHeaders();
+    return this.http.get<any[]>(`${this.apiFilesUrl}/planes-de-estudio`, headers ? { headers } : {});
   }
 
   /* ============================================================
@@ -144,7 +182,8 @@ export class EgresadosService {
 
   // ✅ GET /egresados/mine
   findMine(): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/mine`);
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${this.apiUrl}/mine`, headers ? { headers } : {});
   }
 
   getMine(): Observable<any> {
@@ -154,21 +193,44 @@ export class EgresadosService {
   // ✅ POST /egresados/mine (SIN docs) -> JSON
   // (Tu componente lo usa cuando no adjuntas archivos)
   createMine(dto: any): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/mine`, dto);
+    const headers = this.getAuthHeaders();
+    return this.http.post<any>(`${this.apiUrl}/mine`, dto, headers ? { headers } : {});
   }
 
   // ✅ PATCH /egresados/mine (SIN docs) -> JSON
   updateMine(dto: any): Observable<any> {
-    return this.http.patch<any>(`${this.apiUrl}/mine`, dto);
+    const headers = this.getAuthHeaders();
+    return this.http.patch<any>(`${this.apiUrl}/mine`, dto, headers ? { headers } : {});
   }
 
   // ✅ POST /egresados/mine (con docs)
   createMineWithFiles(formData: FormData): Observable<any> {
-    return this.http.post<any>(`${this.apiUrl}/mine`, formData);
+    const headers = this.getAuthHeaders();
+    return this.http.post<any>(`${this.apiUrl}/mine`, formData, headers ? { headers } : {});
   }
 
   // ✅ PATCH /egresados/mine (con docs)
   updateMineWithFiles(formData: FormData): Observable<any> {
-    return this.http.patch<any>(`${this.apiUrl}/mine`, formData);
+    const headers = this.getAuthHeaders();
+    return this.http.patch<any>(`${this.apiUrl}/mine`, formData, headers ? { headers } : {});
+  }
+
+  /* ===========================
+   ✅ CONSENTIMIENTO (EGRESADO)
+   ✅ GET/PATCH /egresados/mine/consentimiento
+  =========================== */
+
+  getConsentimientoMine(): Observable<any> {
+    const headers = this.getAuthHeaders();
+    return this.http.get<any>(`${this.apiUrl}/mine/consentimiento`, headers ? { headers } : {});
+  }
+
+  setConsentimientoMine(acepta: boolean): Observable<any> {
+    const headers = this.getAuthHeaders();
+    return this.http.patch<any>(
+      `${this.apiUrl}/mine/consentimiento`,
+      { acepta },
+      headers ? { headers } : {}
+    );
   }
 }

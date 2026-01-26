@@ -17,6 +17,9 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { EgresadosModule } from './egresados/egresados.module';
 
+// ✅ NUEVO: solo se agrega este import
+import { UsuariosModule } from './usuarios/usuarios.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -44,6 +47,9 @@ import { EgresadosModule } from './egresados/egresados.module';
     }),
 
     EgresadosModule,
+
+    // ✅ NUEVO: solo se agrega esta línea
+    UsuariosModule,
   ],
 
   controllers: [AppController],

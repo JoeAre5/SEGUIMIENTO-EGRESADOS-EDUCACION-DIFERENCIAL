@@ -1,3 +1,4 @@
+
 import {
   Asignatura,
   Convenio,
@@ -6,7 +7,7 @@ import {
   LineaAsignatura,
   Modalidad,
   Plan,
-  Usuario,
+  Prisma,
 } from '@prisma/client';
 
 // prettier-ignore
@@ -1716,36 +1717,50 @@ export const ENDS: END[] = [
 
 // fin end
 
-export const MODALIDADES: Modalidad[] = [
+export const MODALIDADES: Prisma.ModalidadCreateManyInput[] = [
   {
     idModalidad: 1,
     nombreModalidad: 'Escuela de lenguaje',
-    fechaCreacion: undefined,
-    fechaDesuso: undefined,
-    validez: undefined,
+    descripcion: '',
+    // si quieres forzar fecha:
+    fechaCreacion: new Date(),
+    fechaDesuso: null,
+    fechaInicioValidez: new Date(),
+    fechaFinValidez: new Date('2999-12-31'),
+    validez: true,
   },
   {
     idModalidad: 2,
-    nombreModalidad: 'Escuela/Colegio especial',
-    fechaCreacion: undefined,
-    fechaDesuso: undefined,
-    validez: undefined,
+    nombreModalidad: 'Escuela especial',
+    descripcion: '',
+    fechaCreacion: new Date(),
+    fechaDesuso: null,
+    fechaInicioValidez: new Date(),
+    fechaFinValidez: new Date('2999-12-31'),
+    validez: true,
   },
   {
     idModalidad: 3,
-    nombreModalidad: 'Colegio Regular PIE',
-    fechaCreacion: undefined,
-    fechaDesuso: undefined,
-    validez: undefined,
+    nombreModalidad: 'Integración escolar',
+    descripcion: '',
+    fechaCreacion: new Date(),
+    fechaDesuso: null,
+    fechaInicioValidez: new Date(),
+    fechaFinValidez: new Date('2999-12-31'),
+    validez: true,
   },
   {
     idModalidad: 4,
-    nombreModalidad: 'Modalidad No Convencional',
-    fechaCreacion: undefined,
-    fechaDesuso: undefined,
-    validez: undefined,
+    nombreModalidad: 'Otro',
+    descripcion: '',
+    fechaCreacion: new Date(),
+    fechaDesuso: null,
+    fechaInicioValidez: new Date(),
+    fechaFinValidez: new Date('2999-12-31'),
+    validez: true,
   },
 ];
+
 
 export const CONVENIOS: Convenio[] = [
   {
@@ -1934,9 +1949,8 @@ export const LINEA_ASIGNATURA: LineaAsignatura[] = [
   },
 ];
 
-export const USUARIOS: Usuario[] = [
+export const USUARIOS: Prisma.UsuarioCreateManyInput[] = [
   {
-    id: undefined,
     username: 'admin',
     email: 'admin@admin.com',
     role: 'Administrador',
@@ -1945,7 +1959,6 @@ export const USUARIOS: Usuario[] = [
     idEstudiante: null,
   },
   {
-    id: undefined,
     username: 'jc',
     role: 'JC',
     email: 'jc@jc.com',
@@ -1954,7 +1967,6 @@ export const USUARIOS: Usuario[] = [
     idEstudiante: null,
   },
   {
-    id: undefined,
     username: 'coordinador',
     role: 'CoordinadorPractica',
     email: 'coordinador@practica.com',
@@ -1963,7 +1975,6 @@ export const USUARIOS: Usuario[] = [
     idEstudiante: null,
   },
   {
-    id: undefined,
     username: 'secretario',
     role: 'Secretario',
     email: 'secretario@secretario.com',
@@ -1972,7 +1983,6 @@ export const USUARIOS: Usuario[] = [
     idEstudiante: null,
   },
   {
-    id: undefined,
     username: 'docente',
     role: 'Docente',
     email: 'docente@docente.com',

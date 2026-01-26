@@ -1,13 +1,15 @@
 model Usuario {
-  id             Int    @id @default(autoincrement())
-  username       String @unique
-  email          String @unique
+  id             Int         @id @default(autoincrement())
+  username       String      @unique
+  email          String      @unique
   hashedPassword String
   nombreCompleto String
-  role           ROLE   @default(Docente)
-
-  // ✅ NUEVO (nullable para no romper nada)
-  idEstudiante   Int?
+  role           ROLE        @default(Docente)
+  idEstudiante   Int?        @unique
+  createdAt      DateTime    @default(now())
+  isActive       Boolean     @default(true)
+  updatedAt      DateTime    @updatedAt
+  Estudiante     Estudiante? @relation("UsuarioEstudiante", fields: [idEstudiante], references: [idEstudiante])
 }
 
 enum ROLE {
@@ -16,7 +18,5 @@ enum ROLE {
   CoordinadorPractica
   Secretario
   Docente
-
-  // ✅ NUEVO
   EGRESADO
 }

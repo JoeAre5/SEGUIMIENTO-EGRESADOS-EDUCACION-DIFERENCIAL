@@ -1,22 +1,20 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { RoleDto } from './create-usuario-admin.dto';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateUsuarioFromEgresadoDto {
   @IsString()
   username: string;
 
-  @IsString()
-  @MinLength(6)
-  password: string;
-
+  @IsOptional()
   @IsEmail()
-  email: string;
+  email?: string;
 
   @IsString()
   nombreCompleto: string;
 
-  // opcional, por defecto EGRESADO
+  @IsString()
+  @MinLength(6)
+  password: string;
+
   @IsOptional()
-  @IsEnum(RoleDto)
-  role?: RoleDto;
+  role?: string;
 }

@@ -24,7 +24,6 @@ export class UsuariosService {
       select: {
         id: true,
         username: true,
-        email: true,
         nombreCompleto: true,
         role: true,
         idEstudiante: true,
@@ -80,47 +79,60 @@ export class UsuariosService {
   }
 
   async createFromEgresado(idEgresado: number, dto: CreateUsuarioFromEgresadoDto) {
-    const egresado = await this.prisma.egresado.findUnique({
-      where: { idEgresado },
-      select: { idEgresado: true, idEstudiante: true },
-    });
-    if (!egresado) throw new NotFoundException('Egresado no encontrado');
+  const egresado = await this.prisma.egresado.findUnique({
+    where: { idEgresado },
+    select: { idEgresado: true, idEstudiante: true },
+  });
 
-    const alreadyLinked = await this.prisma.usuario.findFirst({
-      where: { idEstudiante: egresado.idEstudiante },
-      select: { id: true },
-    });
-    if (alreadyLinked) throw new BadRequestException('Ese egresado ya tiene usuario');
+  if (!egresado) throw new NotFoundException('Egresado no encontrado');
+  if (!egresado.idEstudiante) throw new BadRequestException('Egresado sin estudiante asociado');
 
-    const estudiante = await this.prisma.estudiante.findUnique({
-      where: { idEstudiante: egresado.idEstudiante },
-      select: { idEstudiante: true },
-    });
-    if (!estudiante) throw new BadRequestException('El estudiante asociado no existe');
+  const alreadyLinked = await this.prisma.usuario.findFirst({
+    where: { idEstudiante: egresado.idEstudiante },
+    select: { id: true },
+  });
+  if (alreadyLinked) throw new BadRequestException('Ese egresado ya tiene usuario');
 
-    const hashedPassword = await argon.hash(dto.password);
+  const estudiante = await this.prisma.estudiante.findUnique({
+    where: { idEstudiante: egresado.idEstudiante },
+    select: { idEstudiante: true },
+  });
+  if (!estudiante) throw new BadRequestException('El estudiante asociado no existe');
 
-    try {
-      const user = await this.prisma.usuario.create({
-        data: {
-          username: dto.username.trim(),
-          email: dto.email.trim(),
-          nombreCompleto: dto.nombreCompleto.trim(),
-          hashedPassword,
-          role: ((dto.role ?? 'EGRESADO') as any),
-          idEstudiante: egresado.idEstudiante,
-        },
-      });
+  if (!dto.username?.trim()) throw new BadRequestException('username requerido');
+  if (!dto.nombreCompleto?.trim()) throw new BadRequestException('nombreCompleto requerido');
+  if (!dto.password?.trim()) throw new BadRequestException('password requerido');
 
-      const { hashedPassword: _, ...safe } = user as any;
-      return safe;
-    } catch (error) {
-      if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
-        throw new BadRequestException('Datos duplicados (username o email ya existen)');
-      }
-      throw error;
+  const hashedPassword = await argon.hash(dto.password);
+
+  // ✅ email opcional: NO se manda si está vacío
+  const email = dto.email?.trim();
+
+  const data: any = {
+    username: dto.username.trim(),
+    nombreCompleto: dto.nombreCompleto.trim(),
+    hashedPassword,
+    role: ((dto.role ?? 'EGRESADO') as any),
+    idEstudiante: egresado.idEstudiante,
+  };
+
+  if (email && email.length > 0) data.email = email;
+
+  try {
+    const user = await this.prisma.usuario.create({ data });
+
+    const { hashedPassword: _, ...safe } = user as any;
+    return safe;
+  } catch (error: any) {
+    // ✅ Si hay unique constraint (username/email/idEstudiante), lo devolvemos como 400 con mensaje
+    if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = (error.meta as any)?.target?.join?.(', ') ?? 'campo único';
+      throw new BadRequestException(`Datos duplicados (${target})`);
     }
+    throw error;
   }
+}
+
 
   async updateUsername(id: number, dto: UpdateUsernameDto) {
     if (!dto.username?.trim()) throw new BadRequestException('username requerido');
@@ -178,23 +190,24 @@ export class UsuariosService {
   }
 
   async egresadosSinCuenta() {
-    const usersLinked = await this.prisma.usuario.findMany({
-      where: { idEstudiante: { not: null } },
-      select: { idEstudiante: true },
-    });
+  const usersLinked = await this.prisma.usuario.findMany({
+    where: { idEstudiante: { not: null } },
+    select: { idEstudiante: true },
+  });
 
-    const linkedIds = usersLinked
-      .map((u) => u.idEstudiante)
-      .filter((x): x is number => typeof x === 'number');
+  const linkedIds = usersLinked
+    .map((u) => u.idEstudiante)
+    .filter((x): x is number => typeof x === 'number');
 
-    return this.prisma.egresado.findMany({
-      where: linkedIds.length ? { idEstudiante: { notIn: linkedIds } } : {},
-      select: {
-        idEgresado: true,
-        idEstudiante: true,
-        Estudiante: { select: { rut: true, nombreCompleto: true } },
-      } as any,
-      orderBy: { idEgresado: 'desc' },
-    });
-  }
+  return this.prisma.egresado.findMany({
+    where: linkedIds.length ? { idEstudiante: { notIn: linkedIds } } : {},
+    select: {
+      idEgresado: true,
+      idEstudiante: true,
+      Estudiante: { select: { rut: true, nombreCompleto: true } },
+    } as any,
+    orderBy: { idEgresado: 'desc' },
+  });
+}
+
 }

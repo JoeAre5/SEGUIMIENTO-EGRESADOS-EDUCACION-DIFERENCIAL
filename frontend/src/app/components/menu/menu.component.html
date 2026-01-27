@@ -90,6 +90,16 @@
     <p class="text-4xl font-semibold">Seguimiento Egresados</p>
   </p-card>
 
+  <!-- ✅ NUEVO BOTÓN: Gestión de Usuarios (solo Admin) -->
+  <p-card
+    *tieneRol="[ADMINISTRADOR]"
+    header=""
+    styleClass="bg-sky-700 shadow-md cursor-pointer rounded-lg text-center text-white py-16 transition-transform hover:scale-105 hover:bg-sky-600 hover:shadow-[0_0_0_4px_theme(colors.sky.500)]"
+    (click)="redirigirHacia('usuarios')"
+  >
+    <p class="text-4xl font-semibold">Gestión de Usuarios</p>
+  </p-card>
+
   <!-- ❌ Próximo -->
   <p-card
     header=""

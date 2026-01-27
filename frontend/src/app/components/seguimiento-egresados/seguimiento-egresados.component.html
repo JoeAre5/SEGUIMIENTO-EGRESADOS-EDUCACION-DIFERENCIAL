@@ -765,6 +765,88 @@
 <!-- ==========================================================
 ✅ DASHBOARD SUBCOMPONENTE (solo no egresado)
 ========================================================== -->
+
+<!-- ==========================================================
+✅ EXCEL (IMPORT / EXPORT) - SOLO ADMIN (UI azul/blanco)
+========================================================== -->
+<div *ngIf="!isEgresado" class="mb-4">
+  <div
+    class="bg-white border border-sky-100 rounded-xl shadow-sm p-4 flex flex-col gap-3
+           sm:flex-row sm:items-center sm:justify-between"
+  >
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center">
+        <i class="pi pi-file-excel text-sky-700 text-lg"></i>
+      </div>
+
+      <div class="leading-tight">
+        <div class="font-bold text-sky-800">Excel (Importar / Exportar)</div>
+        <small class="text-slate-500">
+          Usa la plantilla para cargar egresados o exporta la tabla actual.
+        </small>
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-2 items-center justify-end">
+      <input
+        #fileInput
+        type="file"
+        accept=".xlsx,.xls"
+        class="hidden"
+        (change)="onExcelSelected($event)"
+      />
+
+      <!-- Plantilla -->
+      <button
+        pButton
+        type="button"
+        icon="pi pi-download"
+        label="Plantilla"
+        (click)="descargarPlantillaExcel()"
+        [disabled]="excelImportando"
+        class="p-button-sm p-button-outlined rounded-lg px-4
+               border-sky-600 text-sky-700 hover:bg-sky-50 shadow-sm"
+      ></button>
+
+      <!-- Importar -->
+      <button
+        pButton
+        type="button"
+        icon="pi pi-upload"
+        label="Importar"
+        (click)="abrirSelectorExcel()"
+        [disabled]="excelImportando"
+        class="p-button-sm rounded-lg px-4 shadow-sm
+               bg-sky-700 border-sky-700 hover:bg-sky-800 hover:border-sky-800 text-white"
+      ></button>
+
+      <!-- Exportar -->
+      <button
+        pButton
+        type="button"
+        icon="pi pi-external-link"
+        label="Exportar"
+        (click)="exportarEgresadosExcel()"
+        [disabled]="excelImportando || loading"
+        class="p-button-sm p-button-outlined rounded-lg px-4
+               border-sky-700 text-sky-800 hover:bg-sky-50 shadow-sm"
+      ></button>
+
+      <!-- Progreso -->
+      <div
+        *ngIf="excelImportando"
+        class="flex items-center gap-2 ml-1 bg-sky-50 border border-sky-100 rounded-lg px-3 py-2"
+      >
+        <i class="pi pi-spin pi-spinner text-sky-700"></i>
+        <span class="text-sm text-slate-700">
+          Importando <b class="text-sky-800">{{ excelImportProcesados }}</b>/<b>{{ excelImportTotal }}</b>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <app-egresados-dashboard
   *ngIf="!isEgresado"
   [isEgresado]="isEgresado"

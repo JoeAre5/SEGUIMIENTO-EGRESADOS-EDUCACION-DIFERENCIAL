@@ -53,7 +53,7 @@ import {
   UpdateEstudianteDTO,
 } from '../../services/estudiantes.service';
 
-import { switchMap, of, Observable, map } from 'rxjs';
+import { switchMap, of, Observable, map, lastValueFrom } from 'rxjs';
 
 // ✅ (opcional) roles type
 import { Roles } from '../../models/login.dto';
@@ -157,6 +157,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   modalFiltrosVisible = false;
   filtroValores: Record<string, any> = {};
+
+  excelImportEstado = '';
 
   // ✅ CONSENTIMIENTO (tu modal)
   consentimientoVisible = false;
@@ -1505,4 +1507,384 @@ export class SeguimientoEgresadosComponent implements OnInit {
         }
       : r.donutRentasCohorteData;
   }
+  /* ===============================
+   ✅ EXCEL (IMPORT / EXPORT) - SOLO ADMIN
+   - No afecta al resto: se ejecuta solo en navegador y solo si !isEgresado
+  ================================ */
+
+  excelImportando = false;
+  excelImportTotal = 0;
+  excelImportProcesados = 0;
+
+
+  abrirSelectorExcel() {
+  if (this.isEgresado) return;
+  if (!isPlatformBrowser(this.platformId)) return;
+
+  if (!this.fileInput?.nativeElement) return;
+
+  // para que si eliges el mismo archivo 2 veces dispare change
+  this.fileInput.nativeElement.value = '';
+  this.fileInput.nativeElement.click();
+}
+
+
+  async descargarPlantillaExcel() {
+    if (this.isEgresado) return;
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    const XLSX = await import('xlsx');
+
+    const headers = [
+      'rut',
+      'nombre',
+      'apellido',
+      'planId',
+      'anioFinEstudios',
+      'situacionActual',
+      'situacionActualOtro',
+      'empresa',
+      'cargo',
+      'nivelRentas',
+      'viaIngreso',
+      'viaIngresoOtro',
+      'anioIngresoCarrera',
+      'genero',
+      'tiempoBusquedaTrabajo',
+      'sectorLaboral',
+      'sectorLaboralOtro',
+      'tipoEstablecimiento',
+      'tipoEstablecimientoOtro',
+      'sueldo',
+      'anioIngresoLaboral',
+      'telefono',
+      'emailContacto',
+      'linkedin',
+    ];
+
+    // fila ejemplo (para probar subida)
+    const example: any = {
+      rut: '10.000.196-9',
+      nombre: 'Nombre',
+      apellido: 'Apellido',
+      planId: this.planes?.[0]?.idPlan ?? '',
+      anioFinEstudios: this.CURRENT_YEAR,
+      situacionActual: this.situaciones?.[0]?.value ?? 'Trabajando',
+      situacionActualOtro: '',
+      empresa: 'Ej: Colegio X',
+      cargo: 'Ej: Educadora diferencial',
+      nivelRentas: this.nivelesRentasOptions?.[0]?.value ?? '',
+      viaIngreso: this.viasIngreso?.[0]?.value ?? '',
+      viaIngresoOtro: '',
+      anioIngresoCarrera: this.CURRENT_YEAR - 5,
+      genero: this.generos?.[0]?.value ?? '',
+      tiempoBusquedaTrabajo: this.tiemposBusquedaTrabajo?.[0]?.value ?? '',
+      sectorLaboral: this.sectoresLaborales?.[0]?.value ?? '',
+      sectorLaboralOtro: '',
+      tipoEstablecimiento: this.tipoEstablecimiento?.[0]?.value ?? 'No aplica',
+      tipoEstablecimientoOtro: '',
+      sueldo: 600000,
+      anioIngresoLaboral: this.CURRENT_YEAR,
+      telefono: '912345678',
+      emailContacto: 'correo@ejemplo.com',
+      linkedin: 'https://www.linkedin.com/in/usuario',
+    };
+
+    const ws = XLSX.utils.json_to_sheet([example], { header: headers });
+    // fuerza headers en primera fila
+    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+
+    const { saveAs } = await import('file-saver');
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    saveAs(blob, `plantilla-seguimiento-egresados_${this.CURRENT_YEAR}.xlsx`);
+  }
+
+  async exportarEgresadosExcel() {
+    if (this.isEgresado) return;
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    const XLSX = await import('xlsx');
+
+    const data = (this.egresados ?? []).map((e: any) => ({
+      rut: e?.estudiante?.rut ?? '',
+      nombreCompleto: e?.estudiante?.nombreCompleto ?? '',
+      planEstudios: e?.planEstudios ?? e?.plan?.titulo ?? '',
+      anioFinEstudios: e?.anioFinEstudios ?? '',
+      situacionActual: e?.situacionActual ?? '',
+      empresa: e?.empresa ?? '',
+      cargo: e?.cargo ?? '',
+      nivelRentas: e?.nivelRentas ?? '',
+      viaIngreso: e?.viaIngreso ?? '',
+      anioIngresoCarrera: e?.anioIngresoCarrera ?? '',
+      genero: e?.genero ?? '',
+      tiempoBusquedaTrabajo: e?.tiempoBusquedaTrabajo ?? '',
+      sectorLaboral: e?.sectorLaboral ?? '',
+      tipoEstablecimiento: e?.tipoEstablecimiento ?? '',
+      sueldo: e?.sueldo ?? '',
+      anioIngresoLaboral: e?.anioIngresoLaboral ?? '',
+      telefono: e?.telefono ?? '',
+      emailContacto: e?.emailContacto ?? '',
+      linkedin: e?.linkedin ?? '',
+      documentos: Array.isArray(e?.documentos) ? e.documentos.length : '',
+      updatedAt: e?.updatedAt ?? e?.updatedAt?.toString?.() ?? '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Egresados');
+
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+
+    const { saveAs } = await import('file-saver');
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    saveAs(blob, `egresados_export_${this.CURRENT_YEAR}.xlsx`);
+  }
+
+  async onExcelSelected(event: any) {
+    if (this.isEgresado) return;
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    const input = event.target as HTMLInputElement;
+    const file: File | undefined = event?.target?.files?.[0];
+    if (!file) return;
+
+    try {
+      this.excelImportando = true;
+      this.excelImportProcesados = 0;
+      this.excelImportEstado = 'Cargando egresados desde Excel...';
+
+      const XLSX = await import('xlsx');
+
+      const arrayBuffer = await file.arrayBuffer();
+      const wb = XLSX.read(arrayBuffer, { type: 'array' });
+      const firstSheet = wb.SheetNames?.[0];
+      const ws = wb.Sheets[firstSheet];
+
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+      if (!rows?.length) {
+        this.messageService.add({ severity: 'warn', summary: 'Excel vacío', detail: 'El archivo no tiene filas.' });
+        return;
+      }
+
+      // Normaliza keys (acepta headers con mayúsculas/espacios)
+      const norm = (k: string) =>
+        (k ?? '')
+          .toString()
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, '')
+          .replace(/[_-]/g, '');
+
+      const normalizedRows = rows.map((r) => {
+        const out: any = {};
+        Object.keys(r).forEach((k) => (out[norm(k)] = r[k]));
+        return out;
+      });
+
+      // Validación mínima
+      const missingRut = normalizedRows.findIndex((r) => !r.rut);
+      if (missingRut >= 0) {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Falta RUT',
+          detail: `Fila ${missingRut + 2}: la columna "rut" es obligatoria.`,
+        });
+        return;
+      }
+
+      this.excelImportTotal = normalizedRows.length;
+
+      // Procesa en serie (evita saturar API)
+      const resumen = await this.importarFilasExcel(normalizedRows);
+
+      // refresca tabla (await para que el dashboard vea los nuevos datos)
+      await this.cargarEgresados();
+      await this.cargarEstudiantes();
+
+      this.messageService.add({
+        severity: resumen.failed ? 'warn' : 'success',
+        summary: 'Importación finalizada',
+        detail: `Creados: ${resumen.created} | Actualizados: ${resumen.updated} | Errores: ${resumen.failed}`,
+      });
+    } catch (err: any) {
+      console.error('❌ Error importando Excel:', err);
+      this.messageService.add({
+        severity: 'error',
+        summary: 'Error importando Excel',
+        detail: err?.message ?? 'Ocurrió un error leyendo el archivo.',
+      });
+    } finally {
+      this.excelImportando = false;
+      this.excelImportEstado = '';
+      // limpia input para permitir subir el mismo archivo otra vez
+      try {
+        if (this.fileInput?.nativeElement) this.fileInput.nativeElement.value = '';
+      } catch {}
+    }
+  }
+
+  private async importarFilasExcel(rows: any[]) {
+    // aseguramos estudiantes cargados
+    const estudiantesPorRut = new Map<string, EstudianteDTO>();
+    (this.estudiantes ?? []).forEach((e) => estudiantesPorRut.set((e.rut ?? '').trim(), e));
+
+    let created = 0;
+    let updated = 0;
+    let failed = 0;
+
+    for (const r of rows) {
+      try {
+        const rut = (r.rut ?? '').toString().trim();
+        const nombre = (r.nombre ?? '').toString().trim();
+        const apellido = (r.apellido ?? '').toString().trim();
+
+        let estudiante = estudiantesPorRut.get(rut);
+
+        // crea estudiante si no existe
+        if (!estudiante) {
+          const planId = this.resolvePlanIdFromRow(r);
+          const agnioIngreso = this.toIntOrNull(r.anioingresocarrera ?? r.agnioingreso ?? r.anioingreso);
+
+          const dto: any = {
+            rut,
+            nombre: nombre || 'SinNombre',
+            apellido: apellido || 'SinApellido',
+            nombreSocial: `${nombre} ${apellido}`.trim(),
+            agnioIngreso: agnioIngreso ?? undefined,
+            idPlan: planId ?? undefined,
+          };
+
+          estudiante = await lastValueFrom(this.estudiantesService.create(dto));
+          if (estudiante) estudiantesPorRut.set(rut, estudiante);
+        }
+
+        if (!estudiante) {
+          failed++;
+          continue;
+        }
+
+        const idEstudiante = estudiante.idEstudiante;
+
+        // actualiza plan del estudiante si viene planId
+        const planIdRow = this.resolvePlanIdFromRow(r);
+        if (planIdRow && estudiante.idPlan && planIdRow !== estudiante.idPlan) {
+          try {
+            await lastValueFrom(this.estudiantesService.update(idEstudiante, { idPlan: planIdRow }));
+          } catch {}
+        }
+
+        const cohorte = this.toIntOrNull(r.aniocohorte ?? r.aniofinestudios ?? r.aniofinestudio);
+
+        // ✅ raw listo para backend
+        const raw: any = {
+          idEstudiante,
+          // backend usa singular; dejamos también plural por compatibilidad
+          anioFinEstudio: cohorte ?? null,
+          anioFinEstudios: cohorte ?? null,
+
+          // ...resto de campos
+          planEstudios: '', // se controla por plan en estudiante; no es requerido aquí
+          situacionActual: (r.situacionactual ?? null) || null,
+          situacionActualOtro: (r.situacionactualotro ?? '').toString(),
+          empresa: (r.empresa ?? '').toString(),
+          cargo: (r.cargo ?? '').toString(),
+          nivelRentas: (r.nivelrentas ?? null) || null,
+          viaIngreso: (r.viaingreso ?? null) || null,
+          viaIngresoOtro: (r.viaingresootro ?? '').toString(),
+          anioIngresoCarrera: this.toIntOrNull(r.anioingresocarrera) ?? null,
+          genero: (r.genero ?? null) || null,
+          tiempoBusquedaTrabajo:
+            (r.tiempobusqueda ?? r.tiempobusquedatrabajo) || null,
+          sectorLaboral: (r.sectorlaboral ?? null) || null,
+          sectorLaboralOtro: (r.sectorlaboralotro ?? '').toString(),
+          tipoEstablecimiento: (r.tipoestablecimiento ?? 'No aplica') || 'No aplica',
+          tipoEstablecimientoOtro: (r.tipoestablecimientootro ?? '').toString(),
+          sueldo: this.toIntOrNull(r.sueldo),
+          anioIngresoLaboral: this.toIntOrNull(r.anioingresolaboral ?? r.anioingresolab) ?? null,
+          telefono: (r.telefono ?? '').toString(),
+          emailContacto: (r.emailcontacto ?? '').toString(),
+          linkedin: (r.linkedin ?? '').toString(),
+        };
+
+        const res = await this.upsertSeguimientoByEstudiante(idEstudiante, raw);
+        if (res?.ok && res.action === 'created') created++;
+        else if (res?.ok && res.action === 'updated') updated++;
+        else failed++;
+      } catch (e) {
+        failed++;
+      } finally {
+        this.excelImportProcesados++;
+        this.excelImportEstado = `Importando egresados desde Excel... (${this.excelImportProcesados}/${this.excelImportTotal})`;
+      }
+    }
+
+    return { created, updated, failed };
+  }
+
+
+
+  private resolvePlanIdFromRow(r: any): number | null {
+    const raw = r.planid ?? r.idplan ?? '';
+    const n = this.toIntOrNull(raw);
+    if (n) return n;
+
+    // también acepta planEstudios como "Título (AÑO)"
+    const planTxt = (r.planestudios ?? r.plan ?? r.plandetudio ?? '').toString().trim();
+    if (!planTxt) return null;
+
+    const found = (this.planes ?? []).find((p: any) => {
+      const label = `${p.titulo} (${p.agnio})`;
+      return label.toLowerCase() === planTxt.toLowerCase();
+    });
+
+    return found?.idPlan ?? null;
+  }
+
+  private toIntOrNull(v: any): number | null {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return Math.trunc(n);
+  }
+
+  private buildEgresadoFormData(raw: any): FormData {
+    const fd = new FormData();
+
+    Object.entries(raw ?? {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      fd.append(key, String(value));
+    });
+
+    return fd;
+  }
+
+  private async upsertSeguimientoByEstudiante(idEstudiante: number, raw: any) {
+    try {
+      // ✅ UPDATE JSON (tu endpoint ya lo soporta)
+      await lastValueFrom(this.egresadosService.updateByEstudiante(idEstudiante, raw));
+      return { ok: true, action: 'updated' as const };
+    } catch (err: any) {
+      // ✅ CREATE usando FormData (POST /egresados espera multipart)
+      const fd = this.buildEgresadoFormData(raw);
+
+      try {
+        await lastValueFrom(this.egresadosService.createWithFiles(fd));
+        return { ok: true, action: 'created' as const };
+      } catch (err2: any) {
+        console.error('❌ Error upsert seguimiento', { idEstudiante, err2 });
+        return { ok: false, action: 'failed' as const, error: err2 };
+      }
+    }
+  }
+
 }

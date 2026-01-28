@@ -135,7 +135,9 @@ interface PlanDTO {
   ],
 })
 export class SeguimientoEgresadosComponent implements OnInit {
-  @ViewChild('fileInput') fileInput?: ElementRef<HTMLInputElement>;
+  // ✅ Inputs file separados (docs vs excel) para evitar choques de ViewChild
+  @ViewChild('fileInputDocs') fileInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('fileInputExcel') fileInputExcel?: ElementRef<HTMLInputElement>;
   @ViewChild('dt') dt!: Table;
 
   formulario!: FormGroup;
@@ -157,8 +159,6 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   modalFiltrosVisible = false;
   filtroValores: Record<string, any> = {};
-
-  excelImportEstado = '';
 
   // ✅ CONSENTIMIENTO (tu modal)
   consentimientoVisible = false;
@@ -1515,19 +1515,21 @@ export class SeguimientoEgresadosComponent implements OnInit {
   excelImportando = false;
   excelImportTotal = 0;
   excelImportProcesados = 0;
+  excelImportEstado = '';
 
-
-  abrirSelectorExcel() {
-  if (this.isEgresado) return;
-  if (!isPlatformBrowser(this.platformId)) return;
-
-  if (!this.fileInput?.nativeElement) return;
-
-  // para que si eliges el mismo archivo 2 veces dispare change
-  this.fileInput.nativeElement.value = '';
-  this.fileInput.nativeElement.click();
-}
-
+  
+  // Reporte de filas no asociadas (nombre+correo no encontrados o duplicados)
+  excelNoEncontrados: any[] = [];
+  excelErrores: string[] = [];
+abrirSelectorExcel() {
+    if (this.isEgresado) return;
+    // ✅ asegurar que se abra el selector correcto (excel) aunque el form/drawer no esté renderizado
+    const el = this.fileInputExcel?.nativeElement;
+    if (!el) return;
+    // reset para permitir re-seleccionar el mismo archivo
+    el.value = '';
+    el.click();
+  }
 
   async descargarPlantillaExcel() {
     if (this.isEgresado) return;
@@ -1575,14 +1577,11 @@ export class SeguimientoEgresadosComponent implements OnInit {
       cargo: 'Ej: Educadora diferencial',
       nivelRentas: this.nivelesRentasOptions?.[0]?.value ?? '',
       viaIngreso: this.viasIngreso?.[0]?.value ?? '',
-      viaIngresoOtro: '',
       anioIngresoCarrera: this.CURRENT_YEAR - 5,
       genero: this.generos?.[0]?.value ?? '',
       tiempoBusquedaTrabajo: this.tiemposBusquedaTrabajo?.[0]?.value ?? '',
       sectorLaboral: this.sectoresLaborales?.[0]?.value ?? '',
-      sectorLaboralOtro: '',
       tipoEstablecimiento: this.tipoEstablecimiento?.[0]?.value ?? 'No aplica',
-      tipoEstablecimientoOtro: '',
       sueldo: 600000,
       anioIngresoLaboral: this.CURRENT_YEAR,
       telefono: '912345678',
@@ -1613,9 +1612,9 @@ export class SeguimientoEgresadosComponent implements OnInit {
     const XLSX = await import('xlsx');
 
     const data = (this.egresados ?? []).map((e: any) => ({
-      rut: e?.estudiante?.rut ?? '',
-      nombreCompleto: e?.estudiante?.nombreCompleto ?? '',
-      planEstudios: e?.planEstudios ?? e?.plan?.titulo ?? '',
+      rut: e?.estudiante?.rut ?? e?.rut ?? '',
+      nombreCompleto: e?.estudiante?.nombreCompleto ?? e?.nombreCompleto ?? '',
+      planEstudios: e?.planEstudios?.nombre ?? e?.planEstudios ?? e?.plan?.titulo ?? '',
       anioFinEstudios: e?.anioFinEstudios ?? '',
       situacionActual: e?.situacionActual ?? '',
       empresa: e?.empresa ?? '',
@@ -1649,11 +1648,342 @@ export class SeguimientoEgresadosComponent implements OnInit {
     saveAs(blob, `egresados_export_${this.CURRENT_YEAR}.xlsx`);
   }
 
+
+  private buildEgresadoFormData(raw: any): FormData {
+    const fd = new FormData();
+    Object.entries(raw || {}).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === '') return;
+      fd.append(key, String(value));
+    });
+    return fd;
+  }
+
+  private normalizeText(v: any): string {
+    return (v ?? '')
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  
+
+  private async descargarNoEncontradosExcel() {
+    if (this.isEgresado) return;
+    if (!isPlatformBrowser(this.platformId)) return;
+    if (!this.excelNoEncontrados?.length) return;
+
+    const XLSX = await import('xlsx');
+
+    const headers = [
+      'FilaExcel',
+      'Nombre completo',
+      'correo',
+      'Motivo',
+      'Plan o programa de Ingreso',
+      'Vía de Ingreso',
+      'Año ingreso',
+      'Año finalización',
+    ];
+
+    const data = this.excelNoEncontrados.map((r: any) => ({
+      FilaExcel: r.filaExcel ?? '',
+      'Nombre completo': r.nombreCompleto ?? '',
+      correo: r.correo ?? '',
+      Motivo: r.motivo ?? '',
+      'Plan o programa de Ingreso': r.planEstudios ?? '',
+      'Vía de Ingreso': r.viaIngreso ?? '',
+      'Año ingreso': r.anioIngresoCarrera ?? '',
+      'Año finalización': r.anioCohorte ?? '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'No encontrados');
+
+    const ahora = new Date();
+    const name = `PEDIF_no_encontrados_${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(
+      ahora.getDate()
+    ).padStart(2, '0')}.xlsx`;
+
+    XLSX.writeFile(wb, name);
+  }
+
+private normalizeKey(k: any): string {
+    return this.normalizeText(k).replace(/\s+/g, '').replace(/[_-]/g, '');
+  }
+
+  private getRowValue(r: any, keys: string[]): any {
+    for (const k of keys) {
+      const nk = this.normalizeKey(k);
+      if (r[nk] !== undefined && r[nk] !== null && r[nk] !== '') return r[nk];
+    }
+    return '';
+  }
+
+
+  // ---------------------------------------------------------
+  // ✅ Blindaje import Excel: normaliza valores fuera de catálogo
+  //    - Si el valor no existe en tus options, se guarda como "Otro"
+  //      y el texto original queda en el campo "...Otro".
+  //    - No afecta el formulario manual; solo se usa en import.
+  // ---------------------------------------------------------
+
+  private getOptionValues(options: any[] | undefined | null): string[] {
+    if (!options?.length) return [];
+    // soporta string[] o SelectItem[{label,value}]
+    return options
+      .map((o: any) => {
+        if (o == null) return '';
+        if (typeof o === 'string' || typeof o === 'number') return String(o);
+        if (typeof o === 'object') return String(o.value ?? o.label ?? '');
+        return '';
+      })
+      .map((s) => this.normalizeText(s))
+      .filter(Boolean);
+  }
+
+  private normalizeForCompare(v: any): string {
+    // baja a una forma comparable (sin tildes, minúsculas, trim)
+    const s = this.normalizeText(v).toLowerCase();
+    return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+  }
+
+  private normalizeImportEnum(
+    raw: any,
+    options: any[] | undefined | null,
+    opts?: { emptyAsOtro?: boolean; directMap?: Record<string, string> }
+  ): { value: string; otro: string } {
+    const rawText = this.normalizeText(raw);
+    const optionVals = this.getOptionValues(options);
+
+    // vacío
+    if (!rawText) {
+      if (opts?.emptyAsOtro) return { value: 'Otro', otro: 'No informado' };
+      return { value: '', otro: '' };
+    }
+
+    // mapeos directos (por ejemplo "PROPEDEÚTICO" -> "Propedéutico")
+    const keyRaw = this.normalizeForCompare(rawText);
+    const key = keyRaw.replace(/\s+/g, ' ').trim();
+    if (opts?.directMap?.[key]) {
+      const mapped = opts.directMap[key];
+      // si el mapped está en options, úsalo, si no, cae a "Otro"
+      if (optionVals.includes(mapped)) return { value: mapped, otro: '' };
+      return { value: 'Otro', otro: rawText };
+    }
+
+    // match exacto por texto
+    const exact = optionVals.find((o) => this.normalizeForCompare(o) === key);
+    if (exact) return { value: exact, otro: '' };
+
+    // match por inclusión (tolerante)
+    const fuzzy = optionVals.find((o) => this.normalizeForCompare(o).includes(key) || key.includes(this.normalizeForCompare(o)));
+    if (fuzzy) return { value: fuzzy, otro: '' };
+
+    // no calza: usar "Otro"
+    return { value: 'Otro', otro: rawText };
+  }
+
+  private normalizeViaIngresoExcel(v: any): { value: string; otro: string } {
+    // ✅ Backend es estricto: SOLO acepta 'PSU/PAES' | 'CFT' | 'PACE' | 'Propedéutico' | 'Otro'
+    const raw = this.normalizeText(v);
+    if (!raw) return { value: 'Otro', otro: 'No informado' };
+
+    const key = this.normalizeForCompare(raw).replace(/\s+/g, ' ').trim();
+
+    // Normalizaciones comunes
+    if (key.startsWith('prope')) return { value: 'Propedéutico', otro: '' };
+
+    // PSU/PAES (tolerante a variantes)
+    if (key === 'psu/paes' || key === 'psu' || key === 'paes') return { value: 'PSU/PAES', otro: '' };
+
+    if (key === 'cft') return { value: 'CFT', otro: '' };
+    if (key === 'pace') return { value: 'PACE', otro: '' };
+    if (key === 'otro') return { value: 'Otro', otro: '' };
+
+    // Cualquier otro texto del Excel (ej: 'Ingreso especial', 'Puntaje Ranking', etc.)
+    // se guarda como 'Otro' + detalle en viaIngresoOtro
+    return { value: 'Otro', otro: raw };
+  }
+
+  private normalizeSectorLaboralExcel(v: any): { value: string; otro: string } {
+    // ✅ Backend es estricto: SOLO acepta 'Público' | 'Privado' | 'Otro'
+    const raw = this.normalizeText(v);
+    if (!raw) return { value: 'Otro', otro: 'No informado' };
+    const key = this.normalizeForCompare(raw).replace(/\s+/g, ' ').trim();
+    if (key === 'publico' || key === 'público') return { value: 'Público', otro: '' };
+    if (key === 'privado') return { value: 'Privado', otro: '' };
+    if (key === 'otro') return { value: 'Otro', otro: '' };
+    return { value: 'Otro', otro: raw };
+  }
+
+  private normalizeTipoEstablecimientoExcel(v: any): { value: string; otro: string } {
+    // ✅ Backend es estricto: SOLO acepta 'Del Estado' | 'Particular subvencionado' | 'Particular' | 'No aplica' | 'Otro'
+    const raw = this.normalizeText(v);
+    if (!raw) return { value: 'No aplica', otro: '' };
+
+    const key = this.normalizeForCompare(raw).replace(/\s+/g, ' ').trim();
+
+    // Normalizaciones comunes
+    if (key === 'del estado' || key === 'estado' || key === 'delestado') return { value: 'Del Estado', otro: '' };
+    if (key === 'particular subvencionado' || key === 'subvencionado') return { value: 'Particular subvencionado', otro: '' };
+    if (key === 'particular') return { value: 'Particular', otro: '' };
+    if (key === 'no aplica' || key === 'n/a' || key === 'na') return { value: 'No aplica', otro: '' };
+    if (key === 'otro') return { value: 'Otro', otro: '' };
+
+    // Texto no reconocido -> 'Otro' + detalle
+    return { value: 'Otro', otro: raw };
+  }
+
+
+  /**
+   * ✅ Blindaje para no romper el backend por:
+   * - campos extra no soportados
+   * - nulls que se serializan como "null" en FormData
+   * - campos "*Otro" cuando no aplica
+   */
+  private sanitizeImportPayload(raw: any): any {
+    const out: any = { ...(raw ?? {}) };
+
+    // El backend suele ser estricto: eliminamos aliases/extra no esenciales del import
+    delete out.tiempoBusqueda; // dejamos solo tiempoBusquedaTrabajo
+    delete out.planEstudios;   // informativo en UI
+    delete out.sueldo;         // no se usa en este flujo
+    delete out.anioFinEstudio; // usamos solo anioFinEstudios
+    // (si en tu DTO sí existen, no pasa nada si faltan)
+
+    // Si el tipo viene como "No aplica", no lo enviamos
+    if (this.normalizeForCompare(out.tipoEstablecimiento) === 'noaplica') {
+      delete out.tipoEstablecimiento;
+      delete out.tipoEstablecimientoOtro;
+    }
+
+    // Solo enviar campos "*Otro" cuando realmente el valor principal es "Otro"
+    if (out.viaIngreso !== 'Otro') delete out.viaIngresoOtro;
+    if (out.sectorLaboral !== 'Otro') delete out.sectorLaboralOtro;
+    if (out.tipoEstablecimiento !== 'Otro') delete out.tipoEstablecimientoOtro;
+    if (out.situacionActual !== 'Otro') delete out.situacionActualOtro;
+
+    // Eliminar null/undefined/'' para evitar "null" en FormData/JSON
+    Object.keys(out).forEach((k) => {
+      const v = out[k];
+      if (v === null || v === undefined || v === '') delete out[k];
+    });
+
+    return out;
+  }
+
+  private resolveIdEstudianteFromRow(r: any, estudiantesPorRut: Map<string, EstudianteDTO>, estudiantesPorNombre: Map<string, EstudianteDTO>, egresadoIdByNombreCorreo: Map<string, number>): number | null {
+    const rut = this.normalizeText(this.getRowValue(r, ['rut', 'RUT'])).toUpperCase();
+    if (rut) {
+      const est = estudiantesPorRut.get(rut);
+      if (est?.idEstudiante) return est.idEstudiante;
+    }
+
+    const nombreCompleto = this.normalizeText(this.getRowValue(r, ['Nombre completo', 'nombreCompleto', 'nombre completo', 'nombre'])).replace(/\s+/g, ' ');
+    const correo = this.normalizeText(this.getRowValue(r, ['correo', 'email', 'emailContacto', 'Correo']));
+
+    if (nombreCompleto) {
+      // 1) si ya existe egresado con ese nombre+correo, tomamos su idEstudiante
+      if (correo) {
+        const key = `${nombreCompleto}||${correo}`;
+        const id = egresadoIdByNombreCorreo.get(key);
+        if (id) return id;
+      }
+
+      // 2) fallback: buscar estudiante por nombreCompleto exacto
+      const est = estudiantesPorNombre.get(nombreCompleto);
+      if (est?.idEstudiante) return est.idEstudiante;
+    }
+
+    return null;
+  }
+// ---------------------------
+// Import helpers (RUT temporal)
+// ---------------------------
+private parseNombreApellido(nombreCompleto: string): { nombre: string; apellido: string } {
+  const parts = (nombreCompleto ?? '').toString().trim().split(/\s+/).filter(Boolean);
+  if (parts.length <= 1) return { nombre: parts[0] ?? 'SinNombre', apellido: 'SinApellido' };
+  return { nombre: parts[0], apellido: parts.slice(1).join(' ') };
+}
+
+private generateRutTemporal(existingRutsUpper: Set<string>): string {
+  // Formato reconocible y estable: 99.YYDDD.SSS-9 (sin validar DV en backend)
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const day = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const ddd = String(day).padStart(3, '0');
+
+  for (let seq = 1; seq <= 999; seq++) {
+    const sss = String(seq).padStart(3, '0');
+    const rut = `99.${yy}${ddd}.${sss}-9`;
+    const key = this.normalizeText(rut).toUpperCase();
+    if (!existingRutsUpper.has(key)) return rut;
+  }
+
+  // fallback extremo (muy improbable)
+  const rut = `99.${yy}${ddd}.999-9`;
+  return rut;
+}
+
+private async crearEstudianteTemporalFromRow(r: any, existingRutsUpper: Set<string>): Promise<EstudianteDTO | null> {
+  const nombreCompleto = (this.getRowValue(r, ['Nombre completo', 'nombreCompleto', 'nombre completo', 'nombre']) ?? '').toString().trim();
+  if (!nombreCompleto) return null;
+
+  const anioIngreso = this.toIntOrNull(
+    this.getRowValue(r, ['Periodo de Estudios\nAño de ingreso a la Carrera o Programa', 'anioIngresoCarrera', 'agnioIngreso', 'anioIngreso', 'Año ingreso', 'Ano ingreso', 'año ingreso'])
+  );
+  const planTxt = this.getRowValue(r, ['Plan o programa de Ingreso', 'planEstudios', 'plan', 'Plan']);
+
+  // idPlan es obligatorio en tu backend
+  const planId = this.resolvePlanIdFromRow({
+    ...r,
+    planoprogramadeingreso: planTxt,
+    planestudios: planTxt,
+    plan: planTxt,
+  });
+
+  if (!anioIngreso || !planId) return null;
+
+  const { nombre, apellido } = this.parseNombreApellido(nombreCompleto);
+  const rutTemporal = this.generateRutTemporal(existingRutsUpper);
+
+  const dto: CreateEstudianteDTO = {
+    rut: rutTemporal,
+    nombre,
+    apellido,
+    nombreSocial: nombreCompleto,
+    agnioIngreso: anioIngreso,
+    idPlan: planId,
+  };
+
+  try {
+    const created = await lastValueFrom(this.estudiantesService.create(dto));
+    // normaliza respuesta
+    const id = (created as any)?.idEstudiante ?? (created as any)?.id ?? (created as any)?.id_estudiante;
+    if (!id) return null;
+
+    // agrega rut al set para evitar colisiones en el mismo import
+    existingRutsUpper.add(this.normalizeText(rutTemporal).toUpperCase());
+    return created as any;
+  } catch (err) {
+    console.error('❌ No se pudo crear estudiante temporal:', err);
+    return null;
+  }
+}
+
+
+
   async onExcelSelected(event: any) {
     if (this.isEgresado) return;
     if (!isPlatformBrowser(this.platformId)) return;
 
-    const input = event.target as HTMLInputElement;
     const file: File | undefined = event?.target?.files?.[0];
     if (!file) return;
 
@@ -1666,8 +1996,10 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
       const arrayBuffer = await file.arrayBuffer();
       const wb = XLSX.read(arrayBuffer, { type: 'array' });
-      const firstSheet = wb.SheetNames?.[0];
-      const ws = wb.Sheets[firstSheet];
+
+      // Preferir hoja oficial si existe
+      const sheetName = wb.SheetNames?.includes('Todas las Cohortes') ? 'Todas las Cohortes' : wb.SheetNames?.[0];
+      const ws = wb.Sheets[sheetName];
 
       const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
@@ -1676,178 +2008,377 @@ export class SeguimientoEgresadosComponent implements OnInit {
         return;
       }
 
-      // Normaliza keys (acepta headers con mayúsculas/espacios)
-      const norm = (k: string) =>
-        (k ?? '')
-          .toString()
-          .trim()
-          .toLowerCase()
-          .replace(/\s+/g, '')
-          .replace(/[_-]/g, '');
-
+      // Normaliza keys (acepta headers con mayúsculas/espacios/acentos)
       const normalizedRows = rows.map((r) => {
         const out: any = {};
-        Object.keys(r).forEach((k) => (out[norm(k)] = r[k]));
+        Object.keys(r).forEach((k) => (out[this.normalizeKey(k)] = (r as any)[k]));
         return out;
       });
 
-      // Validación mínima
-      const missingRut = normalizedRows.findIndex((r) => !r.rut);
-      if (missingRut >= 0) {
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Falta RUT',
-          detail: `Fila ${missingRut + 2}: la columna "rut" es obligatoria.`,
-        });
-        return;
-      }
+      // ✅ Según lo acordado: este archivo tiene datos de egresados solo hasta la fila 29 (incluye header en fila 1).
+      // Por lo tanto, procesamos únicamente las primeras 28 filas de datos para evitar basura/hojas auxiliares.
+      const MAX_EXCEL_SHEET_ROW = 29;
+      const MAX_DATA_ROWS = Math.max(0, MAX_EXCEL_SHEET_ROW - 1); // descuenta header
+      const limitedRows = normalizedRows.slice(0, MAX_DATA_ROWS);
 
-      this.excelImportTotal = normalizedRows.length;
+      this.excelImportTotal = limitedRows.length;
 
       // Procesa en serie (evita saturar API)
-      const resumen = await this.importarFilasExcel(normalizedRows);
+      this.excelImportEstado = 'Guardando egresados desde Excel...';
+      const result = await this.importarFilasExcel(limitedRows);
 
-      // refresca tabla (await para que el dashboard vea los nuevos datos)
-      await this.cargarEgresados();
-      await this.cargarEstudiantes();
+      // Guardar y (si hay) descargar reporte de no encontrados/duplicados
+      this.excelNoEncontrados = result?.notFoundRows ?? [];
+      if (this.excelNoEncontrados.length) {
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Pendientes detectados',
+          detail: `Se descargará un Excel con ${this.excelNoEncontrados.length} filas no asociadas (requieren estudiante con RUT).`,
+          life: 8000,
+        });
+        await this.descargarNoEncontradosExcel();
+      }
 
       this.messageService.add({
-        severity: resumen.failed ? 'warn' : 'success',
+        severity: result?.failed ? 'warn' : 'success',
         summary: 'Importación finalizada',
-        detail: `Creados: ${resumen.created} | Actualizados: ${resumen.updated} | Errores: ${resumen.failed}`,
+        detail: `Egresados creados: ${result?.created ?? 0} | Egresados actualizados: ${result?.updated ?? 0} | Estudiantes creados: ${result?.studentsCreated ?? 0} | No encontrados: ${result?.notFound ?? 0} | Duplicados: ${result?.duplicated ?? 0} | Errores: ${result?.failed ?? 0}`,
+        life: 8000,
       });
+
+      // refresca tabla
+      await this.cargarEgresados();
+      await this.cargarEstudiantes();
     } catch (err: any) {
       console.error('❌ Error importando Excel:', err);
       this.messageService.add({
         severity: 'error',
         summary: 'Error importando Excel',
         detail: err?.message ?? 'Ocurrió un error leyendo el archivo.',
+        life: 8000,
       });
     } finally {
       this.excelImportando = false;
       this.excelImportEstado = '';
       // limpia input para permitir subir el mismo archivo otra vez
       try {
-        if (this.fileInput?.nativeElement) this.fileInput.nativeElement.value = '';
+        if (this.fileInputExcel?.nativeElement) this.fileInputExcel.nativeElement.value = '';
       } catch {}
     }
   }
 
   private async importarFilasExcel(rows: any[]) {
-    // aseguramos estudiantes cargados
+    // asegurar listas cargadas
     const estudiantesPorRut = new Map<string, EstudianteDTO>();
-    (this.estudiantes ?? []).forEach((e) => estudiantesPorRut.set((e.rut ?? '').trim(), e));
+    const estudiantesPorNombre = new Map<string, EstudianteDTO>();
+    const nombresDuplicados = new Set<string>();
+
+    (this.estudiantes ?? []).forEach((e) => {
+      const rut = this.normalizeText((e as any).rut).toUpperCase();
+      if (rut) estudiantesPorRut.set(rut, e);
+
+      const nombre = this.normalizeText((e as any).nombreCompleto).replace(/\s+/g, ' ');
+      if (nombre) {
+        if (estudiantesPorNombre.has(nombre)) nombresDuplicados.add(nombre);
+        estudiantesPorNombre.set(nombre, e);
+      }
+    });
+
+    const existingRutsUpper = new Set<string>(Array.from(estudiantesPorRut.keys()));
+
+    // Si ya existe Egresado con ese correo, tomamos su idEstudiante (más confiable que solo nombre)
+    const egresadoIdByNombreCorreo = new Map<string, number>();
+    const nombreCorreoDuplicado = new Set<string>();
+
+    (this.egresados ?? []).forEach((eg: any) => {
+      const n = this.normalizeText(eg?.estudiante?.nombreCompleto).replace(/\s+/g, ' ');
+      const c = this.normalizeText(eg?.emailContacto);
+      const id = eg?.idEstudiante ?? eg?.idEstudiante ?? eg?.estudiante?.idEstudiante ?? eg?.estudiante?.idEstudiante;
+      if (!n || !c || !id) return;
+
+      const key = `${n}||${c}`;
+      if (egresadoIdByNombreCorreo.has(key)) nombreCorreoDuplicado.add(key);
+      egresadoIdByNombreCorreo.set(key, Number(id));
+    });
 
     let created = 0;
     let updated = 0;
     let failed = 0;
+    let notFound = 0;
+    let duplicated = 0;
+    let studentsCreated = 0;
 
-    for (const r of rows) {
-      try {
-        const rut = (r.rut ?? '').toString().trim();
-        const nombre = (r.nombre ?? '').toString().trim();
-        const apellido = (r.apellido ?? '').toString().trim();
+    const notFoundRows: any[] = [];
 
-        let estudiante = estudiantesPorRut.get(rut);
+    for (let idx = 0; idx < rows.length; idx++) {
+      const r = rows[idx];
 
-        // crea estudiante si no existe
-        if (!estudiante) {
-          const planId = this.resolvePlanIdFromRow(r);
-          const agnioIngreso = this.toIntOrNull(r.anioingresocarrera ?? r.agnioingreso ?? r.anioingreso);
+      const nombreExcel = this.getRowValue(r, ['Nombre completo', 'nombreCompleto', 'nombre completo', 'nombre']);
+      const correoExcel = this.getRowValue(r, ['correo', 'email', 'emailContacto', 'Correo']);
 
-          const dto: any = {
-            rut,
-            nombre: nombre || 'SinNombre',
-            apellido: apellido || 'SinApellido',
-            nombreSocial: `${nombre} ${apellido}`.trim(),
-            agnioIngreso: agnioIngreso ?? undefined,
-            idPlan: planId ?? undefined,
-          };
+      const idEstudiante = this.resolveIdEstudianteFromRow(
+        r,
+        estudiantesPorRut,
+        estudiantesPorNombre,
+        egresadoIdByNombreCorreo
+      );
 
-          estudiante = await lastValueFrom(this.estudiantesService.create(dto));
-          if (estudiante) estudiantesPorRut.set(rut, estudiante);
-        }
 
-        if (!estudiante) {
-          failed++;
-          continue;
-        }
+if (!idEstudiante) {
+  // Si el Excel NO trae RUT, intentamos crear un estudiante temporal para no bloquear el import.
+  const rutExcel = this.getRowValue(r, ['rut', 'RUT']);
+  const rutNorm = this.normalizeText(rutExcel).toUpperCase();
 
-        const idEstudiante = estudiante.idEstudiante;
+  if (!rutNorm) {
+    const createdSt = await this.crearEstudianteTemporalFromRow(r, existingRutsUpper);
 
-        // actualiza plan del estudiante si viene planId
-        const planIdRow = this.resolvePlanIdFromRow(r);
-        if (planIdRow && estudiante.idPlan && planIdRow !== estudiante.idPlan) {
-          try {
-            await lastValueFrom(this.estudiantesService.update(idEstudiante, { idPlan: planIdRow }));
-          } catch {}
-        }
+    const newId =
+      (createdSt as any)?.idEstudiante ?? (createdSt as any)?.id ?? (createdSt as any)?.id_estudiante;
 
-        const cohorte = this.toIntOrNull(r.aniocohorte ?? r.aniofinestudios ?? r.aniofinestudio);
+    if (newId) {
+      // actualiza mapas locales para próximos rows
+      const nombreNew = this.normalizeText((createdSt as any)?.nombreCompleto ?? (createdSt as any)?.nombreSocial ?? nombreExcel).replace(/\s+/g, ' ');
+      if (nombreNew) estudiantesPorNombre.set(nombreNew, createdSt as any);
 
-        // ✅ raw listo para backend
-        const raw: any = {
-          idEstudiante,
-          // backend usa singular; dejamos también plural por compatibilidad
-          anioFinEstudio: cohorte ?? null,
-          anioFinEstudios: cohorte ?? null,
+      const rutNew = this.normalizeText((createdSt as any)?.rut).toUpperCase();
+      if (rutNew) estudiantesPorRut.set(rutNew, createdSt as any);
 
-          // ...resto de campos
-          planEstudios: '', // se controla por plan en estudiante; no es requerido aquí
-          situacionActual: (r.situacionactual ?? null) || null,
-          situacionActualOtro: (r.situacionactualotro ?? '').toString(),
-          empresa: (r.empresa ?? '').toString(),
-          cargo: (r.cargo ?? '').toString(),
-          nivelRentas: (r.nivelrentas ?? null) || null,
-          viaIngreso: (r.viaingreso ?? null) || null,
-          viaIngresoOtro: (r.viaingresootro ?? '').toString(),
-          anioIngresoCarrera: this.toIntOrNull(r.anioingresocarrera) ?? null,
-          genero: (r.genero ?? null) || null,
-          tiempoBusquedaTrabajo:
-            (r.tiempobusqueda ?? r.tiempobusquedatrabajo) || null,
-          sectorLaboral: (r.sectorlaboral ?? null) || null,
-          sectorLaboralOtro: (r.sectorlaboralotro ?? '').toString(),
-          tipoEstablecimiento: (r.tipoestablecimiento ?? 'No aplica') || 'No aplica',
-          tipoEstablecimientoOtro: (r.tipoestablecimientootro ?? '').toString(),
-          sueldo: this.toIntOrNull(r.sueldo),
-          anioIngresoLaboral: this.toIntOrNull(r.anioingresolaboral ?? r.anioingresolab) ?? null,
-          telefono: (r.telefono ?? '').toString(),
-          emailContacto: (r.emailcontacto ?? '').toString(),
-          linkedin: (r.linkedin ?? '').toString(),
-        };
+      studentsCreated++;
 
-        const res = await this.upsertSeguimientoByEstudiante(idEstudiante, raw);
-        if (res?.ok && res.action === 'created') created++;
-        else if (res?.ok && res.action === 'updated') updated++;
-        else failed++;
-      } catch (e) {
-        failed++;
-      } finally {
-        this.excelImportProcesados++;
-        this.excelImportEstado = `Importando egresados desde Excel... (${this.excelImportProcesados}/${this.excelImportTotal})`;
-      }
+      // sigue flujo normal creando/actualizando egresado
+      const idEstudianteCreated = Number(newId);
+
+      const cohorteTemp = this.toIntOrNull(
+        this.getRowValue(r, [
+          'Periodo de Estudios\nAño de finalización de los estudios',
+          'anioFinEstudio',
+          'anioFinEstudios',
+          'anioCohorte',
+          'añoCohorte',
+          'Año finalización',
+          'Ano finalizacion',
+          'año finalización',
+          'año finalizacion',
+        ])
+      );
+
+      const rawTemp: any = {
+        idEstudiante: idEstudianteCreated,
+        anioFinEstudios: cohorteTemp ?? null,
+        cargo: this.getRowValue(r, ['Cargo que ocupa en la Organización', 'cargo']),
+        nivelRentas: this.getRowValue(r, ['Nivel de Rentas', 'nivelRentas']),
+        viaIngreso: this.normalizeViaIngresoExcel(this.getRowValue(r, ['Vía de Ingreso', 'viaIngreso'])).value,
+        viaIngresoOtro: this.normalizeViaIngresoExcel(this.getRowValue(r, ['Vía de Ingreso', 'viaIngreso'])).otro,
+        anioIngresoCarrera: this.toIntOrNull(
+          this.getRowValue(r, [
+            'Periodo de Estudios\nAño de ingreso a la Carrera o Programa',
+            'anioIngresoCarrera',
+            'agnioIngreso',
+            'anioIngreso',
+            'Año ingreso',
+            'Ano ingreso',
+            'año ingreso',
+          ])
+        ),
+        genero: this.getRowValue(r, ['Género', 'genero']),
+        tiempoBusquedaTrabajo: this.getRowValue(r, ['Tiempo que has demorado en encontrar trabajo', 'tiempoBusquedaTrabajo', 'tiempoBusqueda']),
+        tiempoBusqueda: this.getRowValue(r, ['Tiempo que has demorado en encontrar trabajo', 'tiempoBusqueda', 'tiempoBusquedaTrabajo']),
+        sectorLaboral: this.normalizeSectorLaboralExcel(this.getRowValue(r, ['Sector en el cual se desempeña su labor profesional', 'sectorLaboral'])).value,
+        sectorLaboralOtro: this.normalizeSectorLaboralExcel(this.getRowValue(r, ['Sector en el cual se desempeña su labor profesional', 'sectorLaboral'])).otro,
+        tipoEstablecimiento: this.normalizeTipoEstablecimientoExcel(this.getRowValue(r, ['Si trabajas en establecimiento educacional es:', 'tipoEstablecimiento']) || 'No aplica').value,
+        tipoEstablecimientoOtro: this.normalizeTipoEstablecimientoExcel(this.getRowValue(r, ['Si trabajas en establecimiento educacional es:', 'tipoEstablecimiento']) || 'No aplica').otro,
+        emailContacto: correoExcel || null,
+        telefono: this.getRowValue(r, ['telefono', 'Teléfono']),
+        linkedin: this.getRowValue(r, ['linkedin', 'LinkedIn']),
+        empresa: this.getRowValue(r, ['empresa', 'Organización', 'Institución', 'Institución o establecimiento']),
+        situacionActual: this.getRowValue(r, ['situacionActual', 'Situación']) || 'Trabajando',
+        situacionActualOtro: '',
+        sueldo: null,
+        anioIngresoLaboral: null,
+        planEstudios: '',
+      };
+
+      const resTemp = await this.upsertSeguimientoByEstudiante(idEstudianteCreated, this.sanitizeImportPayload(rawTemp));
+      if (resTemp?.ok && resTemp.action === 'created') created++;
+      else if (resTemp?.ok && resTemp.action === 'updated') updated++;
+      else failed++;
+
+      this.excelImportProcesados++;
+      this.excelImportEstado = `Guardando egresados desde Excel... (${this.excelImportProcesados}/${this.excelImportTotal})`;
+      continue;
     }
-
-    return { created, updated, failed };
   }
 
+  // Si no se pudo resolver ni crear, se reporta como pendiente
+  const nombreNorm = this.normalizeText(nombreExcel).replace(/\s+/g, ' ');
+  const correoNorm = this.normalizeText(correoExcel);
+  const key = nombreNorm && correoNorm ? `${nombreNorm}||${correoNorm}` : '';
 
+  const motivo = key && nombreCorreoDuplicado.has(key)
+    ? 'Nombre+correo duplicado en registros existentes'
+    : (nombreNorm && nombresDuplicados.has(nombreNorm))
+      ? 'Nombre completo duplicado en estudiantes'
+      : 'No existe estudiante/egresado asociado y no se pudo crear estudiante temporal (faltan Año ingreso o Plan)';
+
+  if (motivo.includes('duplicado')) duplicated++;
+  else notFound++;
+
+  notFoundRows.push({
+    filaExcel: idx + 2,
+    nombreCompleto: (nombreExcel ?? '').toString(),
+    correo: (correoExcel ?? '').toString(),
+    motivo,
+    planEstudios: this.getRowValue(r, ['Plan o programa de Ingreso', 'planEstudios', 'plan', 'Plan']),
+    viaIngreso: this.normalizeViaIngresoExcel(this.getRowValue(r, ['Vía de Ingreso', 'viaIngreso'])).value,
+        viaIngresoOtro: this.normalizeViaIngresoExcel(this.getRowValue(r, ['Vía de Ingreso', 'viaIngreso'])).otro,
+    anioIngresoCarrera: this.toIntOrNull(
+      this.getRowValue(r, ['Periodo de Estudios\nAño de ingreso a la Carrera o Programa', 'anioIngresoCarrera', 'anioIngreso'])
+    ),
+    anioCohorte: this.toIntOrNull(
+      this.getRowValue(r, ['Periodo de Estudios\nAño de finalización de los estudios', 'anioFinEstudio', 'anioFinEstudios', 'anioCohorte'])
+    ),
+  });
+
+  failed++;
+  this.excelImportProcesados++;
+  this.excelImportEstado = `Guardando egresados desde Excel... (${this.excelImportProcesados}/${this.excelImportTotal})`;
+  continue;
+}
+
+      const cohorte = this.toIntOrNull(
+        this.getRowValue(r, [
+          'Periodo de Estudios\nAño de finalización de los estudios',
+          'anioFinEstudio',
+          'anioFinEstudios',
+          'anioCohorte',
+          'añoCohorte',
+          'Año finalización',
+          'Ano finalizacion',
+          'año finalización',
+          'año finalizacion',
+        ])
+      );
+
+      const raw: any = {
+        idEstudiante,
+
+        // Año de cohorte (se guarda internamente como anioFinEstudio)
+        anioFinEstudios: cohorte ?? null,
+
+        // Campos PEDIF
+        cargo: this.getRowValue(r, ['Cargo que ocupa en la Organización', 'cargo']),
+        nivelRentas: this.getRowValue(r, ['Nivel de Rentas', 'nivelRentas']),
+        viaIngreso: this.normalizeViaIngresoExcel(this.getRowValue(r, ['Vía de Ingreso', 'viaIngreso'])).value,
+        viaIngresoOtro: this.normalizeViaIngresoExcel(this.getRowValue(r, ['Vía de Ingreso', 'viaIngreso'])).otro,
+        anioIngresoCarrera: this.toIntOrNull(
+          this.getRowValue(r, [
+            'Periodo de Estudios\nAño de ingreso a la Carrera o Programa',
+            'anioIngresoCarrera',
+            'agnioIngreso',
+            'anioIngreso',
+            'Año ingreso',
+            'Ano ingreso',
+            'año ingreso',
+          ])
+        ),
+        genero: this.getRowValue(r, ['Género', 'genero']),
+        tiempoBusquedaTrabajo: this.getRowValue(r, ['Tiempo que has demorado en encontrar trabajo', 'tiempoBusquedaTrabajo', 'tiempoBusqueda']),
+        tiempoBusqueda: this.getRowValue(r, ['Tiempo que has demorado en encontrar trabajo', 'tiempoBusqueda', 'tiempoBusquedaTrabajo']),
+        sectorLaboral: this.normalizeSectorLaboralExcel(this.getRowValue(r, ['Sector en el cual se desempeña su labor profesional', 'sectorLaboral'])).value,
+        sectorLaboralOtro: this.normalizeSectorLaboralExcel(this.getRowValue(r, ['Sector en el cual se desempeña su labor profesional', 'sectorLaboral'])).otro,
+        tipoEstablecimiento: this.normalizeTipoEstablecimientoExcel(this.getRowValue(r, ['Si trabajas en establecimiento educacional es:', 'tipoEstablecimiento']) || 'No aplica').value,
+        tipoEstablecimientoOtro: this.normalizeTipoEstablecimientoExcel(this.getRowValue(r, ['Si trabajas en establecimiento educacional es:', 'tipoEstablecimiento']) || 'No aplica').otro,
+
+        // contacto
+        emailContacto: correoExcel || null,
+        telefono: this.getRowValue(r, ['telefono', 'Teléfono']),
+        linkedin: this.getRowValue(r, ['linkedin', 'LinkedIn']),
+
+        // Formato PEDIF no trae institución/empresa de forma directa, dejamos opcional
+        empresa: this.getRowValue(r, ['empresa', 'Organización', 'Institución', 'Institución o establecimiento']),
+
+        // Situación actual: no viene explícita en PEDIF
+        situacionActual: this.getRowValue(r, ['situacionActual', 'Situación']) || 'Trabajando',
+
+        // opcionales
+        situacionActualOtro: '',
+        sueldo: null,
+        anioIngresoLaboral: null,
+        planEstudios: '',
+      };
+
+      const res = await this.upsertSeguimientoByEstudiante(idEstudiante, this.sanitizeImportPayload(raw));
+      if (res?.ok && res.action === 'created') created++;
+      else if (res?.ok && res.action === 'updated') updated++;
+      else failed++;
+
+      this.excelImportProcesados++;
+      this.excelImportEstado = `Guardando egresados desde Excel... (${this.excelImportProcesados}/${this.excelImportTotal})`;
+    }
+
+    return { created, updated, failed, notFound, duplicated, studentsCreated, notFoundRows };
+  }
 
   private resolvePlanIdFromRow(r: any): number | null {
-    const raw = r.planid ?? r.idplan ?? '';
+    // 1) Si viene id numérico directo
+    const raw = r.planid ?? r.idplan ?? r.idPlan ?? '';
     const n = this.toIntOrNull(raw);
     if (n) return n;
 
-    // también acepta planEstudios como "Título (AÑO)"
-    const planTxt = (r.planestudios ?? r.plan ?? r.plandetudio ?? '').toString().trim();
-    if (!planTxt) return null;
+    // 2) Texto del plan/programa
+    const planTxtRaw = (r.planoprogramadeingreso ?? r.planestudios ?? r.plan ?? r.plandetudio ?? r['Plan o programa de Ingreso'] ?? '').toString().trim();
+    if (!planTxtRaw) return null;
 
-    const found = (this.planes ?? []).find((p: any) => {
+    const planTxt = this.normalizeText(planTxtRaw).toLowerCase();
+
+    // 3) Hint de año (si existe en el Excel)
+    const yearHint =
+      this.toIntOrNull(r['Año ingreso']) ??
+      this.toIntOrNull(r['Ano ingreso']) ??
+      this.toIntOrNull(r['año ingreso']) ??
+      this.toIntOrNull(r.anioIngresoCarrera ?? r.agnioIngreso ?? r.anioIngreso) ??
+      null;
+
+    const planes: any[] = this.planes ?? [];
+
+    // Helper: mejor match por año
+    const pickByYear = (cands: any[]) => {
+      if (!cands.length) return null;
+      if (yearHint) {
+        const exact = cands.find((p) => Number(p.agnio) === Number(yearHint));
+        if (exact) return exact;
+      }
+      // fallback: más nuevo
+      return cands.slice().sort((a, b) => Number(b.agnio ?? 0) - Number(a.agnio ?? 0))[0];
+    };
+
+    // 4) Casos especiales acordados: "Plan Regular" y "Plan Ingreso Profesional"
+    if (planTxt.includes('plan regular') || (planTxt.includes('regular') && !planTxt.includes('profesional'))) {
+      const cands = planes.filter((p: any) => this.normalizeText(p.titulo).toLowerCase().includes('ingreso regular') || this.normalizeText(p.titulo).toLowerCase().includes('regular'));
+      const picked = pickByYear(cands);
+      return picked?.idPlan ?? null;
+    }
+
+    if (planTxt.includes('ingreso profesional') || planTxt.includes('profesional')) {
+      const cands = planes.filter((p: any) => this.normalizeText(p.titulo).toLowerCase().includes('ingreso profesional') || this.normalizeText(p.titulo).toLowerCase().includes('profesional'));
+      const picked = pickByYear(cands);
+      return picked?.idPlan ?? null;
+    }
+
+    // 5) Match exacto "Título (AÑO)"
+    const exactLabel = planes.find((p: any) => {
       const label = `${p.titulo} (${p.agnio})`;
-      return label.toLowerCase() === planTxt.toLowerCase();
+      return label.toLowerCase() === planTxtRaw.toLowerCase();
     });
+    if (exactLabel?.idPlan) return exactLabel.idPlan;
 
-    return found?.idPlan ?? null;
+    // 6) Match por contiene (título)
+    const candsContains = planes.filter((p: any) => {
+      const t = this.normalizeText(p.titulo).toLowerCase();
+      return planTxt.includes(t) || t.includes(planTxt);
+    });
+    const picked2 = pickByYear(candsContains);
+    return picked2?.idPlan ?? null;
   }
 
   private toIntOrNull(v: any): number | null {
@@ -1857,34 +2388,34 @@ export class SeguimientoEgresadosComponent implements OnInit {
     return Math.trunc(n);
   }
 
-  private buildEgresadoFormData(raw: any): FormData {
-    const fd = new FormData();
-
-    Object.entries(raw ?? {}).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') return;
-      fd.append(key, String(value));
-    });
-
-    return fd;
-  }
-
   private async upsertSeguimientoByEstudiante(idEstudiante: number, raw: any) {
     try {
-      // ✅ UPDATE JSON (tu endpoint ya lo soporta)
       await lastValueFrom(this.egresadosService.updateByEstudiante(idEstudiante, raw));
       return { ok: true, action: 'updated' as const };
     } catch (err: any) {
-      // ✅ CREATE usando FormData (POST /egresados espera multipart)
-      const fd = this.buildEgresadoFormData(raw);
+      // Log detallado del PATCH (actualización) cuando falla
+      console.error('❌ PATCH /egresados por idEstudiante falló', {
+        idEstudiante,
+        status: err?.status,
+        message: err?.message,
+        error: err?.error,
+      });
+
+      // CREATE usando FormData (POST /egresados espera multipart)
+      const fd = this.buildEgresadoFormData({ ...raw, idEstudiante });
 
       try {
         await lastValueFrom(this.egresadosService.createWithFiles(fd));
         return { ok: true, action: 'created' as const };
       } catch (err2: any) {
-        console.error('❌ Error upsert seguimiento', { idEstudiante, err2 });
+        console.error('❌ POST /egresados (createWithFiles) falló', {
+          idEstudiante,
+          status: err2?.status,
+          message: err2?.message,
+          error: err2?.error,
+        });
         return { ok: false, action: 'failed' as const, error: err2 };
       }
     }
   }
-
 }

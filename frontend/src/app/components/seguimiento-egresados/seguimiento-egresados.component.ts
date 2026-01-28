@@ -1539,26 +1539,21 @@ abrirSelectorExcel() {
 
     const headers = [
       'rut',
-      'nombre',
-      'apellido',
-      'planId',
+      'nombreCompleto',
+      'planEstudios',
+      'anioIngresoCarrera',
       'anioFinEstudios',
       'situacionActual',
-      'situacionActualOtro',
-      'empresa',
       'cargo',
       'nivelRentas',
       'viaIngreso',
       'viaIngresoOtro',
-      'anioIngresoCarrera',
       'genero',
       'tiempoBusquedaTrabajo',
       'sectorLaboral',
       'sectorLaboralOtro',
       'tipoEstablecimiento',
       'tipoEstablecimientoOtro',
-      'sueldo',
-      'anioIngresoLaboral',
       'telefono',
       'emailContacto',
       'linkedin',
@@ -1566,27 +1561,27 @@ abrirSelectorExcel() {
 
     // fila ejemplo (para probar subida)
     const example: any = {
+
       rut: '10.000.196-9',
-      nombre: 'Nombre',
-      apellido: 'Apellido',
-      planId: this.planes?.[0]?.idPlan ?? '',
+      nombreCompleto: 'Nombre Apellido',
+      planEstudios: this.planes?.[0]?.titulo ?? 'Plan Regular',
+      anioIngresoCarrera: 2021,
       anioFinEstudios: this.CURRENT_YEAR,
       situacionActual: this.situaciones?.[0]?.value ?? 'Trabajando',
-      situacionActualOtro: '',
-      empresa: 'Ej: Colegio X',
       cargo: 'Ej: Educadora diferencial',
-      nivelRentas: this.nivelesRentasOptions?.[0]?.value ?? '',
-      viaIngreso: this.viasIngreso?.[0]?.value ?? '',
-      anioIngresoCarrera: this.CURRENT_YEAR - 5,
-      genero: this.generos?.[0]?.value ?? '',
-      tiempoBusquedaTrabajo: this.tiemposBusquedaTrabajo?.[0]?.value ?? '',
-      sectorLaboral: this.sectoresLaborales?.[0]?.value ?? '',
-      tipoEstablecimiento: this.tipoEstablecimiento?.[0]?.value ?? 'No aplica',
-      sueldo: 600000,
-      anioIngresoLaboral: this.CURRENT_YEAR,
+      nivelRentas: this.nivelesRentasOptions?.[0]?.value ?? 'Sueldo mínimo ($500.000)',
+      viaIngreso: this.viasIngreso?.[0]?.value ?? 'PSU/PAES',
+      viaIngresoOtro: '',
+      genero: this.generos?.[0]?.value ?? 'Femenino',
+      tiempoBusquedaTrabajo: this.tiemposBusquedaTrabajo?.[0]?.value ?? 'Menos de 2 meses',
+      sectorLaboral: this.sectoresLaborales?.[0]?.value ?? 'Público',
+      sectorLaboralOtro: '',
+      tipoEstablecimiento: this.tipoEstablecimiento?.[0]?.value ?? 'Del Estado',
+      tipoEstablecimientoOtro: '',
       telefono: '912345678',
       emailContacto: 'correo@ejemplo.com',
       linkedin: 'https://www.linkedin.com/in/usuario',
+
     };
 
     const ws = XLSX.utils.json_to_sheet([example], { header: headers });
@@ -1611,31 +1606,168 @@ abrirSelectorExcel() {
 
     const XLSX = await import('xlsx');
 
-    const data = (this.egresados ?? []).map((e: any) => ({
-      rut: e?.estudiante?.rut ?? e?.rut ?? '',
-      nombreCompleto: e?.estudiante?.nombreCompleto ?? e?.nombreCompleto ?? '',
-      planEstudios: e?.planEstudios?.nombre ?? e?.planEstudios ?? e?.plan?.titulo ?? '',
-      anioFinEstudios: e?.anioFinEstudios ?? '',
-      situacionActual: e?.situacionActual ?? '',
-      empresa: e?.empresa ?? '',
-      cargo: e?.cargo ?? '',
-      nivelRentas: e?.nivelRentas ?? '',
-      viaIngreso: e?.viaIngreso ?? '',
-      anioIngresoCarrera: e?.anioIngresoCarrera ?? '',
-      genero: e?.genero ?? '',
-      tiempoBusquedaTrabajo: e?.tiempoBusquedaTrabajo ?? '',
-      sectorLaboral: e?.sectorLaboral ?? '',
-      tipoEstablecimiento: e?.tipoEstablecimiento ?? '',
-      sueldo: e?.sueldo ?? '',
-      anioIngresoLaboral: e?.anioIngresoLaboral ?? '',
-      telefono: e?.telefono ?? '',
-      emailContacto: e?.emailContacto ?? '',
-      linkedin: e?.linkedin ?? '',
-      documentos: Array.isArray(e?.documentos) ? e.documentos.length : '',
-      updatedAt: e?.updatedAt ?? e?.updatedAt?.toString?.() ?? '',
-    }));
+    const headers = [
+      'rut',
+      'nombreCompleto',
+      'planEstudios',
+      'anioIngresoCarrera',
+      'anioFinEstudios',
+      'situacionActual',
+      'cargo',
+      'nivelRentas',
+      'viaIngreso',
+      'viaIngresoOtro',
+      'genero',
+      'tiempoBusquedaTrabajo',
+      'sectorLaboral',
+      'sectorLaboralOtro',
+      'tipoEstablecimiento',
+      'tipoEstablecimientoOtro',
+      'telefono',
+      'emailContacto',
+      'linkedin',
+    ];
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    // helpers locales (solo para export)
+    const pickFirst = (...vals: any[]) => {
+      for (const v of vals) {
+        const s = (v ?? '').toString().trim();
+        if (s) return s;
+      }
+      return '';
+    };
+
+    const getEstudianteFromCache = (e: any) => {
+      const idEst =
+        e?.idEstudiante ??
+        e?.estudianteId ??
+        e?.id_estudiante ??
+        e?.estudiante?.id ??
+        null;
+
+      if (!idEst) return null;
+
+      const found =
+        (this.estudiantes ?? []).find((s: any) => String(s?.id) === String(idEst)) ??
+        (this.estudiantes ?? []).find((s: any) => String(s?.idEstudiante) === String(idEst));
+
+      return found ?? null;
+    };
+
+    const resolvePlanTitulo = (e: any, est?: any) => {
+      // 1) Si ya viene como texto (desde backend o cache), úsalo tal cual
+      const planTexto = pickFirst(
+        e?.planEstudios,
+        e?.plan_estudios,
+        e?.planTitulo,
+        e?.plan_titulo,
+        e?.plan,
+        est?.planEstudios,
+        est?.plan_estudios,
+        null
+      );
+
+      if (typeof planTexto === 'string' && planTexto.trim()) {
+        return planTexto.trim();
+      }
+
+      // 2) Intentar resolver por ID (cuando exista)
+      const planId = pickFirst(
+        e?.planId,
+        e?.plan?.id,
+        e?.plan_estudios_id,
+        e?.planEstudiosId,
+        e?.plan_estudiosId,
+        null
+      );
+
+      const formatPlan = (p: any) => {
+        const titulo = pickFirst(p?.titulo, p?.title, p?.nombre, '');
+        const agnio = pickFirst(p?.agnio, p?.anio, p?.year, null);
+        return agnio ? `${titulo} (${agnio})` : `${titulo}`;
+      };
+
+      if (planId) {
+        const planPorId =
+          (this.planes ?? []).find((p: any) => String(p?.idPlan) === String(planId)) ??
+          (this.planes ?? []).find((p: any) => String(p?.id) === String(planId)) ??
+          (this.planes ?? []).find((p: any) => String(p?.codigo) === String(planId)) ??
+          (this.planes ?? []).find((p: any) => String(p?.planId) === String(planId));
+
+        if (planPorId) return formatPlan(planPorId);
+      }
+
+      // 3) Si NO hay ID, inferir por año (lo más estable que tenemos en el export/import)
+      //    En tu API: /planes-de-estudio devuelve { idPlan, codigo, titulo, agnio, ... }
+      //    y en egresado solemos tener anioIngresoCarrera/anioIngresoCar.
+      const anio = pickFirst(
+        e?.anioIngresoCarrera,
+        e?.anioIngresoCar,
+        e?.anio_ingreso_carrera,
+        e?.agnioIngresoCarrera,
+        e?.agnioIngresoCar,
+        est?.agnioIngreso,
+        est?.anioIngreso,
+        null
+      );
+
+      if (anio != null) {
+        const planPorAnio = (this.planes ?? []).find((p: any) => String(p?.agnio) === String(anio));
+        if (planPorAnio) return formatPlan(planPorAnio);
+      }
+
+      // 4) Fallback: primer plan disponible o "Plan Regular"
+      const p0 = (this.planes ?? [])[0];
+      return p0 ? formatPlan(p0) : 'Plan Regular';
+    };
+
+    const data = (this.egresados ?? []).map((e: any) => {
+      const est = e?.estudiante ?? getEstudianteFromCache(e);
+
+      const rut = pickFirst(
+        e?.rut,
+        e?.RUT,
+        e?.rutEstudiante,
+        e?.estudianteRut,
+        est?.rut,
+        est?.RUT
+      );
+
+      const nombreCompleto = pickFirst(
+        e?.nombreCompleto,
+        e?.nombreComple,
+        e?.nombre,
+        e?.estudianteNombreCompleto,
+        est?.nombreCompleto,
+        [est?.nombre, est?.apellido].filter(Boolean).join(' ')
+      );
+
+      return {
+        rut,
+        nombreCompleto,
+        planEstudios: resolvePlanTitulo(e, est),
+        anioIngresoCarrera: pickFirst(e?.anioIngresoCarrera, est?.agnioIngreso, e?.anio_ingreso_carrera),
+        anioFinEstudios: pickFirst(e?.anioFinEstudios, e?.anio_fin_estudios),
+        situacionActual: pickFirst(e?.situacionActual, e?.situacion, e?.situacion_actual),
+        cargo: pickFirst(e?.cargo),
+        nivelRentas: pickFirst(e?.nivelRentas, e?.nivel_rentas),
+        viaIngreso: pickFirst(e?.viaIngreso, e?.via_ingreso),
+        viaIngresoOtro: pickFirst(e?.viaIngresoOtro, e?.via_ingreso_otro),
+        genero: pickFirst(e?.genero),
+        tiempoBusquedaTrabajo: pickFirst(e?.tiempoBusquedaTrabajo, e?.tiempo_busqueda_trabajo),
+        sectorLaboral: pickFirst(e?.sectorLaboral, e?.sector_laboral),
+        sectorLaboralOtro: pickFirst(e?.sectorLaboralOtro, e?.sector_laboral_otro),
+        tipoEstablecimiento: pickFirst(e?.tipoEstablecimiento, e?.tipo_establecimiento),
+        tipoEstablecimientoOtro: pickFirst(e?.tipoEstablecimientoOtro, e?.tipo_establecimiento_otro),
+        telefono: pickFirst(e?.telefono),
+        emailContacto: pickFirst(e?.emailContacto, e?.email, e?.correo),
+        linkedin: pickFirst(e?.linkedin),
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(data, { header: headers });
+    // fuerza headers en primera fila aunque existan claves faltantes
+    XLSX.utils.sheet_add_aoa(ws, [headers], { origin: 'A1' });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Egresados');
 
@@ -1868,7 +2000,17 @@ private normalizeKey(k: any): string {
     if (out.tipoEstablecimiento !== 'Otro') delete out.tipoEstablecimientoOtro;
     if (out.situacionActual !== 'Otro') delete out.situacionActualOtro;
 
-    // Eliminar null/undefined/'' para evitar "null" en FormData/JSON
+    
+    // Blindaje email: si no es válido, no lo enviamos (el backend valida con IsEmail)
+    if (out.emailContacto !== undefined && out.emailContacto !== null) {
+      const email = String(out.emailContacto).trim();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        delete out.emailContacto;
+      } else {
+        out.emailContacto = email; // normaliza espacios
+      }
+    }
+// Eliminar null/undefined/'' para evitar "null" en FormData/JSON
     Object.keys(out).forEach((k) => {
       const v = out[k];
       if (v === null || v === undefined || v === '') delete out[k];
@@ -2378,10 +2520,34 @@ if (!idEstudiante) {
       return planTxt.includes(t) || t.includes(planTxt);
     });
     const picked2 = pickByYear(candsContains);
-    return picked2?.idPlan ?? null;
+    return picked2?.idPlan ?? this.getDefaultPlanId();
   }
 
-  private toIntOrNull(v: any): number | null {
+  
+
+  // ✅ Fallback de plan para importación:
+  // Si el Excel trae el plan vacío/no resoluble, tomamos el plan más reciente disponible
+  // para evitar que el POST falle por planId requerido.
+  private getDefaultPlanId(): number | null {
+    const planes: any[] = Array.isArray((this as any).planes) ? (this as any).planes : [];
+    if (!planes.length) return null;
+
+    const parsed = planes
+      .map((p) => {
+        const y = Number(p?.agnio ?? p?.anio ?? p?.year ?? p?.anioPlan ?? NaN);
+        return { p, y };
+      })
+      .filter((x) => Number.isFinite(x.y));
+
+    if (parsed.length) {
+      parsed.sort((a, b) => b.y - a.y);
+      return parsed[0]?.p?.idPlan ?? null;
+    }
+
+    return planes[0]?.idPlan ?? null;
+  }
+
+private toIntOrNull(v: any): number | null {
     if (v === null || v === undefined || v === '') return null;
     const n = Number(v);
     if (!Number.isFinite(n)) return null;

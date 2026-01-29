@@ -7,21 +7,28 @@ model PracticaTomada {
   idAsignatura         Int
   idEstudiante         Int
   idCursacion          Int
-  PTConvenios          PTConvenio[]     @relation("cursacion practica")
-  CursacionPractica    Cursacion        @relation("referencia la cursacion", fields: [idAsignatura, idPlan, idEstudiante, idCursacion], references: [idAsignatura, idPlan, idEstudiante, idCursacion])
+
+
+  PTConvenios PTConvenio[] @relation("cursacion practica")
+
+
+  CursacionPractica Cursacion @relation("referencia la cursacion", fields: [idCursacion, idEstudiante, idAsignatura, idPlan], references: [idCursacion, idEstudiante, idAsignatura, idPlan])
 
   @@id([idPlan, idAsignatura, idEstudiante, idCursacion])
 }
 
 model PTConvenio {
-  nivel          NIVEL
-  idPlan         Int
-  idAsignatura   Int
-  idEstudiante   Int
-  idCursacion    Int
-  idConvenio     Int
-  PracticaTomada PracticaTomada @relation("cursacion practica", fields: [idAsignatura, idPlan, idEstudiante, idCursacion], references: [idAsignatura, idPlan, idEstudiante, idCursacion])
-  Convenio       Convenio       @relation("convenio referenciado", fields: [idConvenio], references: [idConvenio])
+  nivel        NIVEL
+  idPlan       Int
+  idAsignatura Int
+  idEstudiante Int
+  idCursacion  Int
+  idConvenio   Int
+
+
+  PracticaTomada PracticaTomada @relation("cursacion practica", fields: [idPlan, idAsignatura, idEstudiante, idCursacion], references: [idPlan, idAsignatura, idEstudiante, idCursacion])
+
+  Convenio Convenio @relation("convenio referenciado", fields: [idConvenio], references: [idConvenio])
 
   @@id([idPlan, idAsignatura, idEstudiante, idCursacion, idConvenio])
 }
@@ -43,8 +50,11 @@ model Convenio {
 model Modalidad {
   idModalidad        Int        @id @default(autoincrement())
   nombreModalidad    String     @unique
+  descripcion        String?
   fechaCreacion      DateTime   @default(now()) @db.Date
-  fechaDesuso        DateTime?  @default(dbgenerated("(now() + '1000 years'::interval)")) @db.Date
+  fechaDesuso        DateTime?  @db.Date
+  fechaInicioValidez DateTime?  @default(now()) @db.Date
+  fechaFinValidez    DateTime?  @default(dbgenerated("(now() + '1000 years'::interval)")) @db.Date
   validez            Boolean    @default(true)
   conveniosAsociados Convenio[] @relation("sigue la modalidad")
 }

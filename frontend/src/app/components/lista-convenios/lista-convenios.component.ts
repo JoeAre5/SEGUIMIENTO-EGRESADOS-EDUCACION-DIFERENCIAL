@@ -13,28 +13,40 @@ import { InputTextModule } from 'primeng/inputtext';
 import { ToastModule } from 'primeng/toast';
 import { MessageService } from 'primeng/api';
 import { CommonModule } from '@angular/common';
-import Swal from 'sweetalert2'
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
+import Swal from 'sweetalert2';
 import { environment } from '../../../environments/environment';
 
+// ✅ FIX para <p-dropdown [options]="...">
+import { DropdownModule } from 'primeng/dropdown';
 
 @Component({
   selector: 'app-lista-convenios',
   standalone: true,
-  imports: [PaginatorModule, DialogModule, ButtonModule, FloatLabelModule, CalendarModule, FileUploadModule, ReactiveFormsModule, InputTextModule, ToastModule, CommonModule, ProgressSpinnerModule],
+  imports: [
+    PaginatorModule,
+    DialogModule,
+    ButtonModule,
+    FloatLabelModule,
+    CalendarModule,
+    FileUploadModule,
+    ReactiveFormsModule,
+    InputTextModule,
+    ToastModule,
+    CommonModule,
+    ProgressSpinnerModule,
+
+    // ✅ FIX
+    DropdownModule
+  ],
   providers: [MessageService],
   templateUrl: './lista-convenios.component.html',
   styleUrl: './lista-convenios.component.css'
 })
-export class ListaConveniosComponent implements OnInit{
+export class ListaConveniosComponent implements OnInit {
+  constructor(private router: Router, private servicioConvenios: ConveniosService, private messageService: MessageService) { }
 
-  constructor(
-    private router: Router,
-    private servicioConvenios: ConveniosService,
-    private messageService: MessageService
-  ){}
-
-  ngOnInit() {
+  ngOnInit(): void {
     this.obtenerConvenios()
   }
 
@@ -57,7 +69,7 @@ export class ListaConveniosComponent implements OnInit{
     terminos: new FormControl(null),
     nombreModalidad: new FormControl('')
   })
-  
+
   public alternarModal() {
     this.visible = !this.visible;
     if(!this.visible){
@@ -71,16 +83,16 @@ export class ListaConveniosComponent implements OnInit{
     this.periodo = !this.periodo;
     if (!this.periodo) {
         const año = new Date().getFullYear();
-        
+
         this.formularioConvenio.patchValue({
             inicio: año.toString()
         });
     } else {
         this.formularioConvenio.patchValue({
-            inicio: '' 
+            inicio: ''
         });
     }
-}
+  }
 
   public alternarModalidad() {
     if (this.modalidadNueva){
@@ -100,14 +112,14 @@ export class ListaConveniosComponent implements OnInit{
 
   public seleccionarArchivo(event: any, tipo: string) {
     const file = event.files[0];
-  
+
     if (tipo === 'imagen') {
       this.formularioConvenio.patchValue({
         imagen: file
       });
     } else if (tipo === 'terminos') {
       this.formularioConvenio.patchValue({
-        terminos: file 
+        terminos: file
       });
     }
   }
@@ -129,7 +141,7 @@ export class ListaConveniosComponent implements OnInit{
   public totalRecords: number= 0
   public onPageChange(event: PaginatorState) {
     this.first = event.first ?? 0;
-    this.rows = event.rows ?? 10; 
+    this.rows = event.rows ?? 10;
     this.actualizarConveniosPaginados()
   }
 
@@ -139,11 +151,10 @@ export class ListaConveniosComponent implements OnInit{
     console.log(this.conveniosFiltrados)
     this.conveniosPaginados = this.conveniosFiltrados.slice(inicio, final)
   }
-  
+
   public convenios: ConvenioLista[] = []
   public conveniosFiltrados: ConvenioLista[]=[]
   public conveniosPaginados: ConvenioLista[]=[]
-
 
   public verDetalle(id: number){
     this.router.navigate(['/convenio/', id])
@@ -183,21 +194,19 @@ export class ListaConveniosComponent implements OnInit{
     if(this.formularioConvenio.valid){
       const formData = new FormData();
 
-      // Agregar los campos del formulario
       formData.append('titulo', this.formularioConvenio.get('nombre')?.value);
       formData.append('centroPractica', this.formularioConvenio.get('centro')?.value);
       formData.append('idModalidad', this.formularioConvenio.get('idModalidad')?.value);
       formData.append('FechaInicioConvenio', this.formularioConvenio.get('inicio')?.value);
 
-      // Agregar los archivos
       const imagen = this.formularioConvenio.get('imagen')?.value;
       if (imagen) {
-        formData.append('files', imagen); // "files" debe coincidir con el nombre en el FilesInterceptor
+        formData.append('files', imagen);
       }
 
       const terminos = this.formularioConvenio.get('terminos')?.value;
       if (terminos) {
-        formData.append('files', terminos); // Agregar el PDF como "files"
+        formData.append('files', terminos);
       }
 
       if (this.modalidadNueva && !this.formularioConvenio.value.nombreModalidad) {
@@ -207,7 +216,7 @@ export class ListaConveniosComponent implements OnInit{
           detail: 'Debe ingresar un nombre de modalidad.'
         });
         return;
-           
+
       } else {
         formData.append('nombreModalidad', this.formularioConvenio.get('nombreModalidad')?.value);
       }
@@ -231,8 +240,8 @@ export class ListaConveniosComponent implements OnInit{
       )
     } else {
       this.messageService.add({
-        severity: 'error', 
-        summary: 'Error', 
+        severity: 'error',
+        summary: 'Error',
         detail: 'Formulario incompleto. Por favor llene todos los campos requeridos.'
       });
     }

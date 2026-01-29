@@ -11,15 +11,12 @@ import { ForbiddenException } from '@nestjs/common';
 export class EgresadosService {
   constructor(private prisma: PrismaService) {}
 
-  // ✅ Helper: convierte "YYYY-MM-DD" o ISO en Date válida
-  // (sin afectar lógica: solo tipado correcto)
   private parseFecha(fecha: string): Date | undefined {
     if (!fecha) return undefined;
     if (fecha.includes('T')) return new Date(fecha);
     return new Date(`${fecha}T00:00:00.000Z`);
   }
 
-  // ✅ Helpers: normalizar tipos (por FormData todo llega string)
   private toIntOrNull(v: any): number | null {
     if (v === null || v === undefined || v === '') return null;
     const n = typeof v === 'number' ? v : parseInt(String(v), 10);
@@ -32,14 +29,9 @@ export class EgresadosService {
     return s.length ? s : null;
   }
 
-  // ===========================
-  // ✅ CONSENTIMIENTO (EGRESADO)
-  // ===========================
-
   async getConsentimientoMine(user: any) {
     const idEstudiante = user?.idEstudiante;
     if (!idEstudiante) {
-      // si tu token no trae idEstudiante, igual devolvemos PENDIENTE
       return { consentimientoEstado: 'PENDIENTE', consentimientoFecha: null };
     }
 
@@ -47,7 +39,7 @@ export class EgresadosService {
       where: { idEstudiante },
       create: {
         Estudiante: { connect: { idEstudiante } },
-        situacionActual: 'Otro', // ✅ requerido por Prisma
+        situacionActual: 'Otro', 
       },
       update: {},
       select: {
@@ -70,15 +62,13 @@ export class EgresadosService {
     const eg = await this.prisma.egresado.upsert({
       where: { idEstudiante },
       create: {
-        // ✅ IMPORTANTÍSIMO: conectar estudiante, NO pasar idEstudiante directo
         Estudiante: { connect: { idEstudiante } },
-        // ✅ requerido por Prisma
         situacionActual: 'Otro',
         consentimientoEstado: estado,
         consentimientoFecha: new Date(),
       },
 
-      // ✅ FIX MÍNIMO: si YA EXISTE, aquí ES donde se actualiza
+
       update: {
         consentimientoEstado: estado,
         consentimientoFecha: new Date(),
@@ -93,10 +83,6 @@ export class EgresadosService {
     return eg;
   }
 
-  /* ============================================================
-    ✅ MINE: devuelve seguimiento del autenticado (si existe)
-    - Si no existe, retorna null (para formulario vacío sin 404)
-  ============================================================ */
   async findMine(idEstudiante: number) {
     const id = Number(idEstudiante);
     if (!id || Number.isNaN(id)) return null;
@@ -124,14 +110,9 @@ export class EgresadosService {
       },
     });
 
-    // 👇 si no hay seguimiento aún, no es error
     return egresado ?? null;
   }
 
-  /* ============================================================
-    ✅ MINE: upsert del autenticado (crea si no existe, si existe actualiza)
-    - Reutiliza create() y updateByEstudiante() para no romper lógica
-  ============================================================ */
   async upsertMine(
     idEstudiante: number,
     dto: CreateEgresadoDto | UpdateEgresadoDto,
@@ -139,11 +120,9 @@ export class EgresadosService {
   ) {
     const id = Number(idEstudiante);
     if (!id || Number.isNaN(id)) {
-      // aquí NO uso ForbiddenException para no cambiar imports,
-      // pero puedes cambiarlo a Forbidden/Unauthorized si prefieres.
       throw new NotFoundException('No se pudo identificar al egresado autenticado');
     }
-    // ✅ bloquear si no aceptó consentimiento (solo para el flujo "mine")
+
     const estado = await this.prisma.egresado.findUnique({
       where: { idEstudiante: id },
       select: { consentimientoEstado: true },
@@ -161,16 +140,12 @@ export class EgresadosService {
       return this.updateByEstudiante(id, dto as any, archivos);
     }
 
-    // Si no existe, creamos (pero forzamos idEstudiante)
     const dtoCreate: any = { ...(dto as any), idEstudiante: id };
     return this.create(dtoCreate, archivos);
   }
 
-  /* ===========================
-    ✅ CREATE (o update si existe)
-  =========================== */
+
   async create(dto: CreateEgresadoDto, archivos: Express.Multer.File[]) {
-    // ✅ SIN afectar lógica: evitar NaN si viene vacío/undefined
     const idEst =
       dto?.idEstudiante !== undefined && dto?.idEstudiante !== null ? Number(dto.idEstudiante) : NaN;
     dto.idEstudiante = idEst as any;
@@ -191,7 +166,7 @@ export class EgresadosService {
 
     const egresado = await this.prisma.egresado.create({
       data: {
-        // ✅ relación obligatoria => connect
+
         Estudiante: { connect: { idEstudiante: dto.idEstudiante } },
 
         fechaEgreso: fechaConvertida,
@@ -230,8 +205,6 @@ export class EgresadosService {
 
         anioIngresoLaboral:
           dto.anioIngresoLaboral !== undefined ? this.toIntOrNull(dto.anioIngresoLaboral) : null,
-
-        // ✅ FIX: NO enviar null; si no viene, Prisma usa @default(2026)
         ...(dto.anioSeguimiento !== undefined ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) } : {}),
 
         telefono: this.toStrOrNull(dto.telefono),
@@ -255,9 +228,7 @@ export class EgresadosService {
     return this.findOne(dto.idEstudiante);
   }
 
-  /* ===========================
-    ✅ GET ALL
-  =========================== */
+
   async findAll() {
     return this.prisma.egresado.findMany({
       include: {
@@ -283,9 +254,6 @@ export class EgresadosService {
     });
   }
 
-  /* ===========================
-    ✅ GET ONE (por idEstudiante)
-  =========================== */
   async findOne(idEstudiante: number) {
     idEstudiante = Number(idEstudiante);
 
@@ -316,9 +284,6 @@ export class EgresadosService {
     return egresado;
   }
 
-  /* ===========================
-    ✅ PATCH updateByEstudiante
-  =========================== */
   async updateByEstudiante(
     idEstudiante: number,
     dto: UpdateEgresadoDto,
@@ -448,12 +413,7 @@ export class EgresadosService {
     return this.findOne(idEstudiante);
   }
 
-  /* ===========================
-    ✅ DASHBOARD POR COHORTE
-    Cohorte = anioFinEstudios
-  =========================== */
   async getDashboardCohortes() {
-    // 1) Total por cohorte
     const porCohorte = await this.prisma.egresado.groupBy({
       by: ['anioFinEstudios'],
       _count: { _all: true },
@@ -461,21 +421,20 @@ export class EgresadosService {
       orderBy: { anioFinEstudios: 'desc' },
     });
 
-    // 2) Por cohorte + situacion
     const porCohorteSituacion = await this.prisma.egresado.groupBy({
       by: ['anioFinEstudios', 'situacionActual'],
       _count: { _all: true },
       where: { anioFinEstudios: { not: null } },
     });
 
-    // 3) Por cohorte + nivelRentas
+
     const porCohorteRentas = await this.prisma.egresado.groupBy({
       by: ['anioFinEstudios', 'nivelRentas'],
       _count: { _all: true },
       where: { anioFinEstudios: { not: null } },
     });
 
-    // 4) Docs por cohorte (contar con/sin docs)
+
     const egresadosMin = await this.prisma.egresado.findMany({
       where: { anioFinEstudios: { not: null } },
       select: {
@@ -495,7 +454,7 @@ export class EgresadosService {
       else ref.sinDocs += 1;
     }
 
-    // Normalizar shape amigable
+
     const cohortes = porCohorte
       .filter((x) => x.anioFinEstudios !== null)
       .map((x) => {
@@ -530,9 +489,7 @@ export class EgresadosService {
     return { cohortes };
   }
 
-  /* ===========================
-    ✅ DELETE DOCUMENTO POR ID
-  =========================== */
+
   async deleteDocumento(idDocumento: number) {
     idDocumento = Number(idDocumento);
 
@@ -580,12 +537,6 @@ export class EgresadosService {
     return egresado;
   }
 
-  /* ============================================================
-    ✅ NUEVO: DELETE DOCUMENTO (MINE)
-    - El egresado autenticado SOLO puede borrar documentos de SU seguimiento
-    - Reutiliza la misma lógica física de borrado del método deleteDocumento
-    - NO afecta el flujo Admin/Secretaría
-  ============================================================ */
   async deleteDocumentoMine(idDocumento: number, idEstudiante: number) {
     idDocumento = Number(idDocumento);
     idEstudiante = Number(idEstudiante);
@@ -596,7 +547,7 @@ export class EgresadosService {
 
     if (!doc) throw new NotFoundException('Documento no encontrado');
 
-    // ✅ validar que el documento pertenezca al egresado del token
+
     const egresado = await this.prisma.egresado.findUnique({
       where: { idEstudiante },
       select: { idEgresado: true },
@@ -604,8 +555,6 @@ export class EgresadosService {
 
     if (!egresado) throw new NotFoundException('Egresado no encontrado');
 
-    // si el documento no es del egresado autenticado, lo tratamos como no encontrado
-    // para no filtrar información
     if (doc.idEgresado !== egresado.idEgresado) {
       throw new NotFoundException('Documento no encontrado');
     }
@@ -622,7 +571,7 @@ export class EgresadosService {
       where: { idDocumento },
     });
 
-    // devolver egresado actualizado (mismo shape que findOne/findMine)
+
     return this.prisma.egresado.findUnique({
       where: { idEstudiante },
       include: {
@@ -647,9 +596,7 @@ export class EgresadosService {
     });
   }
 
-  /* ===========================
-    ✅ DELETE EGRESADO COMPLETO
-  =========================== */
+
   async delete(idEgresado: number) {
     idEgresado = Number(idEgresado);
 

@@ -41,7 +41,7 @@ export class AuthSessionService {
 
   isEgresado(): boolean {
     const role = this.getRole();
-    // tu backend usa 'EGRESADO'; tu frontend tenía 'Egresado' también
+    // backend usa 'EGRESADO';  frontend tenía 'Egresado' 
     return role === 'EGRESADO' || role === 'Egresado';
   }
 }

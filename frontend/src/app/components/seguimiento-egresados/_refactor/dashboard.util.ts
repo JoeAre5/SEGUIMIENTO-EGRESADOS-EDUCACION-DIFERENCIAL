@@ -1,4 +1,4 @@
-// src/app/components/seguimiento-egresados/_refactor/dashboard.util.ts
+
 
 export type Stats = { total: number; trabajando: number; cesante: number; otro: number };
 
@@ -108,11 +108,7 @@ export function buildChartsGlobal(lista: any[], stats: Stats) {
   return { donutSituacionData, donutDocsData, donutAnioData };
 }
 
-/**
- * ✅ FIX: tu componente espera:
- *  - cohortes.cohortesOptions
- *  - cohortes.anios
- */
+
 export function buildCohortesOptions(egresados: any[]): { cohortesOptions: { label: string; value: number }[]; anios: number[] } {
   const arr = Array.isArray(egresados) ? egresados : [];
   const setAnios = new Set<number>();
@@ -138,7 +134,7 @@ export function buildCohorteDashboard(egresados: any[], cohorte: number | null) 
   const conDocs = lista.filter((x) => (x?.documentos?.length ?? 0) > 0).length;
   const porcentajeConDocs = stats.total ? Math.round((conDocs / stats.total) * 100) : 0;
 
-  // ✅ Bar Situación cohorte (con colores)
+
   const barSituacionCohorteData = {
     labels: ['Trabajando', 'Cesante', 'Otro'],
     datasets: [
@@ -153,7 +149,7 @@ export function buildCohorteDashboard(egresados: any[], cohorte: number | null) 
     ],
   };
 
-  // ✅ Donut Rentas cohorte (con colores)
+
   const conteoRentas = new Map<string, number>();
   for (const x of lista) {
     const k = (x?.nivelRentas ?? 'Sin info').toString();

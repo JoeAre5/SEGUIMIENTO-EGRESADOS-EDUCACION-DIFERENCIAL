@@ -9,7 +9,6 @@ export function getSituacionSeverity(situacion?: string | null): TagSeverity {
 }
 
 export function formatCLP(valor?: number | null): string {
-  // mantiene tu comportamiento: 0/undefined/null -> "-"
   if (!valor) return '-';
   return valor.toLocaleString('es-CL');
 }

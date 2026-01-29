@@ -1,0 +1,307 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="bg-white border-y mt-10 py-5 shadow-lg">
+  <div class="flex items-center justify-between w-11/12">
+    <div class="bg-sky-700 w-5/12 rounded-r-xl py-4">
+      <h1 class="text-4xl text-white text-center font-bold">Gestión de Usuarios</h1>
+    </div>
+
+    <div class="flex gap-3 pr-6">
+      <button pButton icon="pi pi-user-plus" label="Nuevo usuario" (click)="openCrearManual()"></button>
+      <button
+        pButton
+        icon="pi pi-users"
+        label="Crear desde egresado"
+        class="p-button-secondary"
+        (click)="openCrearEgresado()"
+      ></button>
+    </div>
+  </div>
+</div>
+
+<div class="m-10 bg-white p-6 shadow-lg rounded-md">
+
+  <p-table
+    #dt
+    [value]="usuarios"
+    [paginator]="true"
+    [rows]="10"
+    [loading]="loading"
+    [globalFilterFields]="['username','email','nombreCompleto','role']"
+    responsiveLayout="scroll"
+  >
+    <ng-template pTemplate="caption">
+      <div class="flex flex-wrap gap-3 items-center justify-between">
+        <span class="p-input-icon-left">
+          <i class="pi pi-search"></i>
+          <input
+            pInputText
+            type="text"
+            (input)="onGlobalFilter(dt, $event)"
+            placeholder="Buscar (username/email/nombre/rol)"
+          />
+        </span>
+
+        <div class="flex gap-3 items-center">
+          <p-dropdown
+            [options]="roles"
+            [(ngModel)]="filtroRole"
+            placeholder="Filtrar por rol"
+            [showClear]="true"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="dt.filter(filtroRole,'role','equals')"
+          ></p-dropdown>
+
+          <p-dropdown
+            [options]="estadoOptions"
+            [(ngModel)]="filtroActivo"
+            placeholder="Estado"
+            [showClear]="true"
+            optionLabel="label"
+            optionValue="value"
+            (onChange)="dt.filter(filtroActivo,'isActive','equals')"
+          ></p-dropdown>
+
+          <button pButton icon="pi pi-refresh" class="p-button-text" (click)="reloadAll()"></button>
+        </div>
+      </div>
+    </ng-template>
+
+    <ng-template pTemplate="header">
+      <tr>
+        <th pSortableColumn="id">ID <p-sortIcon field="id"></p-sortIcon></th>
+        <th pSortableColumn="username">Username <p-sortIcon field="username"></p-sortIcon></th>
+        <th>Email</th>
+        <th>Nombre</th>
+        <th pSortableColumn="role">Rol <p-sortIcon field="role"></p-sortIcon></th>
+        <th>Vinculado</th>
+        <th>Activo</th>
+        <th style="width: 240px">Acciones</th>
+      </tr>
+    </ng-template>
+
+    <ng-template pTemplate="body" let-u>
+      <tr>
+        <td>{{ u.id }}</td>
+        <td class="font-semibold">{{ u.username }}</td>
+        <td>{{ u.email }}</td>
+        <td>{{ u.nombreCompleto }}</td>
+        <td>
+          <p-tag [value]="u.role" [severity]="tagSeverityByRole(u.role)"></p-tag>
+        </td>
+        <td>
+          <span *ngIf="u.idEstudiante; else noLink">ID Estudiante: {{ u.idEstudiante }}</span>
+          <ng-template #noLink>-</ng-template>
+        </td>
+        <td>
+          <p-inputSwitch
+            [ngModel]="u.isActive"
+            (onChange)="confirmarToggleActivo(u, $event.checked)"
+          ></p-inputSwitch>
+        </td>
+        <td class="flex gap-2">
+          <button pButton icon="pi pi-pencil" label="Editar" (click)="openEditar(u)"></button>
+          <button
+            pButton
+            icon="pi pi-key"
+            label="Password"
+            class="p-button-warning"
+            (click)="openPassword(u)"
+          ></button>
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>
+
+
+<p-dialog
+  header="Nuevo usuario (manual)"
+  [(visible)]="showCrearManual"
+  [modal]="true"
+  [style]="{ width: '720px' }"
+>
+  <form [formGroup]="formCrearManual" class="grid grid-cols-2 gap-4">
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Username</label>
+      <input pInputText formControlName="username" class="w-full" />
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Rol</label>
+      <p-dropdown
+        [options]="roles"
+        optionLabel="label"
+        optionValue="value"
+        formControlName="role"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Email</label>
+      <input pInputText formControlName="email" class="w-full" />
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Password</label>
+      <p-password formControlName="password" [toggleMask]="true" class="w-full"></p-password>
+    </div>
+
+    <div class="col-span-2">
+      <label class="block mb-1 font-semibold">Nombre completo</label>
+      <input pInputText formControlName="nombreCompleto" class="w-full" />
+    </div>
+
+    <div class="col-span-2">
+      <label class="block mb-1 font-semibold">ID Estudiante (opcional)</label>
+      <input pInputText type="number" formControlName="idEstudiante" class="w-full" />
+      <small class="text-gray-500">
+        Solo úsalo si quieres vincular la cuenta a un estudiante específico.
+      </small>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancelar" class="p-button-text" (click)="showCrearManual=false"></button>
+    <button pButton label="Crear" icon="pi pi-check" (click)="crearManual()"></button>
+  </ng-template>
+</p-dialog>
+
+
+<p-dialog
+  header="Crear usuario desde egresado (sin cuenta)"
+  [(visible)]="showCrearEgresado"
+  [modal]="true"
+  [style]="{ width: '760px' }"
+>
+  <form [formGroup]="formCrearEgresado" class="grid grid-cols-2 gap-4">
+    <div class="col-span-2">
+      <label class="block mb-1 font-semibold">Selecciona egresado</label>
+      <p-dropdown
+        [options]="egresadoOptions"
+        optionLabel="label"
+        optionValue="value"
+        formControlName="idEgresado"
+        placeholder="Egresados sin cuenta"
+        class="w-full"
+        (onChange)="onSelectEgresado($event.value)"
+        [filter]="true"
+      >
+        <ng-template let-opt pTemplate="item">
+          <div class="flex flex-col">
+            <span class="font-semibold">{{ opt.label }}</span>
+            <small class="text-gray-500">
+              RUT: {{ opt.rut }} | idEgresado: {{ opt.value }} | idEstudiante: {{ opt.idEstudiante }}
+            </small>
+          </div>
+        </ng-template>
+      </p-dropdown>
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Username</label>
+      <input pInputText formControlName="username" class="w-full" />
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Rol</label>
+      <p-dropdown
+        [options]="roles"
+        optionLabel="label"
+        optionValue="value"
+        formControlName="role"
+        class="w-full"
+      ></p-dropdown>
+      <small class="text-gray-500">Por defecto EGRESADO.</small>
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Email</label>
+      <input pInputText formControlName="email" class="w-full" />
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Password</label>
+      <p-password formControlName="password" [toggleMask]="true" class="w-full"></p-password>
+    </div>
+
+    <div class="col-span-2">
+      <label class="block mb-1 font-semibold">Nombre completo</label>
+      <input pInputText formControlName="nombreCompleto" class="w-full" />
+      <small class="text-gray-500">
+        Se autocompleta desde Estudiante, pero puedes ajustarlo antes de crear.
+      </small>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancelar" class="p-button-text" (click)="showCrearEgresado=false"></button>
+    <button pButton label="Crear" icon="pi pi-check" (click)="crearDesdeEgresado()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog header="Editar usuario" [(visible)]="showEditar" [modal]="true" [style]="{ width: '620px' }">
+  <div *ngIf="selected" class="mb-4">
+    <div class="text-sm text-gray-600">ID: {{ selected.id }}</div>
+    <div class="text-sm text-gray-600">Email: {{ selected.email }}</div>
+    <div class="text-sm text-gray-600">Nombre: {{ selected.nombreCompleto }}</div>
+  </div>
+
+  <form [formGroup]="formEditar" class="grid grid-cols-2 gap-4">
+    <div class="col-span-2">
+      <label class="block mb-1 font-semibold">Username</label>
+      <input pInputText formControlName="username" class="w-full" />
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Rol</label>
+      <p-dropdown
+        [options]="roles"
+        optionLabel="label"
+        optionValue="value"
+        formControlName="role"
+        class="w-full"
+      ></p-dropdown>
+    </div>
+
+    <div class="col-span-1">
+      <label class="block mb-1 font-semibold">Activo</label>
+      <p-inputSwitch formControlName="isActive"></p-inputSwitch>
+    </div>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancelar" class="p-button-text" (click)="showEditar=false"></button>
+    <button pButton label="Guardar" icon="pi pi-save" (click)="guardarEdicion()"></button>
+  </ng-template>
+</p-dialog>
+
+<p-dialog
+  header="Cambiar password"
+  [(visible)]="showPassword"
+  [modal]="true"
+  [style]="{ width: '520px' }"
+  (onHide)="closePasswordDialog()"
+>
+  <div *ngIf="selected" class="mb-4 text-sm text-gray-600">
+    Cambiando password de: <b>{{ selected.username }}</b> (ID: {{ selected.id }})
+  </div>
+
+  <form [formGroup]="formPassword">
+    <label class="block mb-1 font-semibold">Nuevo password (mín 6)</label>
+    <p-password
+      formControlName="password"
+      [toggleMask]="true"
+      [autocomplete]="'new-password'"
+      class="w-full"
+    ></p-password>
+  </form>
+
+  <ng-template pTemplate="footer">
+    <button pButton label="Cancelar" class="p-button-text" (click)="closePasswordDialog()"></button>
+    <button pButton label="Actualizar" icon="pi pi-check" (click)="cambiarPassword()"></button>
+  </ng-template>
+</p-dialog>

@@ -9,7 +9,6 @@ export interface RespuestaLogin {
   access_token?: string;
 }
 
-// enumerable con los nombre de los roles traidos del backend
 export enum Roles {
   JEFA_CARRERA = 'JC',
   DOCENTE = 'Docente',

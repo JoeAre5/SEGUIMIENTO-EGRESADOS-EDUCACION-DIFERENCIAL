@@ -1,8 +1,7 @@
-<!-- ✅ TABLA DE EGRESADOS -->
+<!-- TABLA DE EGRESADOS -->
 <div class="m-10 bg-white p-8 shadow-lg rounded-md" *ngIf="!isEgresado">
-  <!-- ✅✅✅ Tarjetas resumen arriba de la tabla -->
+  <!-- Tarjetas resumen arriba de la tabla -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-    <!-- ✅ Mismo tono del título: bg-sky-700 + border-sky-700 -->
     <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
       <p class="text-xs text-white/90 font-semibold">Total Egresados</p>
       <p class="text-2xl font-extrabold text-white">{{ stats.total }}</p>
@@ -72,7 +71,7 @@
     </span>
   </div>
 
-  <!-- ✅ scroll horizontal como antes -->
+
   <div class="overflow-x-auto rounded-xl border border-gray-200 p-fluid h-[720px]">
     <p-table
       #dt
@@ -119,7 +118,7 @@
 
       <ng-template pTemplate="body" let-row>
         <tr>
-          <!-- ✅ Nombre (SIN CHIP) -->
+
           <td class="col-nombre">
             <span
               class="font-semibold text-slate-900"
@@ -130,14 +129,13 @@
             </span>
           </td>
 
-          <!-- ✅ RUT (SIN CHIP) -->
           <td>
             <span class="text-slate-800">
               {{ row?.Estudiante?.rut || '—' }}
             </span>
           </td>
 
-          <!-- ✅ Situación (CHIP OUTLINE BLANCO + TEXTO EN NEGRITA) -->
+
           <td>
             <p-tag
               [value]="row?.situacionActual || '—'"
@@ -153,7 +151,7 @@
             </div>
           </td>
 
-          <!-- ✅ Institución (SIN CHIP) -->
+
           <td>
             <span
               class="text-slate-800"
@@ -166,7 +164,7 @@
             <ng-template #sinEmpresa>—</ng-template>
           </td>
 
-          <!-- ✅ Cargo (SIN CHIP) -->
+
           <td>
             <span
               class="text-slate-800"
@@ -179,7 +177,7 @@
             <ng-template #sinCargo>—</ng-template>
           </td>
 
-          <!-- ✅ Rentas (SIN CHIP) -->
+
           <td class="col-rentas">
             <span
               class="text-slate-800"
@@ -192,7 +190,7 @@
             <ng-template #sinRenta>—</ng-template>
           </td>
 
-          <!-- ✅ Cohorte (CHIP OUTLINE BLANCO + TEXTO EN NEGRITA) -->
+
           <td class="col-cohorte">
             <p-tag
               *ngIf="row?.anioFinEstudios; else sinAnioFin"
@@ -203,14 +201,14 @@
             <ng-template #sinAnioFin>—</ng-template>
           </td>
 
-          <!-- ✅ Teléfono (SIN CHIP) -->
+
           <td>
             <span class="text-slate-800">
               {{ row?.telefono || '—' }}
             </span>
           </td>
 
-          <!-- ✅ Correo (SIN CHIP) -->
+
           <td>
             <span
               class="text-slate-800"
@@ -263,7 +261,7 @@
     </p-table>
   </div>
 
-  <!-- ✅✅✅ DASHBOARD POR COHORTE -->
+
   <div class="mt-10" [@fadeSlide]="dashboardAnimKey">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
       <div>
@@ -288,7 +286,7 @@
       </div>
     </div>
 
-    <!-- KPIs -->
+
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6" [@kpiPop]="kpiAnimKey">
       <div class="rounded-xl border border-sky-700 bg-sky-700 p-4 shadow-sm">
         <p class="text-xs text-white/90 font-semibold">Total cohorte</p>
@@ -353,7 +351,7 @@
     </div>
   </div>
 
-  <!-- ✅✅✅ ESTADÍSTICAS (DONUTS) -->
+  <!-- ESTADÍSTICAS (DONUTS) -->
   <div class="mt-8">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-bold text-sky-700">📊 Estadísticas</h3>
@@ -394,7 +392,7 @@
   </div>
 </div>
 
-<!-- ✅ MODAL FILTROS -->
+<!-- MODAL FILTROS -->
 <p-dialog
   *ngIf="!isEgresado"
   [(visible)]="modalFiltrosVisible"
@@ -476,7 +474,7 @@
   </div>
 </p-dialog>
 
-<!-- ✅ MODAL DOCUMENTOS -->
+<!-- MODAL DOCUMENTOS -->
 <p-dialog
   [(visible)]="modalDocsVisible"
   [modal]="true"

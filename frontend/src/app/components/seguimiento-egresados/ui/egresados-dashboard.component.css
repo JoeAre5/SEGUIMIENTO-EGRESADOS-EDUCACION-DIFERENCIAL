@@ -1,6 +1,4 @@
-/* =========================================================
-   ✅ PrimeNG DataTable - Encabezado azul (acorde al sistema)
-   ========================================================= */
+
 
 :host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
   background: #0369a1 !important; /* sky-700 */
@@ -9,49 +7,43 @@
   font-weight: 700;
 }
 
-/* Opcional: iconos/ordenamiento en blanco */
+
 :host ::ng-deep .p-datatable .p-sortable-column .p-sortable-column-icon {
   color: #ffffff !important;
 }
 
-/* Línea inferior más limpia */
+
 :host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
   border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
 }
 
-/* =========================================================
-   ✅ Opcional: borde externo acorde al sistema
-   ========================================================= */
+
 :host ::ng-deep .p-datatable.p-datatable-gridlines .p-datatable-header,
 :host ::ng-deep .p-datatable.p-datatable-gridlines .p-datatable-footer {
   border-color: rgba(3, 105, 161, 0.25) !important;
 }
 
-/* =========================================================
-   ✅ Opcional: hover suave (no cambia colores del sistema)
-   ========================================================= */
+
 :host ::ng-deep .p-datatable .p-datatable-tbody > tr:hover {
   background: rgba(3, 105, 161, 0.06) !important;
 }
 
-/* ==========================================================
-   ✅ Ajustes SOLO para la tabla de egresados (no afecta otras)
-========================================================== */
 
-/* Alineación general */
+
+
 :host ::ng-deep .egresados-table .p-datatable-thead > tr > th,
 :host ::ng-deep .egresados-table .p-datatable-tbody > tr > td {
   vertical-align: middle;
   text-align: center;
 }
 
-/* Header con saltos bonitos */
+
 :host ::ng-deep .egresados-table .p-datatable-thead > tr > th {
   white-space: normal;
   line-height: 1.2;
 }
 
-/* Tags consistentes */
+
 :host ::ng-deep .egresados-table .p-tag {
   display: inline-flex;
   align-items: center;
@@ -59,10 +51,7 @@
   max-width: 100%;
 }
 
-/* ==========================================================
-   ✅ Reservar espacio por columna (SIN correr todo)
-   - Usamos SOLO min-width en TH/TD
-========================================================== */
+
 
 :host ::ng-deep .egresados-table th.col-nombre,
 :host ::ng-deep .egresados-table td.col-nombre {
@@ -78,17 +67,15 @@
   min-width: 70px;
 }
 
-/* ==========================================================
-   ✅ Clamp REAL a 2 líneas (aplicado al texto interno del tag)
-========================================================== */
 
-/* Base: para cualquier tag marcado con tag-2line */
+
+
 :host ::ng-deep .egresados-table .p-tag.tag-2line {
   white-space: normal !important;
   overflow: hidden;
 }
 
-/* PrimeNG común: texto en .p-tag-value */
+
 :host ::ng-deep .egresados-table .p-tag.tag-2line .p-tag-value {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -99,7 +86,7 @@
   text-align: center;
 }
 
-/* Algunas versiones/temas: texto en .p-tag-label */
+
 :host ::ng-deep .egresados-table .p-tag.tag-2line .p-tag-label {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -110,25 +97,20 @@
   text-align: center;
 }
 
-/* ==========================================================
-   ✅ Ajustes de ancho del texto por columna (sin empujar)
-========================================================== */
 
-/* Nombre: un poco más ancho para que no quede "Trejo..." tan rápido */
+
 :host ::ng-deep .egresados-table td.col-nombre .p-tag.tag-2line .p-tag-value,
 :host ::ng-deep .egresados-table td.col-nombre .p-tag.tag-2line .p-tag-label {
   max-width: 200px;
 }
 
-/* Rentas: más ancho para que no se aplaste */
+
 :host ::ng-deep .egresados-table td.col-rentas .p-tag.tag-2line .p-tag-value,
 :host ::ng-deep .egresados-table td.col-rentas .p-tag.tag-2line .p-tag-label {
   max-width: 240px;
 }
 
-/* ==========================================================
-   ✅ Acciones centradas (sin desalinearse)
-========================================================== */
+
 
 :host ::ng-deep .egresados-table td.col-acciones {
   text-align: center;
@@ -140,18 +122,14 @@
   justify-content: center;
   gap: 0.5rem;
 }
-/* ==========================================================
-   ✅ FIX FINAL: Nombre en max 2 líneas (sin romper la tabla)
-   - El tag ocupa todo el ancho de la celda
-   - El texto se clampa a 2 líneas (sin 3 líneas)
-========================================================== */
+
 
 :host ::ng-deep .egresados-table td.col-nombre,
 :host ::ng-deep .egresados-table th.col-nombre {
   min-width: 260px !important; /* espacio suficiente para 2 líneas */
 }
 
-/* el chip (tag) toma el ancho de la celda */
+
 :host ::ng-deep .egresados-table td.col-nombre .p-tag {
   width: 100% !important;
   max-width: 100% !important;
@@ -163,7 +141,6 @@
   white-space: normal !important;
 }
 
-/* clamp real del texto interno del tag (PrimeNG puede usar value/label) */
 :host ::ng-deep .egresados-table td.col-nombre .p-tag .p-tag-value,
 :host ::ng-deep .egresados-table td.col-nombre .p-tag .p-tag-label,
 :host ::ng-deep .egresados-table td.col-nombre .p-tag span {

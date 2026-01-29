@@ -1,50 +1,34 @@
 model Egresado {
-  idEgresado   Int @id @default(autoincrement())
-  idEstudiante Int @unique
-
-  fechaEgreso DateTime? @db.Date
-
-  situacionActual    String
-  empresa            String?
-  cargo              String?
-  sueldo             Int?
-  anioIngresoLaboral Int?
-  anioSeguimiento    Int     @default(2026)
-
-  telefono            String?
-  emailContacto       String?
-  direccion           String?
-  linkedin            String?
-  contactoAlternativo String?
-
-  situacionActualOtro String?
-  nivelRentas         String?
-
-  // ✅ NUEVOS CAMPOS DEL FORMULARIO
-  anioFinEstudios Int?
-
-  viaIngreso     String?
-  viaIngresoOtro String?
-
-  anioIngresoCarrera Int?
-
-  genero                String?
-  tiempoBusquedaTrabajo String?
-
-  sectorLaboral     String?
-  sectorLaboralOtro String?
-
+  idEgresado              Int                 @id @default(autoincrement())
+  idEstudiante            Int                 @unique
+  fechaEgreso             DateTime?           @db.Date
+  situacionActual         String
+  empresa                 String?
+  cargo                   String?
+  sueldo                  Int?
+  anioIngresoLaboral      Int?
+  anioSeguimiento         Int                 @default(2026)
+  telefono                String?
+  emailContacto           String?
+  direccion               String?
+  linkedin                String?
+  contactoAlternativo     String?
+  nivelRentas             String?
+  situacionActualOtro     String?
+  anioFinEstudios         Int?
+  anioIngresoCarrera      Int?
+  genero                  String?
+  sectorLaboral           String?
+  sectorLaboralOtro       String?
+  tiempoBusquedaTrabajo   String?
   tipoEstablecimiento     String?
   tipoEstablecimientoOtro String?
-
-  // ✅ CONSENTIMIENTO EGRESADO
-  consentimientoEstado String   @default("PENDIENTE") // PENDIENTE | ACEPTADO | RECHAZADO
-  consentimientoFecha  DateTime?
-
-  // ✅ RELACIÓN DOCUMENTOS
-  documentos DocumentoEgresado[]
-
-  Estudiante Estudiante @relation(fields: [idEstudiante], references: [idEstudiante])
+  viaIngreso              String?
+  viaIngresoOtro          String?
+  consentimientoEstado    String              @default("PENDIENTE")
+  consentimientoFecha     DateTime?
+  documentos              DocumentoEgresado[]
+  Estudiante              Estudiante          @relation(fields: [idEstudiante], references: [idEstudiante])
 }
 
 model DocumentoEgresado {
@@ -53,9 +37,7 @@ model DocumentoEgresado {
   url         String
   fechaSubida DateTime @default(now())
   idEgresado  Int
-
-  // ✅ RELACIÓN INVERSA
-  Egresado Egresado @relation(fields: [idEgresado], references: [idEgresado])
+  Egresado    Egresado @relation(fields: [idEgresado], references: [idEgresado])
 
   @@index([idEgresado])
 }

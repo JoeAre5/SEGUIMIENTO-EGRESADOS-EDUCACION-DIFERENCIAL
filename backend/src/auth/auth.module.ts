@@ -5,19 +5,14 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-
-// ✅ ajusta esta ruta según tu carpeta real:
-// - si está en src/auth/jwt.strategy.ts -> './jwt.strategy'
-// - si está en src/auth/strategy/jwt.strategy.ts -> './strategy/jwt.strategy'
 import { JwtStrategy } from './strategy/jwt.strategy';
-
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Module({
   imports: [
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
-      imports: [ConfigModule], // ConfigModule ya es global, pero esto no rompe
+      imports: [ConfigModule], 
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         secret: config.get<string>('JWT_SECRET'),

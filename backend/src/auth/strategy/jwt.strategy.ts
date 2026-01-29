@@ -10,7 +10,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private config: ConfigService,
     private prisma: PrismaService
   ) {
-    // ✅ NO usar this.config antes de super()
+
     const secret =
       config.get<string>('JWT_SECRET') ||
       config.get<string>('jwt_secret') ||

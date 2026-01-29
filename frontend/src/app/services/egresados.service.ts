@@ -2,9 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-/* ===========================
- ✅ DTOs
-=========================== */
+
+ // DTOs
+
 
 export interface UpdateEgresadoDto {
   fechaEgreso?: string;
@@ -15,35 +15,31 @@ export interface UpdateEgresadoDto {
   anioIngresoLaboral?: number;
   anioSeguimiento?: number;
 
-  // ✅ datos de contacto
+  // datos de contacto
   telefono?: string;
   emailContacto?: string;
 
-  // ✅ nuevos campos prisma
+  // nuevos campos prisma
   linkedin?: string;
   direccion?: string;
   contactoAlternativo?: string;
 }
 
-/* ===========================
- ✅ SERVICE
-=========================== */
+// SERVICE
 
 @Injectable({
   providedIn: 'root',
 })
 export class EgresadosService {
-  // ✅ Mantengo tus URLs EXACTAS
+  // Mantengo tus URLs EXACTAS
   private apiUrl = 'http://localhost:3000/egresados';
   private apiFilesUrl = 'http://localhost:3000';
 
   constructor(private http: HttpClient) {}
 
-  /* ===========================
-   ✅ AUTH (NO ROMPE NADA)
-   - Solo agrega Bearer token si existe en storage
-   - Esto elimina los 401 en /mine y /planes-de-estudio
-  =========================== */
+
+   //agrega Bearer token si existe en storage
+
   private getAuthHeaders(): HttpHeaders | undefined {
     try {
       const token =
@@ -64,8 +60,8 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ CREAR con archivos
-   ✅ POST /egresados
+    CREAR con archivos
+    POST /egresados
   =========================== */
   createWithFiles(formData: FormData): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -73,8 +69,8 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ LISTAR TODOS
-   ✅ GET /egresados
+    LISTAR TODOS
+    GET /egresados
   =========================== */
   findAll(): Observable<any[]> {
     const headers = this.getAuthHeaders();
@@ -82,8 +78,8 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ BUSCAR POR ESTUDIANTE
-   ✅ GET /egresados/estudiante/:idEstudiante
+    BUSCAR POR ESTUDIANTE
+    GET /egresados/estudiante/:idEstudiante
   =========================== */
   findOneByEstudiante(idEstudiante: number): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -91,8 +87,8 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ DASHBOARD POR COHORTE ✅
-   ✅ GET /egresados/dashboard/cohortes
+    DASHBOARD POR COHORTE 
+    GET /egresados/dashboard/cohortes
   =========================== */
   getDashboardCohortes(): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -100,8 +96,8 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ UPDATE SOLO TEXTO
-   ✅ PATCH /egresados/estudiante/:idEstudiante
+    UPDATE SOLO TEXTO
+    PATCH /egresados/estudiante/:idEstudiante
   =========================== */
   updateByEstudiante(idEstudiante: number, dto: UpdateEgresadoDto): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -109,9 +105,9 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ UPDATE CON ARCHIVOS ✅
-   ✅ PATCH /egresados/estudiante/:idEstudiante
-   ✅ Sirve para agregar documentos sin borrar los anteriores
+    UPDATE CON ARCHIVOS 
+    PATCH /egresados/estudiante/:idEstudiante
+    Sirve para agregar documentos sin borrar los anteriores
   =========================== */
   updateWithFilesByEstudiante(idEstudiante: number, formData: FormData): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -119,24 +115,24 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ ELIMINAR POR idEgresado
-   ✅ DELETE /egresados/:idEgresado
+    ELIMINAR POR idEgresado
+    DELETE /egresados/:idEgresado
   =========================== */
   delete(idEgresado: number): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.delete<any>(`${this.apiUrl}/${idEgresado}`, headers ? { headers } : {});
   }
 
-  /* ===========================
-   ✅ DOCUMENTOS
-  =========================== */
 
-  // ✅ genera URL completa
+    // DOCUMENTOS
+
+
+  //  genera URL completa
   getDocumentoUrl(path: string): string {
     return `${this.apiFilesUrl}${path}`;
   }
 
-  // ✅ descarga como blob (forzada)
+  //  descarga como blob (forzada)
   downloadDocumento(url: string): Observable<Blob> {
     const headers = this.getAuthHeaders();
     const fullUrl = this.getDocumentoUrl(url);
@@ -147,8 +143,8 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ ELIMINAR DOCUMENTO INDIVIDUAL ✅
-   ✅ DELETE /egresados/documento/:idDocumento
+    ELIMINAR DOCUMENTO INDIVIDUAL 
+    DELETE /egresados/documento/:idDocumento
   =========================== */
   deleteDocumento(idDocumento: number): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -156,9 +152,8 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ NUEVO (EGRESADO): ELIMINAR DOCUMENTO PROPIO ✅
-   ✅ DELETE /egresados/mine/documento/:idDocumento
-   ✅ (este es el que evita el 403 en rol EGRESADO)
+    NUEVO (EGRESADO): ELIMINAR DOCUMENTO PROPIO 
+    DELETE /egresados/mine/documento/:idDocumento
   =========================== */
   deleteDocumentoMine(idDocumento: number): Observable<any> {
     const headers = this.getAuthHeaders();
@@ -166,21 +161,19 @@ export class EgresadosService {
   }
 
   /* ===========================
-   ✅ NUEVO: LISTAR PLANES DE ESTUDIO ✅
-   ✅ GET /planes-de-estudio
+    NUEVO: LISTAR PLANES DE ESTUDIO 
+    GET /planes-de-estudio
   =========================== */
   getPlanesEstudio(): Observable<any[]> {
     const headers = this.getAuthHeaders();
     return this.http.get<any[]>(`${this.apiFilesUrl}/planes-de-estudio`, headers ? { headers } : {});
   }
 
-  /* ============================================================
-   ✅ (EXTRA, NO ROMPE NADA) ENDPOINTS PARA ROL EGRESADO
-   - Si algún día entras como EGRESADO, debes usar /mine
-   - No afecta tu flujo ADMIN/SECRETARIA porque no cambia nada existente
-  ============================================================ */
 
-  // ✅ GET /egresados/mine
+  // ENDPOINTS PARA ROL EGRESADO
+
+
+  //  GET /egresados/mine
   findMine(): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.get<any>(`${this.apiUrl}/mine`, headers ? { headers } : {});
@@ -190,34 +183,34 @@ export class EgresadosService {
     return this.findMine();
   }
 
-  // ✅ POST /egresados/mine (SIN docs) -> JSON
+  //  POST /egresados/mine (SIN docs)
   // (Tu componente lo usa cuando no adjuntas archivos)
   createMine(dto: any): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.post<any>(`${this.apiUrl}/mine`, dto, headers ? { headers } : {});
   }
 
-  // ✅ PATCH /egresados/mine (SIN docs) -> JSON
+  //  PATCH /egresados/mine (SIN docs)
   updateMine(dto: any): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.patch<any>(`${this.apiUrl}/mine`, dto, headers ? { headers } : {});
   }
 
-  // ✅ POST /egresados/mine (con docs)
+  // POST /egresados/mine (con docs)
   createMineWithFiles(formData: FormData): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.post<any>(`${this.apiUrl}/mine`, formData, headers ? { headers } : {});
   }
 
-  // ✅ PATCH /egresados/mine (con docs)
+  // PATCH /egresados/mine (con docs)
   updateMineWithFiles(formData: FormData): Observable<any> {
     const headers = this.getAuthHeaders();
     return this.http.patch<any>(`${this.apiUrl}/mine`, formData, headers ? { headers } : {});
   }
 
   /* ===========================
-   ✅ CONSENTIMIENTO (EGRESADO)
-   ✅ GET/PATCH /egresados/mine/consentimiento
+   CONSENTIMIENTO (EGRESADO)
+   GET/PATCH /egresados/mine/consentimiento
   =========================== */
 
   getConsentimientoMine(): Observable<any> {

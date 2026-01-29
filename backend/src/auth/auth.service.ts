@@ -31,6 +31,7 @@ export class AuthService {
       const user: Usuario = await this.prisma.usuario.create({
         data: userData as any,
       });
+
       delete (user as any).hashedPassword;
       return user;
     } catch (error) {
@@ -44,20 +45,17 @@ export class AuthService {
   }
 
   async login(dto: UserLoginDTO) {
-    // ✅ FIX seguro: construir OR solo con valores presentes
-    // Evita que Prisma reciba filtros vacíos cuando username/email vienen undefined
     const or: any[] = [];
 
-    if (dto?.username && dto.username.trim()) {
+    if (dto?.username?.trim()) {
       or.push({ username: dto.username.trim() });
     }
 
-    if (dto?.email && dto.email.trim()) {
+    if (dto?.email?.trim()) {
       or.push({ email: dto.email.trim() });
     }
 
     if (or.length === 0) {
-      // Mantiene comportamiento lógico sin romper: si no llega nada para buscar, no hay login
       throw new ForbiddenException('Debes ingresar username o email');
     }
 
@@ -67,24 +65,25 @@ export class AuthService {
 
     if (!user) throw new NotFoundException('Usuario no existe');
 
+    if (!user.isActive) {
+      throw new ForbiddenException('Usuario desactivado');
+    }
+
     const passwordsMatch = await argon.verify(
-      (user as any).hashedPassword,
+      user.hashedPassword,
       dto.password,
     );
 
-    if (!passwordsMatch)
-      throw new ForbiddenException('Usuario o Contraseña incorrectos');
-
-    // ✅ Incluye idEstudiante si existe en el modelo (si no, queda null sin romper)
-    const idEstudiante =
-      (user as unknown as { idEstudiante?: number | null }).idEstudiante ?? null;
+    if (!passwordsMatch) {
+      throw new ForbiddenException('Usuario o contraseña incorrectos');
+    }
 
     return this.signToken(
-      (user as any).id,
-      (user as any).email,
-      (user as any).username,
-      (user as any).role,
-      idEstudiante,
+      user.id,
+      user.email,
+      user.username,
+      user.role,
+      user.idEstudiante ?? null,
     );
   }
 
@@ -93,26 +92,23 @@ export class AuthService {
     email: string,
     username: string,
     role: string,
-    idEstudiante: number | null = null,
+    idEstudiante: number | null,
   ) {
     const payload = {
       sub: id,
-      username,
       email,
+      username,
       role,
-      // ✅ Esto permite que el frontend y/o backend hagan "mine" usando idEstudiante
       idEstudiante,
     };
 
-    const secret = this.configService.get('JWT_SECRET');
+    const secret = this.configService.get<string>('JWT_SECRET');
 
     const token = await this.jwtService.signAsync(payload, {
       expiresIn: '1h',
-      secret: secret,
+      secret,
     });
 
-    return {
-      access_token: token,
-    };
+    return { access_token: token };
   }
 }

@@ -46,7 +46,6 @@ export class NavbarComponent {
     }
   }
   public menuDesplegable: MenuItem[] = [
-    // { label: 'Perfil', icon: 'pi pi-user', command: () => { this.perfil(); } },
     {
       label: 'Cerrar sesión',
       icon: 'pi pi-sign-out',

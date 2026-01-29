@@ -12,24 +12,22 @@ import {
 export class CreateEgresadoDto {
   @IsInt()
   idEstudiante: number;
-
-  // ✅ Ya NO se exige (y en el formulario ya no va)
   @IsOptional()
   @IsString()
   fechaEgreso?: string;
 
-  // ✅ NUEVO (formulario): año de finalización (obligatorio en UI)
+
   @IsNotEmpty()
   @IsInt()
   anioFinEstudios: number;
 
-  // ✅ Solo estas 3 opciones
+
   @IsNotEmpty()
   @IsString()
   @IsIn(['Trabajando', 'Cesante', 'Otro'])
   situacionActual: string;
 
-  // ✅ Si selecciona "Otro", debe especificar
+
   @ValidateIf((o) => o.situacionActual === 'Otro')
   @IsNotEmpty()
   @IsString()
@@ -47,7 +45,6 @@ export class CreateEgresadoDto {
   @IsOptional()
   sueldo?: number;
 
-  // ✅ requerido en UI (pero lo dejamos como estaba: opcional en DTO)
   @IsOptional()
   @IsString()
   @IsIn([
@@ -58,7 +55,7 @@ export class CreateEgresadoDto {
   ])
   nivelRentas?: string;
 
-  // ✅ NUEVOS CAMPOS (formulario)
+
   @IsOptional()
   @IsString()
   @IsIn(['PSU/PAES', 'CFT', 'PACE', 'Propedéutico', 'Otro'])
@@ -117,21 +114,20 @@ export class CreateEgresadoDto {
   @MaxLength(120)
   tipoEstablecimientoOtro?: string;
 
-  // ✅ Ya no van en el formulario, pero los dejamos opcionales por compatibilidad
+
   @IsOptional()
   anioIngresoLaboral?: number;
 
   @IsOptional()
   anioSeguimiento?: number;
 
-  // ✅ Contacto
+
   @IsOptional()
   @IsString()
   @MaxLength(20)
   telefono?: string;
 
-  // Si en tu formulario el correo es obligatorio (en tus imágenes tiene *),
-  // cámbialo a @IsNotEmpty() + @IsEmail() (te lo dejo así recomendado):
+
   @IsNotEmpty()
   @IsEmail()
   @MaxLength(120)

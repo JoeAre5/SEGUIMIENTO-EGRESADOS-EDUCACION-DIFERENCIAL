@@ -23,6 +23,8 @@ import { GestionarLineasComponent } from './components/gestionar-lineas/gestiona
 import { TendenciasAsignaturaCortePracticoComponent } from './components/tendencias-asignatura-corte-practico/tendencias-asignatura-corte-practico.component';
 import { DetallePracticaComponent } from './components/detalle-practica/detalle-practica.component';
 import { PracticasConvenioComponent } from './components/practicas-convenio/practicas-convenio.component';
+import { UsuariosAdminComponent } from './components/usuarios-admin/usuarios-admin.component';
+
 
 /**
  * RUTAS                    ROLES
@@ -40,7 +42,7 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [loginGuard] },
   { path: 'menu', component: MenuComponent, canActivate: [authGuard] },
 
-  // ✅ RUTA SEGUIMIENTO EGRESADOS (incluye EGRESADO)
+  // RUTA SEGUIMIENTO EGRESADOS
   {
     path: 'seguimiento-egresados',
     component: SeguimientoEgresadosComponent,
@@ -214,6 +216,16 @@ export const routes: Routes = [
     component: ResultadoEndComponent,
     canActivate: [authGuard],
   },
+
+  {
+  path: 'usuarios',
+  component: UsuariosAdminComponent,
+  canActivate: [authGuard, hasRoleGuard],
+  data: {
+    roles: [Roles.ADMINISTRADOR],
+  },
+},
+
 
   { path: '**', redirectTo: '/menu' },
 ];

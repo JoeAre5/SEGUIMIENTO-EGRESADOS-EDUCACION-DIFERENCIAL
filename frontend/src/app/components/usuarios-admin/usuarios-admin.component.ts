@@ -56,16 +56,13 @@ type TagSeverity =
 })
 export class UsuariosAdminComponent implements OnInit {
   loading = false;
-
-  // ✅ loading específico para el modal crear desde egresado
   loadingCrearEgresado = false;
-
   usuarios: UsuarioAdmin[] = [];
   egresadosSinCuenta: EgresadoSinCuenta[] = [];
 
   egresadoOptions: Array<{
     label: string;
-    value: number; // idEgresado
+    value: number; 
     rut: string;
     idEstudiante: number;
   }> = [];
@@ -122,7 +119,7 @@ export class UsuariosAdminComponent implements OnInit {
     this.formCrearEgresado = this.fb.group({
       idEgresado: [null, [Validators.required]],
       username: ['', [Validators.required]],
-      email: ['', [Validators.email]], // ✅ email NO obligatorio
+      email: ['', [Validators.email]],
       nombreCompleto: ['', [Validators.required]],
       password: ['', [Validators.required, Validators.minLength(6)]],
       role: ['EGRESADO' as RoleDto],
@@ -295,7 +292,7 @@ export class UsuariosAdminComponent implements OnInit {
       role: this.formCrearEgresado.value.role,
     };
 
-    // ✅ SOLO incluir email si realmente hay uno (evita enviar email: "")
+
     if (rawEmail.length > 0) dto.email = rawEmail;
 
     this.api.createFromEgresado(idEgresado, dto).subscribe({

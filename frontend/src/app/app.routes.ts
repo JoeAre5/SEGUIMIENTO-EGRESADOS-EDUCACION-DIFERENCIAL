@@ -42,7 +42,7 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent, canActivate: [loginGuard] },
   { path: 'menu', component: MenuComponent, canActivate: [authGuard] },
 
-  // ✅ RUTA SEGUIMIENTO EGRESADOS (incluye EGRESADO)
+  // RUTA SEGUIMIENTO EGRESADOS
   {
     path: 'seguimiento-egresados',
     component: SeguimientoEgresadosComponent,

@@ -1,7 +1,6 @@
-// src/app/utils/ssr-storage.util.ts
+
 
 export function safeGetStorageItem(key: string): string | null {
-  // Evita "sessionStorage is not defined" en SSR/Prerender
   if (typeof window === 'undefined') return null;
 
   try {

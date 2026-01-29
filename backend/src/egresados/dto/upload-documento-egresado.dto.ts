@@ -10,5 +10,5 @@ export class UploadDocumentoEgresadoDto {
   @IsOptional()
   @IsString()
   @MaxLength(150)
-  nombre?: string; // nombre amigable (opcional)
+  nombre?: string;
 }

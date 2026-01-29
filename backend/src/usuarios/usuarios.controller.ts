@@ -74,7 +74,7 @@ export class UsuariosController {
     return this.usuariosService.updateRole(id, dto, req.user?.id);
   }
 
-  // Ej: PATCH /usuarios/5/active/false
+
   @Patch(':id/active/:isActive')
   setActive(
     @Param('id', ParseIntPipe) id: number,

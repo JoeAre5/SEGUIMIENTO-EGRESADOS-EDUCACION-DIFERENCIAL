@@ -64,7 +64,7 @@ export class UsuariosService {
           hashedPassword,
           role: dto.role as any,
           idEstudiante: dto.idEstudiante ?? null,
-          // isActive default true (Prisma)
+          
         },
       });
 
@@ -104,8 +104,6 @@ export class UsuariosService {
   if (!dto.password?.trim()) throw new BadRequestException('password requerido');
 
   const hashedPassword = await argon.hash(dto.password);
-
-  // ✅ email opcional: NO se manda si está vacío
   const email = dto.email?.trim();
 
   const data: any = {
@@ -124,7 +122,7 @@ export class UsuariosService {
     const { hashedPassword: _, ...safe } = user as any;
     return safe;
   } catch (error: any) {
-    // ✅ Si hay unique constraint (username/email/idEstudiante), lo devolvemos como 400 con mensaje
+
     if (error instanceof PrismaClientKnownRequestError && error.code === 'P2002') {
       const target = (error.meta as any)?.target?.join?.(', ') ?? 'campo único';
       throw new BadRequestException(`Datos duplicados (${target})`);
@@ -165,7 +163,7 @@ export class UsuariosService {
   }
 
   async updateRole(id: number, dto: UpdateRoleDto, actorId?: number) {
-    // Regla opcional para evitar auto-degradarse (no afecta a otros roles)
+
     if (actorId && id === actorId && dto.role !== 'Administrador') {
       throw new ForbiddenException('No puedes quitarte el rol Administrador a ti mismo');
     }

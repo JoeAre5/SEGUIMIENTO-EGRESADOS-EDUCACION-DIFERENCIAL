@@ -12,13 +12,10 @@ export class UserRegisterDTO {
   @IsNotEmpty()
   @IsString()
   email: string;
-
-  // ✅ AHORA opcional: si no viene, Prisma usa @default(Docente)
   @IsOptional()
   @IsEnum(ROLE, { message: 'El rol proporcionado no es válido' })
   role?: ROLE;
 
-  // ✅ NUEVO: para asociar Usuario EGRESADO con un estudiante
   @IsOptional()
   @Transform(({ value }) =>
     value === null || value === undefined || value === '' ? undefined : Number(value),

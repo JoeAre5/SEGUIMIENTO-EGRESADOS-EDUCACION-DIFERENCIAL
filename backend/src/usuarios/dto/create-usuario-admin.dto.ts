@@ -26,7 +26,7 @@ export class CreateUsuarioAdminDto {
   @IsEnum(RoleDto)
   role: RoleDto;
 
-  // opcional: para vincular cuenta a un Estudiante (egresado)
+
   @IsOptional()
   @IsInt()
   idEstudiante?: number;

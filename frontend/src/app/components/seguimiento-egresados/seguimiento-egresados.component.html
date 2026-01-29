@@ -1,9 +1,7 @@
 <p-toast></p-toast>
 <p-confirmDialog></p-confirmDialog>
 
-<!-- ==========================================================
-✅ CONSENTIMIENTO (SOLO EGRESADO) - MODAL BLOQUEANTE
-========================================================== -->
+
 <p-dialog
   *ngIf="isEgresado && consentimientoVisible"
   [visible]="true"
@@ -62,7 +60,7 @@
   </div>
 </p-dialog>
 
-<!-- ✅ HEADER -->
+
 <div class="bg-white border-y mt-10 py-5 shadow-lg">
   <div class="flex items-center justify-between w-11/12">
     <button
@@ -82,9 +80,7 @@
   </div>
 </div>
 
-<!-- ==========================================================
-✅ EGRESADO: FORMULARIO EN PANTALLA PRINCIPAL
-========================================================== -->
+
 <div class="m-10 bg-white p-8 shadow-lg rounded-md" *ngIf="isEgresado">
   <div class="flex justify-between items-center mb-4">
     <h2 class="text-xl font-bold text-sky-700">
@@ -97,9 +93,7 @@
   </div>
 </div>
 
-<!-- ==========================================================
-✅ OTROS ROLES: SIDEBAR/DRAWER COMO ANTES
-========================================================== -->
+
 <p-sidebar
   *ngIf="!isEgresado"
   [(visible)]="drawerFormulario"
@@ -128,9 +122,7 @@
   </div>
 </p-sidebar>
 
-<!-- ==========================================================
-✅ TEMPLATE ÚNICO: FORMULARIO (ES TU MISMO FORMULARIO)
-========================================================== -->
+
 <ng-template #formularioTemplate>
   <form [formGroup]="formulario" class="grid grid-cols-2 gap-6">
     <div class="col-span-2">
@@ -138,7 +130,7 @@
       <hr class="my-3" />
     </div>
 
-    <!-- ✅ SOLO EGRESADO: mostrar nombre/rut (NO afecta el resto del formulario) -->
+  
     <div class="col-span-2" *ngIf="isEgresado">
       <div class="bg-sky-50 border border-sky-200 rounded-md p-3">
         <div class="font-semibold text-sky-700">Egresado:</div>
@@ -151,7 +143,7 @@
       </div>
     </div>
 
-    <!-- ✅ NUEVO: si es EGRESADO, ocultar botones de modo -->
+    <!-- si es EGRESADO, ocultar botones de modo -->
     <div class="col-span-2 flex gap-4 items-center mb-2" *ngIf="!isEgresado">
       <label class="font-semibold">Modo:</label>
 
@@ -178,7 +170,7 @@
       </button>
     </div>
 
-    <!-- ✅ EXISTENTE: seleccionar estudiante -->
+    <!-- seleccionar estudiante -->
     <div class="col-span-2" *ngIf="!isEgresado && modoEstudiante === 'existente'">
       <label class="block font-semibold mb-2">Seleccionar Estudiante *</label>
 
@@ -208,7 +200,7 @@
       </small>
     </div>
 
-    <!-- ✅ EXISTENTE: RUT (con DV, sin validación) -->
+
     <div
       class="col-span-2"
       *ngIf="!isEgresado && modoEstudiante === 'existente' && estudianteSeleccionado"
@@ -228,7 +220,7 @@
       <small class="text-red-500" *ngIf="false">RUT inválido.</small>
     </div>
 
-    <!-- ✅ EXISTENTE: Plan (info readonly) -->
+
     <div class="col-span-2" *ngIf="modoEstudiante === 'existente' && estudianteSeleccionado">
       <label class="block font-semibold mb-2">Plan actual (info)</label>
       <input
@@ -243,7 +235,7 @@
       </small>
     </div>
 
-    <!-- ✅✅✅ EXISTENTE: Plan editable (SOLO NO EGRESADO) -->
+
     <div
       class="col-span-2"
       *ngIf="!isEgresado && modoEstudiante === 'existente' && estudianteSeleccionado"
@@ -273,7 +265,7 @@
       </small>
     </div>
 
-    <!-- ✅ NUEVO: crear estudiante -->
+    <!-- NUEVO: crear estudiante -->
     <div class="col-span-2" *ngIf="!isEgresado && modoEstudiante === 'nuevo'">
       <h3 class="text-lg font-bold text-sky-700 mt-2">🆕 Nuevo Estudiante</h3>
 
@@ -347,11 +339,8 @@
       </div>
     </div>
 
-    <!-- ==========================================================
-    ✅ RESTO DEL FORMULARIO (completo, SIN sueldo; con nivelRentas)
-    ========================================================== -->
 
-    <!-- ✅ Año fin estudios -->
+    <!-- Año fin estudios -->
     <div>
       <label class="block font-semibold mb-2">Año de cohorte a la que pertenece *</label>
       <p-inputNumber
@@ -370,7 +359,7 @@
       </small>
     </div>
 
-    <!-- ✅ Situación -->
+    <!-- Situación -->
     <div>
       <label class="block font-semibold mb-2">Situación Actual *</label>
       <p-dropdown
@@ -394,7 +383,7 @@
       </small>
     </div>
 
-    <!-- ✅ Empresa / cargo -->
+    <!-- Empresa / cargo -->
     <div>
       <label class="block font-semibold mb-2">Institución o establecimiento</label>
       <input pInputText formControlName="empresa" class="w-full" />
@@ -405,7 +394,7 @@
       <input pInputText formControlName="cargo" class="w-full" />
     </div>
 
-    <!-- ✅ Vía ingreso -->
+    <!-- Vía ingreso -->
     <div>
       <label class="block font-semibold mb-2">Vía de ingreso</label>
       <p-dropdown
@@ -424,7 +413,7 @@
       </small>
     </div>
 
-    <!-- ✅ Año ingreso carrera -->
+    <!-- Año ingreso carrera -->
     <div>
       <label class="block font-semibold mb-2">Año ingreso carrera</label>
       <p-inputNumber
@@ -444,7 +433,7 @@
       </small>
     </div>
 
-    <!-- ✅ Género -->
+    <!-- Género -->
     <div>
       <label class="block font-semibold mb-2">Género</label>
       <p-dropdown
@@ -455,7 +444,7 @@
       ></p-dropdown>
     </div>
 
-    <!-- ✅ Tiempo búsqueda -->
+    <!-- Tiempo búsqueda -->
     <div class="col-span-2">
       <label class="block font-semibold mb-2">Tiempo de búsqueda de trabajo</label>
       <p-dropdown
@@ -466,7 +455,7 @@
       ></p-dropdown>
     </div>
 
-    <!-- ✅ Sector laboral -->
+    <!-- Sector laboral -->
     <div>
       <label class="block font-semibold mb-2">Sector laboral</label>
       <p-dropdown
@@ -485,7 +474,7 @@
       </small>
     </div>
 
-    <!-- ✅ Tipo establecimiento -->
+    <!-- Tipo establecimiento -->
     <div>
       <label class="block font-semibold mb-2">Tipo de establecimiento</label>
       <p-dropdown
@@ -504,7 +493,7 @@
       </small>
     </div>
 
-    <!-- ✅ Nivel de rentas (radios) -->
+    <!-- Nivel de rentas (radios) -->
     <div class="col-span-2">
       <label class="font-bold block mb-2">
         Nivel de Rentas <span class="text-red-500">*</span>
@@ -560,7 +549,7 @@
       </small>
     </div>
 
-    <!-- ✅ Año ingreso laboral -->
+    <!-- Año ingreso laboral -->
     <div>
       <label class="block font-semibold mb-2">Año Ingreso Laboral</label>
       <p-inputNumber
@@ -584,7 +573,7 @@
       </small>
     </div>
 
-    <!-- ✅ Teléfono -->
+    <!-- Teléfono -->
     <div>
       <label class="block font-semibold mb-2">Teléfono de contacto</label>
       <input
@@ -597,7 +586,7 @@
       <small class="text-red-500" *ngIf="isInvalid('telefono')">Teléfono inválido.</small>
     </div>
 
-    <!-- ✅ Email -->
+    <!-- Email -->
     <div class="col-span-2">
       <label class="block font-semibold mb-2">Correo</label>
       <input
@@ -609,7 +598,7 @@
       <small class="text-red-500" *ngIf="isInvalid('emailContacto')">Email inválido.</small>
     </div>
 
-    <!-- ✅ LinkedIn -->
+    <!-- LinkedIn -->
     <div class="col-span-2">
       <label class="block font-semibold mb-2">LinkedIn</label>
       <input
@@ -621,9 +610,7 @@
       <small class="text-red-500" *ngIf="isInvalid('linkedin')">URL de LinkedIn inválida.</small>
     </div>
 
-    <!-- ==========================================================
-✅ DOCUMENTOS (subida + existentes) - MEJORADO VISUALMENTE
-========================================================== -->
+
     <div class="col-span-2 mt-6">
       <div class="flex items-center justify-between">
         <h3 class="text-lg font-bold text-sky-700 flex items-center gap-2">
@@ -633,7 +620,6 @@
       </div>
 
       <div class="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
-        <!-- ✅ Subida de archivos -->
         <div class="flex flex-col gap-2">
           <label class="block font-semibold text-slate-700">Subir documentos</label>
 
@@ -664,7 +650,7 @@
           </small>
         </div>
 
-        <!-- ✅ Preview de seleccionados -->
+
         <div class="mt-4" *ngIf="documentosSeleccionados?.length">
           <p class="font-semibold text-slate-700 mb-2">Seleccionados:</p>
 
@@ -682,7 +668,7 @@
           </div>
         </div>
 
-        <!-- ✅ Documentos existentes -->
+        <!-- Documentos existentes -->
         <div class="mt-6">
           <p class="font-semibold text-slate-700 mb-2">Existentes:</p>
 
@@ -739,7 +725,7 @@
       </div>
     </div>
 
-    <!-- ✅ BOTONES - MEJORADOS -->
+
     <div class="col-span-2 flex justify-end gap-3 mt-10">
       <button
         pButton
@@ -762,13 +748,9 @@
   </form>
 </ng-template>
 
-<!-- ==========================================================
-✅ DASHBOARD SUBCOMPONENTE (solo no egresado)
-========================================================== -->
 
-<!-- ==========================================================
-✅ EXCEL (IMPORT / EXPORT) - SOLO ADMIN (UI azul/blanco)
-========================================================== -->
+
+<!-- EXCEL (IMPORT / EXPORT) - SOLO ADMIN -->
 <div *ngIf="!isEgresado" class="mb-4">
   <div
     class="bg-white border border-sky-100 rounded-xl shadow-sm p-4 flex flex-col gap-3

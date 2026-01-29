@@ -17,15 +17,15 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { EgresadosModule } from './egresados/egresados.module';
 
-// ✅ NUEVO: solo se agrega este import
+
 import { UsuariosModule } from './usuarios/usuarios.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env', // ✅ fuerza a leer el archivo .env
-      expandVariables: true, // ✅ opcional pero recomendado
+      envFilePath: '.env', 
+      expandVariables: true, 
     }),
 
     AsignaturasModule,
@@ -47,8 +47,6 @@ import { UsuariosModule } from './usuarios/usuarios.module';
     }),
 
     EgresadosModule,
-
-    // ✅ NUEVO: solo se agrega esta línea
     UsuariosModule,
   ],
 

@@ -9,29 +9,29 @@ import {
 } from 'class-validator';
 
 export class UpdateEgresadoDto {
-  // ✅ Ya NO se exige (y en el formulario ya no va)
+
   @IsOptional()
   @IsString()
   fechaEgreso?: string;
 
-  // ✅ NUEVO (formulario)
+
   @IsOptional()
   @IsInt()
   anioFinEstudios?: number;
 
-  // ✅ Solo estas 3 opciones (pero opcional en PATCH)
+
   @IsOptional()
   @IsString()
   @IsIn(['Trabajando', 'Cesante', 'Otro'])
   situacionActual?: string;
 
-  // ✅ Si en el PATCH envían situacionActual="Otro", deben especificar
+
   @ValidateIf((o) => o.situacionActual === 'Otro')
   @IsString()
   @MaxLength(120)
   situacionActualOtro?: string;
 
-  // Compatibilidad (aún no lo tocamos en el service, solo DTO)
+
   @IsOptional()
   @IsString()
   empresa?: string;
@@ -53,7 +53,6 @@ export class UpdateEgresadoDto {
   ])
   nivelRentas?: string;
 
-  // ✅ NUEVOS CAMPOS (formulario)
   @IsOptional()
   @IsString()
   @IsIn(['PSU/PAES', 'CFT', 'PACE', 'Propedéutico', 'Otro'])
@@ -109,14 +108,14 @@ export class UpdateEgresadoDto {
   @MaxLength(120)
   tipoEstablecimientoOtro?: string;
 
-  // ✅ Ya no van en el formulario, pero opcionales por compatibilidad
+
   @IsOptional()
   anioIngresoLaboral?: number;
 
   @IsOptional()
   anioSeguimiento?: number;
 
-  // ✅ Contacto
+
   @IsOptional()
   @IsString()
   @MaxLength(20)

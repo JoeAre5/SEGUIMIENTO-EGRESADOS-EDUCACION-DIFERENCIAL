@@ -1,4 +1,4 @@
-// src/app/mappers/egresado-form.mapper.ts
+
 
 export type SituacionOption = { label: string; value: string };
 
@@ -21,11 +21,7 @@ export function construirPlanTextoDesdePlan(plan: any): string {
   return partes.join(' • ');
 }
 
-/**
- * Devuelve:
- * - idPlan (para planOriginalId/planSeleccionadoId)
- * - patch (objeto listo para formulario.patchValue)
- */
+
 export function mapEgresadoToFormPatch(
   eg: any,
   situaciones: SituacionOption[]

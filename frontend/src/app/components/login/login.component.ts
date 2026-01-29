@@ -38,17 +38,12 @@ export class LoginComponent {
         .iniciarSesion(this.formularioLogin.value)
         .subscribe((result: any) => {
 
-          // ✅ 1) Guardar token (la parte que te faltaba)
-          // Tu backend devuelve { access_token: token }
           const token = result?.access_token || result?.token;
 
           if (token) {
-            // guarda en localStorage para que tu interceptor lo encuentre
+            // guarda en localStorage
             localStorage.setItem('access_token', token);
           }
-
-          // ✅ 2) Mantengo tu lógica original (result.success)
-          // pero si backend no manda "success", igual dejamos pasar si hay token
           const ok = (result && result.success) || !!token;
 
           if (ok) {

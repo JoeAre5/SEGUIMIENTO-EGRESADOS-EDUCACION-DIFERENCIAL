@@ -20,7 +20,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     return next(req);
   }
 
-  // 🔑 CLAVE: clonar SIEMPRE y adjuntar Authorization
+
   const authReq = req.clone({
     setHeaders: {
       Authorization: `Bearer ${token}`,

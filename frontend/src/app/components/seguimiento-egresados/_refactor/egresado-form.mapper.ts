@@ -1,4 +1,4 @@
-// src/app/components/seguimiento-egresados/_refactor/egresado-form.mapper.ts
+
 
 export function construirPlanTextoDesdePlan(plan: any): string {
   if (!plan) return '';

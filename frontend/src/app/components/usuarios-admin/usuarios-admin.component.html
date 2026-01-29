@@ -21,7 +21,7 @@
 </div>
 
 <div class="m-10 bg-white p-6 shadow-lg rounded-md">
-  <!-- ✅ #dt en la tabla REAL -->
+
   <p-table
     #dt
     [value]="usuarios"
@@ -116,7 +116,7 @@
   </p-table>
 </div>
 
-<!-- ============ DIALOG: CREAR MANUAL ============ -->
+
 <p-dialog
   header="Nuevo usuario (manual)"
   [(visible)]="showCrearManual"
@@ -170,7 +170,7 @@
   </ng-template>
 </p-dialog>
 
-<!-- ============ DIALOG: CREAR DESDE EGRESADO ============ -->
+
 <p-dialog
   header="Crear usuario desde egresado (sin cuenta)"
   [(visible)]="showCrearEgresado"
@@ -243,7 +243,6 @@
   </ng-template>
 </p-dialog>
 
-<!-- ============ DIALOG: EDITAR ============ -->
 <p-dialog header="Editar usuario" [(visible)]="showEditar" [modal]="true" [style]="{ width: '620px' }">
   <div *ngIf="selected" class="mb-4">
     <div class="text-sm text-gray-600">ID: {{ selected.id }}</div>
@@ -280,7 +279,6 @@
   </ng-template>
 </p-dialog>
 
-<!-- ============ DIALOG: PASSWORD ============ -->
 <p-dialog
   header="Cambiar password"
   [(visible)]="showPassword"

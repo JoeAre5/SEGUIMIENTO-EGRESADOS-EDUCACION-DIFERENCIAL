@@ -24,18 +24,13 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  /**
-   * ⚠️ Más adelante este endpoint lo dejaremos SOLO para ADMIN
-   */
+
   @Post('register')
   register(@Body() dto: UserRegisterDTO) {
     return this.authService.register(dto);
   }
 
-  /**
-   * ✅ Endpoint clave para frontend
-   * Devuelve el usuario autenticado + role + idEstudiante
-   */
+
   @UseGuards(AuthGuard('jwt'))
   @Get('me')
   me(@Req() req: any) {

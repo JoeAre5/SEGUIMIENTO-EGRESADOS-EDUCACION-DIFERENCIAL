@@ -1,8 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
-// ✅ Animaciones Angular
 import { animate, style, transition, trigger } from '@angular/animations';
 
 import { TableModule, Table } from 'primeng/table';
@@ -56,10 +54,8 @@ import { applyGlobalFilter, getSituacionSeverity } from '../_refactor/helpers.ut
   ],
 })
 export class EgresadosDashboardComponent {
-  // ====== Table ref (para dt.clear(), filtros, etc.) ======
   @ViewChild('dt') dt!: Table;
 
-  // ====== Inputs ======
   @Input() isEgresado = false;
 
   @Input() egresados: any[] = [];
@@ -87,10 +83,10 @@ export class EgresadosDashboardComponent {
   @Input() modalDocsVisible = false;
   @Input() documentosModal: any[] = [];
 
-  // opciones dropdown (se las pedimos al padre con callback)
+
   @Input() getDropdownOptions!: (key?: string) => any[];
 
-  // ====== Outputs (acciones) ======
+
   @Output() abrirFormularioNuevo = new EventEmitter<void>();
   @Output() abrirEdicion = new EventEmitter<any>();
   @Output() eliminar = new EventEmitter<any>();
@@ -98,29 +94,21 @@ export class EgresadosDashboardComponent {
   @Output() abrirModalDocumentos = new EventEmitter<any>();
   @Output() cerrarModalDocumentos = new EventEmitter<void>();
 
-  // ✅ emitimos el valor seleccionado (number|null)
   @Output() onCohorteChange = new EventEmitter<number | null>();
-
-  // ✅ binding “two-way” real hacia el padre (opcional, pero útil)
   @Output() cohorteSeleccionadaChange = new EventEmitter<number | null>();
-
   @Output() modalFiltrosVisibleChange = new EventEmitter<boolean>();
   @Output() filtroValoresChange = new EventEmitter<Record<string, any>>();
-
-  // ====== Outputs (documentos) ======
   @Output() verDocumento = new EventEmitter<any>();
   @Output() descargarDocumento = new EventEmitter<any>();
   @Output() eliminarDocumento = new EventEmitter<any>();
 
-  // ====== Anim keys (para que Angular dispare transiciones) ======
+
   dashboardAnimKey = 0;
   kpiAnimKey = 0;
   chartsAnimKey = 0;
-
-  // ✅ Forzar re-render de <p-chart> para que se vea la animación de Chart.js al cambiar cohorte
   chartsVisible = true;
 
-  // ====== UI helpers ======
+ 
   severity(s: any) {
     return getSituacionSeverity(s);
   }
@@ -133,7 +121,7 @@ export class EgresadosDashboardComponent {
     this.dt?.clear();
   }
 
-  // ✅ handler correcto para cambio de cohorte (dropdown)
+
   onCohorteDropdownChange(valor: any) {
     const n =
       valor === null || valor === undefined || valor === ''
@@ -142,14 +130,10 @@ export class EgresadosDashboardComponent {
 
     const finalValue = n !== null && Number.isFinite(n) ? n : null;
 
-    // actualiza estado local (para que el dropdown muestre el valor)
-    this.cohorteSeleccionada = finalValue;
 
-    // emite hacia el padre
+    this.cohorteSeleccionada = finalValue;
     this.cohorteSeleccionadaChange.emit(finalValue);
     this.onCohorteChange.emit(finalValue);
-
-    // ✅ dispara animaciones sin tocar nada más
     this.dispararAnimacionCohorte();
   }
 
@@ -157,13 +141,11 @@ export class EgresadosDashboardComponent {
     this.dashboardAnimKey++;
     this.kpiAnimKey++;
     this.chartsAnimKey++;
-
-    // Re-montar charts para que Chart.js haga “enter animation”
     this.chartsVisible = false;
     setTimeout(() => (this.chartsVisible = true), 0);
   }
 
-  // range filter (mismo comportamiento que tenías)
+
   onRangoFiltroChange(field: string, tipo: 'min' | 'max', valor: any) {
     const v = valor === '' || valor === undefined ? null : valor;
 

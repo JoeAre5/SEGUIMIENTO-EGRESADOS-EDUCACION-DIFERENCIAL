@@ -8,10 +8,10 @@ model PracticaTomada {
   idEstudiante         Int
   idCursacion          Int
 
-  // inverso de PTConvenio.PracticaTomada
+
   PTConvenios PTConvenio[] @relation("cursacion practica")
 
-  // ✅ relación hacia Cursacion (debe calzar con @@id de Cursacion)
+
   CursacionPractica Cursacion @relation("referencia la cursacion", fields: [idCursacion, idEstudiante, idAsignatura, idPlan], references: [idCursacion, idEstudiante, idAsignatura, idPlan])
 
   @@id([idPlan, idAsignatura, idEstudiante, idCursacion])
@@ -25,7 +25,7 @@ model PTConvenio {
   idCursacion  Int
   idConvenio   Int
 
-  // ✅ debe referenciar el @@id de PracticaTomada en el MISMO orden
+
   PracticaTomada PracticaTomada @relation("cursacion practica", fields: [idPlan, idAsignatura, idEstudiante, idCursacion], references: [idPlan, idAsignatura, idEstudiante, idCursacion])
 
   Convenio Convenio @relation("convenio referenciado", fields: [idConvenio], references: [idConvenio])

@@ -1,4 +1,4 @@
-// src/app/utils/rut.util.ts
+
 
 export function extraerRutCuerpo(raw: string): string {
   const digits = (raw ?? '').toString().replace(/\D/g, '');
@@ -12,7 +12,6 @@ export function formatearRutMinimoSinDv(raw: string): string {
 }
 
 export function normalizarRut(raw: string): string {
-  // Normalizado: solo cuerpo, sin puntos, sin DV
   return extraerRutCuerpo(raw);
 }
 

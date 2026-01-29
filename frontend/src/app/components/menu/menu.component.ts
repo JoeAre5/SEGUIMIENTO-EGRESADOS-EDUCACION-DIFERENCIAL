@@ -26,7 +26,6 @@ export class MenuComponent {
     private router: Router,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    // ✅ SSR-safe: en servidor no existe localStorage/sessionStorage
     if (!isPlatformBrowser(this.platformId)) {
       return;
     }

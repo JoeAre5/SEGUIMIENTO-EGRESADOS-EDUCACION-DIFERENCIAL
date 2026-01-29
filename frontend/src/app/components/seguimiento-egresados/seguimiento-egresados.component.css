@@ -1,6 +1,4 @@
-/* =========================================================
-   ✅ PrimeNG DataTable - Encabezado azul (acorde al sistema)
-   ========================================================= */
+
 
 :host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
   background: #0369a1 !important; /* sky-700 */
@@ -9,45 +7,39 @@
   font-weight: 700;
 }
 
-/* Opcional: iconos/ordenamiento en blanco */
+
 :host ::ng-deep .p-datatable .p-sortable-column .p-sortable-column-icon {
   color: #ffffff !important;
 }
 
-/* Línea inferior más limpia */
+
 :host ::ng-deep .p-datatable .p-datatable-thead > tr > th {
   border-bottom: 1px solid rgba(255, 255, 255, 0.25) !important;
 }
 
-/* =========================================================
-   ✅ Opcional: borde externo acorde al sistema
-   ========================================================= */
+
 :host ::ng-deep .p-datatable.p-datatable-gridlines .p-datatable-header,
 :host ::ng-deep .p-datatable.p-datatable-gridlines .p-datatable-footer {
   border-color: rgba(3, 105, 161, 0.25) !important;
 }
 
-/* =========================================================
-   ✅ Opcional: hover suave (no cambia colores del sistema)
-   ========================================================= */
+
 :host ::ng-deep .p-datatable .p-datatable-tbody > tr:hover {
   background: rgba(3, 105, 161, 0.06) !important;
 }
-/* =========================================================
-   ✅ Tags: máximo 2 líneas (nombre, rentas, institución)
-   ========================================================= */
+
 :host ::ng-deep .egresados-table .tag-2line {
-  max-width: 240px;              /* controla el ancho */
+  max-width: 240px;              
   white-space: normal !important;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;         /* 🔑 máximo 2 líneas */
+  -webkit-line-clamp: 2;         
   -webkit-box-orient: vertical;
   line-height: 1.2;
   text-align: center;
 }
 
-/* Ajuste específico por columna */
+
 :host ::ng-deep .egresados-table .col-nombre .tag-2line {
   max-width: 200px;
 }

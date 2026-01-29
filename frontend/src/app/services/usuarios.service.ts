@@ -13,7 +13,7 @@ export class UsuariosService {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
-  // ✅ helper: buscar token donde realmente lo estás guardando
+
   private getToken(): string | null {
     if (!isPlatformBrowser(this.platformId)) return null;
 
@@ -36,7 +36,7 @@ export class UsuariosService {
 
       const userRole = (decoded_token?.role ?? '').toString().trim();
 
-      // ✅ match directo (igual a como lo tienes)
+
       return roles.some((role) => userRole === role);
     } catch (e) {
       return false;

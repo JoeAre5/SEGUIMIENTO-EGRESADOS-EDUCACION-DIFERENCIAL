@@ -45,7 +45,7 @@ export interface CreateUsuarioFromEgresadoDto {
   password: string;
   email: string;
   nombreCompleto: string;
-  role?: RoleDto; // opcional, backend default EGRESADO
+  role?: RoleDto;
 }
 
 @Injectable({ providedIn: 'root' })

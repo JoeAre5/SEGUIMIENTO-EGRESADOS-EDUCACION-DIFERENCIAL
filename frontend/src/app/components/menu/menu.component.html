@@ -6,7 +6,7 @@
   </div>
 </div>
 
-<!-- ✅ Vista SOLO EGRESADO: ve únicamente Seguimiento Egresados -->
+<!-- Vista SOLO EGRESADO: ve únicamente Seguimiento Egresados -->
 <div
   class="grid grid-cols-1 gap-12 m-14 bg-white p-10 shadow-lg rounded-md"
   *ngIf="isEgresado"
@@ -21,7 +21,7 @@
   </p-card>
 </div>
 
-<!-- ✅ Vista NORMAL: todos los demás roles ven el menú actual -->
+<!-- Vista NORMAL: todos los demás roles ven el menú actual -->
 <div
   class="grid grid-cols-3 gap-12 m-14 bg-white p-10 shadow-lg rounded-md"
   *ngIf="!isEgresado"
@@ -80,7 +80,7 @@
     <p class="text-4xl font-semibold">END</p>
   </p-card>
 
-  <!-- ✅ NUEVO BOTÓN: Seguimiento Egresados -->
+  <!-- NUEVO BOTÓN: Seguimiento Egresados -->
   <p-card
     *tieneRol="[ADMINISTRADOR, JEFA_CARRERA, COORDINADOR]"
     header=""
@@ -90,7 +90,7 @@
     <p class="text-4xl font-semibold">Seguimiento Egresados</p>
   </p-card>
 
-  <!-- ✅ NUEVO BOTÓN: Gestión de Usuarios (solo Admin) -->
+  <!-- NUEVO BOTÓN: Gestión de Usuarios (solo Admin) -->
   <p-card
     *tieneRol="[ADMINISTRADOR]"
     header=""

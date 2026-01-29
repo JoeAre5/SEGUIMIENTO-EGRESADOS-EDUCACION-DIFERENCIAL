@@ -6,7 +6,10 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
+  Res,
+  StreamableFile,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -23,14 +26,13 @@ import { AuthGuard } from '@nestjs/passport';
 import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { ConsentimientoDto } from './dto/consentimiento.dto';
-
+import type { Response } from 'express';
 
 @ApiTags('egresados')
 @Controller('egresados')
-@UseGuards(AuthGuard('jwt'), RolesGuard) 
+@UseGuards(AuthGuard('jwt'), RolesGuard)
 export class EgresadosController {
   constructor(private readonly egresadosService: EgresadosService) {}
-
 
   private static storage = diskStorage({
     destination: './documents/egresados',
@@ -39,7 +41,6 @@ export class EgresadosController {
       cb(null, `${unique}${extname(file.originalname)}`);
     },
   });
-
 
   @Get('mine')
   @Roles('EGRESADO')
@@ -58,6 +59,7 @@ export class EgresadosController {
   setConsentimientoMine(@Req() req: any, @Body() dto: ConsentimientoDto) {
     return this.egresadosService.setConsentimientoMine(req.user, dto.acepta);
   }
+
   @Post('mine')
   @Roles('EGRESADO')
   @ApiConsumes('multipart/form-data')
@@ -71,9 +73,7 @@ export class EgresadosController {
     @Body() dto: CreateEgresadoDto,
     @UploadedFiles() archivos: Express.Multer.File[],
   ) {
-
     dto.idEstudiante = Number(req.user.idEstudiante);
-
     return this.egresadosService.create(dto, archivos);
   }
 
@@ -99,7 +99,10 @@ export class EgresadosController {
 
   @Delete('mine/documento/:idDocumento')
   @Roles('EGRESADO')
-  deleteDocumentoMine(@Param('idDocumento') idDocumento: string, @Req() req: any) {
+  deleteDocumentoMine(
+    @Param('idDocumento') idDocumento: string,
+    @Req() req: any,
+  ) {
     return this.egresadosService.deleteDocumentoMine(
       Number(idDocumento),
       Number(req.user.idEstudiante),
@@ -118,7 +121,6 @@ export class EgresadosController {
     @Body() dto: CreateEgresadoDto,
     @UploadedFiles() archivos: Express.Multer.File[],
   ) {
-
     if (dto?.idEstudiante !== undefined && dto?.idEstudiante !== null) {
       dto.idEstudiante = Number(dto.idEstudiante);
     }
@@ -157,14 +159,12 @@ export class EgresadosController {
     @Body() dto: UpdateEgresadoDto,
     @UploadedFiles() archivos: Express.Multer.File[],
   ) {
-
     return this.egresadosService.updateByEstudiante(
       Number(idEstudiante),
       dto,
       archivos,
     );
   }
-
 
   @Delete('documento/:idDocumento')
   @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
@@ -176,5 +176,53 @@ export class EgresadosController {
   @Roles('Administrador', 'Secretario', 'CoordinadorPractica', 'JC')
   delete(@Param('idEgresado') idEgresado: string) {
     return this.egresadosService.delete(Number(idEgresado));
+  }
+
+  // ---------------------------------------------------------------------------
+  // ✅ NUEVO: PDF FICHA EGRESADO (SOLO ADMIN y JC)
+  // GET /egresados/estudiante/:idEstudiante/pdf
+  // ---------------------------------------------------------------------------
+  @Get('estudiante/:idEstudiante/pdf')
+  @Roles('Administrador', 'JC')
+  async fichaPdfByEstudiante(
+    @Res({ passthrough: true }) res: Response,
+    @Param('idEstudiante') idEstudiante: string,
+  ) {
+    const buffer = await this.egresadosService.generarFichaPdfByEstudiante(
+      Number(idEstudiante),
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="ficha-egresado-${idEstudiante}.pdf"`,
+    );
+
+    return new StreamableFile(buffer);
+  }
+
+  // ---------------------------------------------------------------------------
+  // ✅ NUEVO: INFORME ANALÍTICO POR COHORTES (SOLO ADMIN y JC)
+  // GET /egresados/report/cohortes/pdf?from=2018&to=2026
+  // ---------------------------------------------------------------------------
+  @Get('report/cohortes/pdf')
+  @Roles('Administrador', 'JC')
+  async reporteCohortesPdf(
+    @Res({ passthrough: true }) res: Response,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const buffer = await this.egresadosService.generarReporteCohortesPdf(
+      from ? Number(from) : undefined,
+      to ? Number(to) : undefined,
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="reporte-egresados-cohortes.pdf"`,
+    );
+
+    return new StreamableFile(buffer);
   }
 }

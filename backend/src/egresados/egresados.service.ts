@@ -530,16 +530,33 @@ export class EgresadosService {
     const now = new Date();
     const currentYear = now.getFullYear();
 
-    const yFrom = Number.isFinite(Number(from)) ? Number(from) : currentYear - 8;
-    const yTo = Number.isFinite(Number(to)) ? Number(to) : currentYear;
+    const hasFrom = Number.isFinite(Number(from));
+    const hasTo = Number.isFinite(Number(to));
 
+    // Si no se envía rango, el reporte incluye TODAS las cohortes con anioFinEstudios informado.
+    const anioFilter: any =
+      !hasFrom && !hasTo
+        ? { not: null }
+        : {
+            not: null,
+            ...(hasFrom ? { gte: Number(from) } : {}),
+            ...(hasTo ? { lte: Number(to) } : {}),
+            // si solo viene from, cerramos hasta el año actual
+            ...(!hasTo && hasFrom ? { lte: currentYear } : {}),
+            // si solo viene to, dejamos desde 0
+            ...(!hasFrom && hasTo ? { gte: 0 } : {}),
+          };
+
+    // Traemos los egresados del rango (o todos si no hay rango).
+    // NOTA: mantenemos sueldo por compatibilidad, pero la renta estimada se calcula desde nivelRentas.
     const egresados = await this.prisma.egresado.findMany({
-      where: {
-        anioFinEstudios: { not: null, gte: yFrom, lte: yTo },
-      },
+      where: { anioFinEstudios: anioFilter },
       select: {
         anioFinEstudios: true,
         situacionActual: true,
+        // compat
+        sueldo: true,
+        // proxy real
         nivelRentas: true,
         genero: true,
         documentos: { select: { idDocumento: true } },
@@ -547,34 +564,40 @@ export class EgresadosService {
       },
     });
 
+    // Buckets por mínimo estimado (sin 'k', números completos)
+    const bucketLabelFromMin = (v: number) => {
+      if (v < 500000) return '< $500.000';
+      if (v < 700000) return '$500.000 – $699.999';
+      if (v < 900000) return '$700.000 – $899.999';
+      if (v < 1200000) return '$900.000 – $1.199.999';
+      return '≥ $1.200.000';
+    };
+
+    const median = (arr: number[]) => {
+      if (!arr.length) return null;
+      const a = [...arr].sort((x, y) => x - y);
+      const mid = Math.floor(a.length / 2);
+      return a.length % 2 === 0 ? Math.round((a[mid - 1] + a[mid]) / 2) : a[mid];
+    };
+
+    const avg = (arr: number[]) => {
+      if (!arr.length) return null;
+      return Math.round(arr.reduce((s, x) => s + x, 0) / arr.length);
+    };
+
     const cohortesMap = new Map<number, any>();
-
-    const generoCounts: Record<string, number> = {
-      'Masculino': 0,
-      'Femenino': 0,
-      'Otro/No informa': 0,
-    };
-
-    const normalizeGenero = (g: any): 'Masculino' | 'Femenino' | 'Otro/No informa' => {
-      const s = (g ?? '').toString().trim().toLowerCase();
-      if (!s) return 'Otro/No informa';
-      if (s.startsWith('m')) return 'Masculino';
-      if (s.startsWith('f')) return 'Femenino';
-      return 'Otro/No informa';
-    };
-
-    // Sueldo estimado: se calcula usando el mínimo del rango declarado en `nivelRentas`.
-    // (No se usa sueldo numérico real porque el formulario declara “Nivel de rentas”).
 
     for (const e of egresados) {
       const anio = Number(e.anioFinEstudios);
+      if (!Number.isFinite(anio)) continue;
+
       if (!cohortesMap.has(anio)) {
         cohortesMap.set(anio, {
           anio,
           total: 0,
           situacion: { Trabajando: 0, Cesante: 0, Otro: 0 },
           docs: { conDocs: 0, sinDocs: 0 },
-          sueldos: [] as number[],
+          sueldos: [] as number[], // aquí guardamos mínimos estimados
           buckets: {
             '< $500.000': 0,
             '$500.000 – $699.999': 0,
@@ -592,19 +615,22 @@ export class EgresadosService {
       if (ref.situacion[sit] !== undefined) ref.situacion[sit] += 1;
       else ref.situacion.Otro += 1;
 
-      const gKey = normalizeGenero((e as any).genero);
-      generoCounts[gKey] += 1;
-
       const tieneDocs = (e.documentos?.length ?? 0) > 0;
       if (tieneDocs) ref.docs.conDocs += 1;
       else ref.docs.sinDocs += 1;
 
-      const estMin = this.rentasToMinValue((e as any).nivelRentas ?? null);
+      // Renta estimada:
+      // - Primero intentamos desde nivelRentas (mínimo del rango declarado).
+      // - Si no existe, usamos sueldo (si tu esquema lo tiene) como fallback.
+      const estMin =
+        this.rentasToMinValue((e as any).nivelRentas) ??
+        (typeof (e as any).sueldo === 'number' && Number.isFinite((e as any).sueldo) && (e as any).sueldo > 0
+          ? (e as any).sueldo
+          : null);
+
       if (typeof estMin === 'number' && Number.isFinite(estMin)) {
         ref.sueldos.push(estMin);
-        const b = this.bucketLabelFromMin(estMin);
-        // Normalizamos a las llaves “largas” usadas en PDF
-        ref.buckets[b] += 1;
+        ref.buckets[bucketLabelFromMin(estMin)] += 1;
       }
     }
 
@@ -616,8 +642,8 @@ export class EgresadosService {
 
       c.sueldoStats = {
         count: c.sueldos.length,
-        avg: this.average(c.sueldos),
-        median: this.median(c.sueldos),
+        avg: avg(c.sueldos),
+        median: median(c.sueldos),
         min: c.sueldos.length ? Math.min(...c.sueldos) : null,
         max: c.sueldos.length ? Math.max(...c.sueldos) : null,
         buckets: c.buckets,
@@ -631,44 +657,74 @@ export class EgresadosService {
     const totalConDocs = cohortes.reduce((s, c) => s + c.docs.conDocs, 0);
     const globalDocs = total ? Math.round((totalConDocs / total) * 100) : 0;
 
-const generoItems = Object.entries(generoCounts).map(([label, count]) => ({ label, count }));
-    const generoMax = Math.max(...generoItems.map(x => x.count), 1);
-    const generoTotal = generoItems.reduce((a, x) => a + x.count, 0) || 1;
+    // Rango reportado (si no viene, lo inferimos desde las cohortes retornadas)
+    const years = cohortes.map((c) => c.anio);
+    const reportFrom = hasFrom ? Number(from) : years.length ? Math.min(...years) : currentYear;
+    const reportTo = hasTo ? Number(to) : hasFrom ? currentYear : years.length ? Math.max(...years) : currentYear;
 
-    const genero = generoItems.map(x => ({
+    // =========================
+    // GRÁFICAS RESUMEN (GLOBAL)
+    // =========================
+    // Género (no depende de nivelRentas)
+    const generoCounts: Record<string, number> = {
+      Masculino: 0,
+      Femenino: 0,
+      'Otro/No informa': 0,
+    };
+
+    for (const e of egresados) {
+      const g = String((e as any).genero ?? '').trim().toLowerCase();
+      if (!g) generoCounts['Otro/No informa'] += 1;
+      else if (g.startsWith('m')) generoCounts.Masculino += 1;
+      else if (g.startsWith('f')) generoCounts.Femenino += 1;
+      else generoCounts['Otro/No informa'] += 1;
+    }
+
+    const generoArrRaw = Object.entries(generoCounts).map(([label, count]) => ({ label, count }));
+    const generoTotal = generoArrRaw.reduce((a, x) => a + x.count, 0) || 1;
+    const generoMax = Math.max(...generoArrRaw.map((x) => x.count), 1);
+
+    const generoArr = generoArrRaw.map((x) => ({
       label: x.label,
       count: x.count,
       pct: Math.round((x.count / generoTotal) * 100),
       barPctOfMax: Math.round((x.count / generoMax) * 100),
     }));
 
-    const cohortesBars = cohortes.map((c) => ({ label: String(c.anio), count: c.total }));
-    const cohMax = Math.max(...cohortesBars.map(x => x.count), 1);
-    const cohTotal = cohortesBars.reduce((a, x) => a + x.count, 0) || 1;
-    const cohortesGraf = cohortesBars.map(x => ({
-      label: x.label,
+    // Cohortes (conteo por año)
+    const cohCounts = new Map<number, number>();
+    for (const c of cohortes) {
+      cohCounts.set(c.anio, c.total);
+    }
+    const cohItems = Array.from(cohCounts.entries())
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => b.year - a.year);
+
+    const cohTotal = cohItems.reduce((a, x) => a + x.count, 0) || 1;
+    const cohMax = Math.max(...cohItems.map((x) => x.count), 1);
+
+    const cohortesGraf = cohItems.map((x) => ({
+      label: String(x.year),
       count: x.count,
       pct: Math.round((x.count / cohTotal) * 100),
       barPctOfMax: Math.round((x.count / cohMax) * 100),
     }));
 
     return {
-      from: yFrom,
-      to: yTo,
+      from: reportFrom,
+      to: reportTo,
       generadoEn: now,
-      notaSueldo:
-        'Mediana/promedio estimados usando el mínimo del rango declarado en Nivel de rentas.',
       resumen: {
         totalEgresados: total,
         totalTrabajando,
         empleabilidadGlobalPct: globalEmpleabilidad,
         docsGlobalPct: globalDocs,
       },
+      cohortes,
       graficas: {
-        genero,
+        genero: generoArr,
         cohortes: cohortesGraf,
       },
-      cohortes,
     };
   }
 
@@ -713,19 +769,12 @@ private average(values: number[]): number | null {
   return Math.round(values.reduce((a,b) => a+b, 0) / values.length);
 }
 
-private bucketLabelFromMin(
-    v: number,
-  ):
-    | '< $500.000'
-    | '$500.000 – $699.999'
-    | '$700.000 – $899.999'
-    | '$900.000 – $1.199.999'
-    | '≥ $1.200.000' {
-    if (v < 500000) return '< $500.000';
-    if (v < 700000) return '$500.000 – $699.999';
-    if (v < 900000) return '$700.000 – $899.999';
-    if (v < 1200000) return '$900.000 – $1.199.999';
-    return '≥ $1.200.000';
-  }
+private bucketLabelFromMin(v: number): '< $500.000' | '$500.000 – $699.999' | '$700.000 – $899.999' | '$900.000 – $1.199.999' | '≥ $1.200.000' {
+  if (v < 500000) return '< $500.000';
+  if (v < 700000) return '$500.000 – $699.999';
+  if (v < 900000) return '$700.000 – $899.999';
+  if (v < 1200000) return '$900.000 – $1.199.999';
+  return '≥ $1.200.000';
+}
 
 }

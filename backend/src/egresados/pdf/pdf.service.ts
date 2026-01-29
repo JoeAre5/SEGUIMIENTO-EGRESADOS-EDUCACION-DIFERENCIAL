@@ -223,36 +223,6 @@ export class PdfService {
     {{/if}}
   </div>
 
-  <div class="card">
-    <div class="sectionTitle">Gráficas</div>
-    <div class="grid2">
-      <div>
-        <div class="muted"><b>Distribución por género</b></div>
-        <div class="bars">
-          {{#each genero}}
-            <div class="barRow">
-              <div class="barLbl">{{label}} ({{pct}}%)</div>
-              <div class="barWrap"><div class="barFill {{className}}" style="width: {{barPctOfMax}}%;"></div></div>
-              <div class="barVal">{{count}}</div>
-            </div>
-          {{/each}}
-        </div>
-      </div>
-      <div>
-        <div class="muted"><b>Egresados por cohorte</b></div>
-        <div class="bars">
-          {{#each cohortesGraf}}
-            <div class="barRow">
-              <div class="barLbl">{{label}}</div>
-              <div class="barWrap"><div class="barFill {{className}}" style="width: {{barPctOfMax}}%;"></div></div>
-              <div class="barVal">{{count}}</div>
-            </div>
-          {{/each}}
-        </div>
-      </div>
-
-
-
   <div class="footer">
     Documento generado automáticamente por el sistema de Seguimiento de Egresados.
   </div>
@@ -317,9 +287,9 @@ export class PdfService {
         bucketsArr: (() => {
           const arr = [
             { label: '< $500.000', key: '< $500.000' },
-            { label: '$500k–$699k', key: '$500.000 – $699.999' },
-            { label: '$700k–$899k', key: '$700.000 – $899.999' },
-            { label: '$900k–$1.199k', key: '$900.000 – $1.199.999' },
+            { label: '$500.000–$699.999', key: '$500.000 – $699.999' },
+            { label: '$700.000–$899.999', key: '$700.000 – $899.999' },
+            { label: '$900.000–$1.199.999', key: '$900.000 – $1.199.999' },
             { label: '≥ $1.200.000', key: '≥ $1.200.000' },
           ].map((x) => ({
             label: x.label,
@@ -335,9 +305,9 @@ export class PdfService {
         bucketsCompact: (() => {
           const all = [
             { label: '< $500.000', key: '< $500.000' },
-            { label: '$500k–$699k', key: '$500.000 – $699.999' },
-            { label: '$700k–$899k', key: '$700.000 – $899.999' },
-            { label: '$900k–$1.199k', key: '$900.000 – $1.199.999' },
+            { label: '$500.000–$699.999', key: '$500.000 – $699.999' },
+            { label: '$700.000–$899.999', key: '$700.000 – $899.999' },
+            { label: '$900.000–$1.199.999', key: '$900.000 – $1.199.999' },
             { label: '≥ $1.200.000', key: '≥ $1.200.000' },
           ]
             .map((x) => ({ label: x.label, value: c?.sueldoStats?.buckets?.[x.key] ?? 0 }))
@@ -409,7 +379,31 @@ export class PdfService {
 
     .muted { color:#64748B; font-size: 11px; }
     .footer { margin-top: 14px; font-size: 10px; color:#64748B; text-align:center; }
-  </style>
+  
+    .distCompact{
+      font-size: 11px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 170px;
+    }
+    .grid2{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .bars{ margin-top: 8px; }
+    .barRow{ display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+    .barLbl{ width: 120px; font-size: 11px; color: var(--muted); }
+    .barWrap{ flex: 1; height: 10px; background: #E9EEF6; border-radius: 8px; overflow:hidden; }
+    .barFill{ height:100%; border-radius: 8px; }
+    .barVal{ width: 34px; font-size: 11px; text-align:right; color: var(--muted); }
+    .barFill.male{ background:#4F8CFF; }
+    .barFill.female{ background:#FF7EB6; }
+    .barFill.other{ background:#9AA3B2; }
+    .barFill.primary{ background: var(--primary); }
+</style>
 </head>
 <body>
 
@@ -475,7 +469,46 @@ export class PdfService {
     </div>
   </div>
 
-  <div class="footer">
+  
+  <div class="card" style="margin-top:16px;">
+    <div class="sectionTitle">Gráficas resumen</div>
+    <div class="grid2">
+      <div>
+        <div class="muted"><b>Distribución por género</b></div>
+        {{#if genero.length}}
+        <div class="bars">
+          {{#each genero}}
+            <div class="barRow">
+              <div class="barLbl">{{label}} ({{pct}}%)</div>
+              <div class="barWrap"><div class="barFill {{className}}" style="width: {{barPctOfMax}}%;"></div></div>
+              <div class="barVal">{{count}}</div>
+            </div>
+          {{/each}}
+        </div>
+        {{else}}
+          <div class="muted" style="margin-top:8px;">Sin datos.</div>
+        {{/if}}
+      </div>
+      <div>
+        <div class="muted"><b>Egresados por cohorte</b></div>
+        {{#if cohortesGraf.length}}
+        <div class="bars">
+          {{#each cohortesGraf}}
+            <div class="barRow">
+              <div class="barLbl">{{label}}</div>
+              <div class="barWrap"><div class="barFill {{className}}" style="width: {{barPctOfMax}}%;"></div></div>
+              <div class="barVal">{{count}}</div>
+            </div>
+          {{/each}}
+        </div>
+        {{else}}
+          <div class="muted" style="margin-top:8px;">Sin datos.</div>
+        {{/if}}
+      </div>
+    </div>
+  </div>
+
+<div class="footer">
     Documento generado automáticamente por el sistema de Seguimiento de Egresados.
   </div>
 

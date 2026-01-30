@@ -814,6 +814,19 @@
                border-sky-700 text-sky-800 hover:bg-sky-50 shadow-sm"
       ></button>
 
+      <!-- Reporte (PDF) -->
+      <button
+        pButton
+        type="button"
+        icon="pi pi-file-pdf"
+        label="Reporte PDF"
+        (click)="descargarReporteCohortesPdf()"
+        [disabled]="excelImportando || loading"
+        class="p-button-sm rounded-lg px-4 shadow-sm
+               bg-sky-700 border-sky-700 hover:bg-sky-800 hover:border-sky-800 text-white"
+      ></button>
+
+
       <!-- Progreso -->
       <div
         *ngIf="excelImportando"
@@ -858,6 +871,7 @@
   (abrirEdicion)="abrirEdicion($event)"
   (eliminar)="eliminar($event)"
   (abrirModalDocumentos)="abrirModalDocumentos($event)"
+  (generarFichaPdf)="descargarFichaPdf($event)"
   (onCohorteChange)="onCohorteChange($event)"
   (verDocumento)="verDocumento($event)"
   (descargarDocumento)="descargarDocumento($event)"

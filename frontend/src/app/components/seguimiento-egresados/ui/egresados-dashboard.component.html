@@ -243,6 +243,15 @@
 
               <button
                 pButton
+                icon="pi pi-file-pdf"
+                class="p-button-rounded p-button-sm p-button-secondary"
+                pTooltip="Ficha PDF"
+                [disabled]="!(row?.idEstudiante ?? row?.Estudiante?.idEstudiante)"
+                (click)="generarFichaPdf.emit((row?.idEstudiante ?? row?.Estudiante?.idEstudiante))"
+              ></button>
+
+              <button
+                pButton
                 icon="pi pi-trash"
                 class="p-button-rounded p-button-sm p-button-danger"
                 pTooltip="Eliminar"

@@ -3,6 +3,7 @@ import { EgresadosController } from './egresados.controller';
 import { EgresadosService } from './egresados.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MulterModule } from '@nestjs/platform-express';
+import { PdfService } from './pdf/pdf.service';
 
 @Module({
   imports: [
@@ -11,6 +12,6 @@ import { MulterModule } from '@nestjs/platform-express';
     }),
   ],
   controllers: [EgresadosController],
-  providers: [EgresadosService, PrismaService],
+  providers: [EgresadosService, PrismaService, PdfService],
 })
 export class EgresadosModule {}

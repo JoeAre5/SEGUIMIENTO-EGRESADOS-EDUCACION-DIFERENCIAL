@@ -90,6 +90,8 @@ export class EgresadosDashboardComponent {
   @Output() abrirFormularioNuevo = new EventEmitter<void>();
   @Output() abrirEdicion = new EventEmitter<any>();
   @Output() eliminar = new EventEmitter<any>();
+  @Output() generarFichaPdf = new EventEmitter<number>();
+
 
   @Output() abrirModalDocumentos = new EventEmitter<any>();
   @Output() cerrarModalDocumentos = new EventEmitter<void>();

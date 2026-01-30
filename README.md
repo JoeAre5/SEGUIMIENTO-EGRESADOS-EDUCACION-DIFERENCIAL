@@ -52,7 +52,6 @@ Pantalla de inicio de sesión: Interfaz para que los usuarios ingresen con su no
 ![alt text](image-1.png)
 Menú principal: Panel con opciones y módulos disponibles, como acceso a actividades prácticas, seguimiento de egresados y actividades de titulación.
 
-![alt text](image.png)
 Panel de seguimiento de egresados: Dashboard que muestra estadísticas sobre la situación laboral de los egresados, incluyendo total de registros, cantidad trabajando, cesantes y otros casos, además de un listado detallado con información personal y laboral.
 
 Estas capturas reflejan la funcionalidad y diseño del sistema en desarrollo.

@@ -192,7 +192,7 @@ export class PdfService {
       <div class="item"><div class="k">Situación actual</div><div class="v"><span class="badge">{{situacionActual}}</span></div></div>
       <div class="item"><div class="k">Teléfono</div><div class="v">{{telefono}}</div></div>
       <div class="item"><div class="k">Correo</div><div class="v">{{correo}}</div></div>
-      <div class="item"><div class="k">Empresa</div><div class="v">{{empresa}}</div></div>
+      <div class="item"><div class="k">Institución</div><div class="v">{{empresa}}</div></div>
       <div class="item"><div class="k">Cargo</div><div class="v">{{cargo}}</div></div>
       <div class="item"><div class="k">Nivel de rentas</div><div class="v">{{nivelRentas}}</div></div>
       <div class="item"><div class="k">—</div><div class="v"></div></div>

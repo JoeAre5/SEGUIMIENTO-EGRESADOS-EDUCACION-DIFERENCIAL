@@ -168,6 +168,15 @@ export class EgresadosService {
         telefono: this.toStrOrNull(dto.telefono),
         direccion: this.toStrOrNull(dto.direccion),
 
+        // Campos de seguimiento laboral (nuevo formulario)
+        sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral),
+        sectorLaboralOtro: this.toStrOrNull((dto as any).sectorLaboralOtro),
+        tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo),
+        tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento),
+        tipoEstablecimientoOtro: this.toStrOrNull((dto as any).tipoEstablecimientoOtro),
+        viaIngreso: this.toStrOrNull((dto as any).viaIngreso),
+        viaIngresoOtro: this.toStrOrNull((dto as any).viaIngresoOtro),
+
         fechaEgreso: fechaConvertida,
         anioFinEstudios: this.toIntOrNull((dto as any).anioFinEstudios),
         situacionActual: (dto as any).situacionActual ?? null,
@@ -236,6 +245,15 @@ export class EgresadosService {
       data: {
         telefono: dto.telefono !== undefined ? this.toStrOrNull(dto.telefono) : undefined,
         direccion: (dto as any).direccion !== undefined ? this.toStrOrNull((dto as any).direccion) : undefined,
+
+        // Campos de seguimiento laboral (nuevo formulario)
+        sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral),
+        sectorLaboralOtro: this.toStrOrNull((dto as any).sectorLaboralOtro),
+        tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo),
+        tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento),
+        tipoEstablecimientoOtro: this.toStrOrNull((dto as any).tipoEstablecimientoOtro),
+        viaIngreso: this.toStrOrNull((dto as any).viaIngreso),
+        viaIngresoOtro: this.toStrOrNull((dto as any).viaIngresoOtro),
 
 
         fechaEgreso: dto.fechaEgreso !== undefined ? fechaConvertida : undefined,

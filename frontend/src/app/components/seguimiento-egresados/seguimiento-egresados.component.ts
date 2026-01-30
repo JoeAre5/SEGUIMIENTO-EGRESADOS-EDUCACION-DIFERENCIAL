@@ -135,6 +135,8 @@ export class SeguimientoEgresadosComponent implements OnInit {
 
   pdfProgress = 0;
   private pdfProgressTimer: any = null;
+  private pdfLoadingStartedAt = 0;
+  private readonly pdfMinVisibleMs = 650;
 
   @ViewChild('fileInputDocs') fileInput?: ElementRef<HTMLInputElement>;
   @ViewChild('fileInputExcel') fileInputExcel?: ElementRef<HTMLInputElement>;
@@ -2551,7 +2553,7 @@ const url = this.apiUrl(`/egresados/estudiante/${idEstudiante}/pdf`);
         this.messageService.add({ severity: 'success', summary: 'Listo', detail: 'Ficha PDF abierta.', life: 1500 });
       },
       error: (err) => {
-        this.stopPdfLoading(false);
+        this.stopPdfLoading(true);
         console.error(err);
         const detail = this.formatHttpErrorDetail(err, 'No se pudo generar la ficha PDF.');
         this.messageService.add({ severity: 'error', summary: 'Error', detail, life: 3000 });
@@ -2582,13 +2584,13 @@ const url = this.apiUrl(`/egresados/estudiante/${idEstudiante}/pdf`);
             const url = this.apiUrl(`/egresados/report/cohortes/pdf${params}`);
             this.getPdfBlob(url).subscribe({
               next: (blob) => {
-                  this.abrirPdf(blob);
-                  this.stopPdfLoading(true);
-                  this.messageService.add({ severity: 'success', summary: 'Listo', detail: 'Reporte PDF abierto.', life: 1500 });
+        this.abrirPdf(blob);
+        this.stopPdfLoading(true);
+        this.messageService.add({ severity: 'success', summary: 'Listo', detail: 'Reporte PDF abierto.', life: 1500 });
                 },
               error: (err) => {
-                  this.stopPdfLoading(false);
-                  console.error(err);
+        this.stopPdfLoading(false);
+        console.error(err);
                   const detail = this.formatHttpErrorDetail(err, 'No se pudo generar el reporte PDF.');
                   this.messageService.add({ severity: 'error', summary: 'Error', detail, life: 3000 });
                 },
@@ -2649,22 +2651,23 @@ const url = this.apiUrl(`/egresados/estudiante/${idEstudiante}/pdf`);
     this.pdfLoadingLabel = label;
     this.pdfLoading = true;
 
-    // Arranca desde 10%
-    this.pdfProgress = 10;
+    this.pdfLoadingStartedAt = Date.now();
 
-    // Limpia timer anterior
+    // Arranca alto para que se note, y sube rápido hasta 90%
+    this.pdfProgress = 70;
+
     if (this.pdfProgressTimer) {
       clearInterval(this.pdfProgressTimer);
       this.pdfProgressTimer = null;
     }
 
-    // Sube “falso” hasta 90% mientras espera el PDF
     this.pdfProgressTimer = setInterval(() => {
       if (this.pdfProgress < 90) {
-        this.pdfProgress += 2;
+        this.pdfProgress = Math.min(90, this.pdfProgress + 5);
       }
-    }, 200);
+    }, 80);
   }
+
 
   private stopPdfLoading(success: boolean) {
     if (this.pdfProgressTimer) {
@@ -2672,16 +2675,22 @@ const url = this.apiUrl(`/egresados/estudiante/${idEstudiante}/pdf`);
       this.pdfProgressTimer = null;
     }
 
+    const elapsed = Date.now() - (this.pdfLoadingStartedAt || Date.now());
+    const waitMs = Math.max(0, this.pdfMinVisibleMs - elapsed);
+
     if (success) {
       this.pdfProgress = 100;
       setTimeout(() => {
         this.pdfLoading = false;
-      }, 300);
+      }, Math.max(300, waitMs));
     } else {
-      this.pdfLoading = false;
-      this.pdfProgress = 0;
+      setTimeout(() => {
+        this.pdfLoading = false;
+        this.pdfProgress = 0;
+      }, waitMs);
     }
   }
+
 
   private formatHttpErrorDetail(err: any, fallback: string) {
     const status = err?.status ? `(${err.status}) ` : '';

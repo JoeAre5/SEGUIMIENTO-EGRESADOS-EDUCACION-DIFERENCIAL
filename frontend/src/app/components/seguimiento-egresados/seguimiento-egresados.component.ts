@@ -10,6 +10,7 @@ import {
 } from '@angular/forms';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 
 import {
@@ -281,6 +282,7 @@ export class SeguimientoEgresadosComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private router: Router,
+    private http: HttpClient,
     private egresadosService: EgresadosService,
     private estudiantesService: EstudiantesService,
     private messageService: MessageService,
@@ -2521,4 +2523,49 @@ private toIntOrNull(v: any): number | null {
       }
     }
   }
+  // =========================
+  // PDF: Ficha por egresado / Reporte por cohortes
+  // =========================
+
+  descargarFichaPdf(idEstudiante: number) {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    const url = `/egresados/estudiante/${idEstudiante}/pdf`;
+    this.descargarYAbrirPdf(url, `ficha-egresado-${idEstudiante}.pdf`);
+  }
+
+  descargarReporteCohortesPdf(from?: number, to?: number) {
+    if (!isPlatformBrowser(this.platformId)) return;
+
+    const params: string[] = [];
+    if (typeof from === 'number') params.push(`from=${from}`);
+    if (typeof to === 'number') params.push(`to=${to}`);
+
+    const url = `/egresados/report/cohortes/pdf${params.length ? `?${params.join('&')}` : ''}`;
+    this.descargarYAbrirPdf(url, 'reporte-cohortes-egresados.pdf');
+  }
+
+  private descargarYAbrirPdf(url: string, filename: string) {
+    const token = this.getTokenSafe();
+    const headers = token ? new HttpHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/pdf' }) : new HttpHeaders({ Accept: 'application/pdf' });
+
+    this.http.get(url, { responseType: 'blob', headers }).subscribe({
+      next: (blob) => {
+        // Abrir en nueva pestaña
+        const blobUrl = window.URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+
+        // (Opcional) liberar después de un rato
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60_000);
+      },
+      error: () => {
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: `No se pudo generar el PDF (${filename}).`,
+        });
+      },
+    });
+  }
+
 }

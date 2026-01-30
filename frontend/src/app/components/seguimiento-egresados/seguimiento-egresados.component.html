@@ -1,6 +1,22 @@
 <p-toast></p-toast>
 <p-confirmDialog></p-confirmDialog>
 
+<!-- PDF loading overlay -->
+<div *ngIf="pdfLoading" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+  <div class="bg-white rounded-xl shadow-xl p-4 w-[360px]">
+    <div class="flex items-center gap-3 mb-3">
+      <i class="pi pi-spin pi-spinner text-sky-700 text-xl"></i>
+      <div class="font-semibold text-sky-900">Generando PDF…</div>
+    </div>
+    <div class="text-sm text-gray-700 mb-3">{{ pdfLoadingLabel }}</div>
+    <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div class="h-2 bg-sky-600 transition-all duration-200" [style.width.%]="pdfProgress"></div>
+    </div>
+    <div class="text-xs text-gray-600 mt-2 text-right">{{ pdfProgress }}%</div>
+  </div>
+</div>
+
+
 
 <p-dialog
   *ngIf="isEgresado && consentimientoVisible"

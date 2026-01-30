@@ -129,6 +129,13 @@ interface PlanDTO {
   ],
 })
 export class SeguimientoEgresadosComponent implements OnInit {
+  // === PDF loading overlay ===
+  pdfLoading = false;
+  pdfLoadingLabel = "";
+
+  pdfProgress = 0;
+  private pdfProgressTimer: any = null;
+
   @ViewChild('fileInputDocs') fileInput?: ElementRef<HTMLInputElement>;
   @ViewChild('fileInputExcel') fileInputExcel?: ElementRef<HTMLInputElement>;
   @ViewChild('dt') dt!: Table;
@@ -2528,7 +2535,9 @@ private toIntOrNull(v: any): number | null {
   // =========================
   descargarFichaPdf(idEstudiante: number) {
 
-    this.messageService.add({
+    this.startPdfLoading('Generando ficha del egresado…');
+
+this.messageService.add({
       severity: 'info',
       summary: 'Generando PDF…',
       detail: 'Generando ficha del egresado.',
@@ -2536,38 +2545,54 @@ private toIntOrNull(v: any): number | null {
     });
 const url = this.apiUrl(`/egresados/estudiante/${idEstudiante}/pdf`);
     this.getPdfBlob(url).subscribe({
-      next: (blob) => this.abrirPdf(blob),
+      next: (blob) => {
+        this.abrirPdf(blob);
+        this.stopPdfLoading(true);
+        this.messageService.add({ severity: 'success', summary: 'Listo', detail: 'Ficha PDF abierta.', life: 1500 });
+      },
       error: (err) => {
+        this.stopPdfLoading(false);
         console.error(err);
-        this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'No se pudo generar la ficha PDF.',
-        });
+        const detail = this.formatHttpErrorDetail(err, 'No se pudo generar la ficha PDF.');
+        this.messageService.add({ severity: 'error', summary: 'Error', detail, life: 3000 });
       },
     });
   }
 
   descargarReporteCohortesPdf(from?: number, to?: number) {
 
-    this.messageService.add({
-      severity: 'info',
-      summary: 'Generando PDF…',
-      detail: 'Generando reporte de cohortes.',
-      life: 1500,
-    });
-const params =
-      from != null && to != null ? `?from=${from}&to=${to}` : '';
-    const url = this.apiUrl(`/egresados/report/cohortes/pdf${params}`);
-    this.getPdfBlob(url).subscribe({
-      next: (blob) => this.abrirPdf(blob),
-      error: (err) => {
-        console.error(err);
+
+    this.confirmationService.confirm({
+      header: 'Confirmación',
+      message: '¿Generar el reporte de cohortes en PDF? (puede tardar unos segundos)',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Generar',
+      rejectLabel: 'Cancelar',
+      accept: () => {
+              this.startPdfLoading('Generando reporte de cohortes…');
+        
         this.messageService.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'No se pudo generar el reporte PDF.',
-        });
+              severity: 'info',
+              summary: 'Generando PDF…',
+              detail: 'Generando reporte de cohortes.',
+              life: 1500,
+            });
+        const params =
+              from != null && to != null ? `?from=${from}&to=${to}` : '';
+            const url = this.apiUrl(`/egresados/report/cohortes/pdf${params}`);
+            this.getPdfBlob(url).subscribe({
+              next: (blob) => {
+                  this.abrirPdf(blob);
+                  this.stopPdfLoading(true);
+                  this.messageService.add({ severity: 'success', summary: 'Listo', detail: 'Reporte PDF abierto.', life: 1500 });
+                },
+              error: (err) => {
+                  this.stopPdfLoading(false);
+                  console.error(err);
+                  const detail = this.formatHttpErrorDetail(err, 'No se pudo generar el reporte PDF.');
+                  this.messageService.add({ severity: 'error', summary: 'Error', detail, life: 3000 });
+                },
+            });
       },
     });
   }
@@ -2615,6 +2640,53 @@ const params =
       // raw ya es el token
     }
     return raw;
+  }
+
+  // =========================
+  // PDF UX helpers
+  // =========================
+  private startPdfLoading(label: string) {
+    this.pdfLoadingLabel = label;
+    this.pdfLoading = true;
+
+    // Arranca desde 10%
+    this.pdfProgress = 10;
+
+    // Limpia timer anterior
+    if (this.pdfProgressTimer) {
+      clearInterval(this.pdfProgressTimer);
+      this.pdfProgressTimer = null;
+    }
+
+    // Sube “falso” hasta 90% mientras espera el PDF
+    this.pdfProgressTimer = setInterval(() => {
+      if (this.pdfProgress < 90) {
+        this.pdfProgress += 2;
+      }
+    }, 200);
+  }
+
+  private stopPdfLoading(success: boolean) {
+    if (this.pdfProgressTimer) {
+      clearInterval(this.pdfProgressTimer);
+      this.pdfProgressTimer = null;
+    }
+
+    if (success) {
+      this.pdfProgress = 100;
+      setTimeout(() => {
+        this.pdfLoading = false;
+      }, 300);
+    } else {
+      this.pdfLoading = false;
+      this.pdfProgress = 0;
+    }
+  }
+
+  private formatHttpErrorDetail(err: any, fallback: string) {
+    const status = err?.status ? `(${err.status}) ` : '';
+    const msg = err?.error?.message || err?.message || fallback;
+    return `${status}${msg}`;
   }
 
 }

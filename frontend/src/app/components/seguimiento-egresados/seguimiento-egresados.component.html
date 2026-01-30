@@ -813,6 +813,7 @@
         class="p-button-sm p-button-outlined rounded-lg px-4
                border-sky-700 text-sky-800 hover:bg-sky-50 shadow-sm"
       ></button>
+
       <!-- Reporte (PDF) -->
       <button
         pButton
@@ -870,8 +871,9 @@
   (abrirEdicion)="abrirEdicion($event)"
   (eliminar)="eliminar($event)"
   (abrirModalDocumentos)="abrirModalDocumentos($event)"
+  (generarFichaPdf)="descargarFichaPdf($event)"
   (onCohorteChange)="onCohorteChange($event)"
   (verDocumento)="verDocumento($event)"
   (descargarDocumento)="descargarDocumento($event)"
   (eliminarDocumento)="eliminarDocumento($event)"
- (generarFichaPdf)="descargarFichaPdf($event)">
+/>

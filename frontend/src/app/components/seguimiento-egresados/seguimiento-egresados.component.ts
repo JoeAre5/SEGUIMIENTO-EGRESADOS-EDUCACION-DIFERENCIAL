@@ -280,14 +280,14 @@ export class SeguimientoEgresadosComponent implements OnInit {
   donutRentasCohorteData: any;
 
   constructor(
-    private fb: FormBuilder,
+private fb: FormBuilder,
     private router: Router,
-    private http: HttpClient,
     private egresadosService: EgresadosService,
     private estudiantesService: EstudiantesService,
     private messageService: MessageService,
     private confirmationService: ConfirmationService,
-    @Inject(PLATFORM_ID) private platformId: Object
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private http: HttpClient
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
@@ -2524,48 +2524,83 @@ private toIntOrNull(v: any): number | null {
     }
   }
   // =========================
-  // PDF: Ficha por egresado / Reporte por cohortes
+  // PDF (Ficha / Reporte)
   // =========================
-
   descargarFichaPdf(idEstudiante: number) {
-    if (!isPlatformBrowser(this.platformId)) return;
-
-    const url = `/egresados/estudiante/${idEstudiante}/pdf`;
-    this.descargarYAbrirPdf(url, `ficha-egresado-${idEstudiante}.pdf`);
-  }
-
-  descargarReporteCohortesPdf(from?: number, to?: number) {
-    if (!isPlatformBrowser(this.platformId)) return;
-
-    const params: string[] = [];
-    if (typeof from === 'number') params.push(`from=${from}`);
-    if (typeof to === 'number') params.push(`to=${to}`);
-
-    const url = `/egresados/report/cohortes/pdf${params.length ? `?${params.join('&')}` : ''}`;
-    this.descargarYAbrirPdf(url, 'reporte-cohortes-egresados.pdf');
-  }
-
-  private descargarYAbrirPdf(url: string, filename: string) {
-    const token = this.getTokenSafe();
-    const headers = token ? new HttpHeaders({ Authorization: `Bearer ${token}`, Accept: 'application/pdf' }) : new HttpHeaders({ Accept: 'application/pdf' });
-
-    this.http.get(url, { responseType: 'blob', headers }).subscribe({
-      next: (blob) => {
-        // Abrir en nueva pestaña
-        const blobUrl = window.URL.createObjectURL(blob);
-        window.open(blobUrl, '_blank');
-
-        // (Opcional) liberar después de un rato
-        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60_000);
-      },
-      error: () => {
+    const url = this.apiUrl(`/egresados/estudiante/${idEstudiante}/pdf`);
+    this.getPdfBlob(url).subscribe({
+      next: (blob) => this.abrirPdf(blob),
+      error: (err) => {
+        console.error(err);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
-          detail: `No se pudo generar el PDF (${filename}).`,
+          detail: 'No se pudo generar la ficha PDF.',
         });
       },
     });
+  }
+
+  descargarReporteCohortesPdf(from?: number, to?: number) {
+    const params =
+      from != null && to != null ? `?from=${from}&to=${to}` : '';
+    const url = this.apiUrl(`/egresados/report/cohortes/pdf${params}`);
+    this.getPdfBlob(url).subscribe({
+      next: (blob) => this.abrirPdf(blob),
+      error: (err) => {
+        console.error(err);
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'No se pudo generar el reporte PDF.',
+        });
+      },
+    });
+  }
+
+  private abrirPdf(blob: Blob) {
+    const file = new Blob([blob], { type: 'application/pdf' });
+    const blobUrl = window.URL.createObjectURL(file);
+    window.open(blobUrl, '_blank');
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60_000);
+  }
+
+  private getPdfBlob(url: string) {
+    const token = this.getAccessToken();
+    const headers = token
+      ? new HttpHeaders({
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/pdf',
+        })
+      : new HttpHeaders({ Accept: 'application/pdf' });
+
+    return this.http.get(url, { headers, responseType: 'blob' as const });
+  }
+
+  // Construye URL ABSOLUTA al backend para evitar que el navegador intente ir a localhost:4200/egresados/...
+  private apiUrl(path: string) {
+    const base = (window as any).__API_BASE__ || 'http://localhost:3000';
+    return `${base}${path}`;
+  }
+
+  private getAccessToken(): string | null {
+    // Ajusta si tu app guarda el token con otra key
+    const raw =
+      localStorage.getItem('access_token') ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('jwt') ||
+      localStorage.getItem('authToken');
+
+    if (!raw) return null;
+
+    // Si guardaste JSON: {"access_token":"..."}
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.access_token) return parsed.access_token;
+    } catch {
+      // raw ya es el token
+    }
+    return raw;
   }
 
 }

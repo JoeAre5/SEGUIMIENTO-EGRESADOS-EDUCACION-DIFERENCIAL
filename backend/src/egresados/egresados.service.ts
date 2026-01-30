@@ -6,10 +6,11 @@ import { Express } from 'express';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 import { ForbiddenException } from '@nestjs/common';
+import { PdfService } from './pdf/pdf.service';
 
 @Injectable()
 export class EgresadosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private pdfService: PdfService) {}
 
   private parseFecha(fecha: string): Date | undefined {
     if (!fecha) return undefined;
@@ -39,7 +40,7 @@ export class EgresadosService {
       where: { idEstudiante },
       create: {
         Estudiante: { connect: { idEstudiante } },
-        situacionActual: 'Otro', 
+        situacionActual: 'Otro',
       },
       update: {},
       select: {
@@ -67,13 +68,10 @@ export class EgresadosService {
         consentimientoEstado: estado,
         consentimientoFecha: new Date(),
       },
-
-
       update: {
         consentimientoEstado: estado,
         consentimientoFecha: new Date(),
       },
-
       select: {
         consentimientoEstado: true,
         consentimientoFecha: true,
@@ -129,7 +127,9 @@ export class EgresadosService {
     });
 
     if (!estado || estado.consentimientoEstado !== 'ACEPTADO') {
-      throw new ForbiddenException('Debes aceptar el consentimiento para poder editar tu información.');
+      throw new ForbiddenException(
+        'Debes aceptar el consentimiento para poder editar tu información.',
+      );
     }
 
     const existe = await this.prisma.egresado.findUnique({
@@ -143,7 +143,6 @@ export class EgresadosService {
     const dtoCreate: any = { ...(dto as any), idEstudiante: id };
     return this.create(dtoCreate, archivos);
   }
-
 
   async create(dto: CreateEgresadoDto, archivos: Express.Multer.File[]) {
     const idEst =
@@ -162,64 +161,53 @@ export class EgresadosService {
       return this.updateByEstudiante(dto.idEstudiante, dto as any, archivos);
     }
 
-    const { planEstudios, ..._rest } = dto as any;
-
     const egresado = await this.prisma.egresado.create({
       data: {
-
         Estudiante: { connect: { idEstudiante: dto.idEstudiante } },
 
+        telefono: this.toStrOrNull(dto.telefono),
+        direccion: this.toStrOrNull(dto.direccion),
+
         fechaEgreso: fechaConvertida,
-
         anioFinEstudios: this.toIntOrNull((dto as any).anioFinEstudios),
+        situacionActual: (dto as any).situacionActual ?? null,
+        empresa: this.toStrOrNull((dto as any).empresa),
+        cargo: this.toStrOrNull((dto as any).cargo),
 
-        situacionActual: dto.situacionActual,
-        situacionActualOtro:
-          dto.situacionActual === 'Otro' ? this.toStrOrNull((dto as any).situacionActualOtro) : null,
-
-        empresa: this.toStrOrNull(dto.empresa),
-        cargo: this.toStrOrNull(dto.cargo),
-        sueldo: dto.sueldo !== undefined ? this.toIntOrNull(dto.sueldo) : null,
+        sueldo: dto.sueldo !== undefined ? this.toIntOrNull((dto as any).sueldo) : null,
         nivelRentas: (dto as any).nivelRentas ?? null,
 
-        viaIngreso: this.toStrOrNull((dto as any).viaIngreso),
-        viaIngresoOtro:
-          (dto as any).viaIngreso === 'Otro' ? this.toStrOrNull((dto as any).viaIngresoOtro) : null,
+        consentimientoEstado: (dto as any).consentimientoEstado ?? null,
+        consentimientoFecha: (dto as any).consentimientoFecha ?? null,
 
-        anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera),
+      },
 
-        genero: this.toStrOrNull((dto as any).genero),
-        tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo),
-
-        sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral),
-        sectorLaboralOtro:
-          (dto as any).sectorLaboral === 'Otro'
-            ? this.toStrOrNull((dto as any).sectorLaboralOtro)
-            : null,
-
-        tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento),
-        tipoEstablecimientoOtro:
-          (dto as any).tipoEstablecimiento === 'Otro'
-            ? this.toStrOrNull((dto as any).tipoEstablecimientoOtro)
-            : null,
-
-        anioIngresoLaboral:
-          dto.anioIngresoLaboral !== undefined ? this.toIntOrNull(dto.anioIngresoLaboral) : null,
-        ...(dto.anioSeguimiento !== undefined ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) } : {}),
-
-        telefono: this.toStrOrNull(dto.telefono),
-        emailContacto: this.toStrOrNull(dto.emailContacto),
-        direccion: this.toStrOrNull(dto.direccion),
-        linkedin: this.toStrOrNull(dto.linkedin),
-        contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo),
+      include: {
+        documentos: true,
+        Estudiante: {
+          select: {
+            rut: true,
+            nombreCompleto: true,
+            idPlan: true,
+            Plan: {
+              select: {
+                idPlan: true,
+                codigo: true,
+                titulo: true,
+                agnio: true,
+                fechaInstauracion: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    if (archivos && archivos.length > 0) {
-      const docs = archivos.map((f) => ({
-        nombre: f.originalname,
-        url: `/documents/egresados/${f.filename}`,
+    if (archivos?.length) {
+      const docs = archivos.map((file) => ({
         idEgresado: egresado.idEgresado,
+        nombre: file.originalname,
+        url: `/documents/egresados/${file.filename}`,
       }));
 
       await this.prisma.documentoEgresado.createMany({ data: docs });
@@ -228,6 +216,60 @@ export class EgresadosService {
     return this.findOne(dto.idEstudiante);
   }
 
+  async updateByEstudiante(
+    idEstudiante: number,
+    dto: UpdateEgresadoDto,
+    archivos: Express.Multer.File[],
+  ) {
+    idEstudiante = Number(idEstudiante);
+    dto.fechaEgreso = dto.fechaEgreso?.toString();
+    const fechaConvertida = dto.fechaEgreso ? this.parseFecha(dto.fechaEgreso) : undefined;
+
+    const existe = await this.prisma.egresado.findUnique({
+      where: { idEstudiante },
+    });
+
+    if (!existe) throw new NotFoundException('Egresado no encontrado');
+
+    await this.prisma.egresado.update({
+      where: { idEstudiante },
+      data: {
+        telefono: dto.telefono !== undefined ? this.toStrOrNull(dto.telefono) : undefined,
+        direccion: (dto as any).direccion !== undefined ? this.toStrOrNull((dto as any).direccion) : undefined,
+
+
+        fechaEgreso: dto.fechaEgreso !== undefined ? fechaConvertida : undefined,
+        anioFinEstudios:
+          (dto as any).anioFinEstudios !== undefined ? this.toIntOrNull((dto as any).anioFinEstudios) : undefined,
+        situacionActual: (dto as any).situacionActual !== undefined ? (dto as any).situacionActual : undefined,
+        empresa: (dto as any).empresa !== undefined ? this.toStrOrNull((dto as any).empresa) : undefined,
+        cargo: (dto as any).cargo !== undefined ? this.toStrOrNull((dto as any).cargo) : undefined,
+
+        sueldo: (dto as any).sueldo !== undefined ? this.toIntOrNull((dto as any).sueldo) : undefined,
+        nivelRentas: (dto as any).nivelRentas !== undefined ? (dto as any).nivelRentas : undefined,
+
+      },
+    });
+
+    if (archivos?.length) {
+      const eg = await this.prisma.egresado.findUnique({
+        where: { idEstudiante },
+        select: { idEgresado: true },
+      });
+
+      if (!eg) throw new NotFoundException('Egresado no encontrado');
+
+      const docs = archivos.map((file) => ({
+        idEgresado: eg.idEgresado,
+        nombre: file.originalname,
+        url: `/documents/egresados/${file.filename}`,
+      }));
+
+      await this.prisma.documentoEgresado.createMany({ data: docs });
+    }
+
+    return this.findOne(idEstudiante);
+  }
 
   async findAll() {
     return this.prisma.egresado.findMany({
@@ -280,137 +322,7 @@ export class EgresadosService {
       },
     });
 
-    if (!egresado) throw new NotFoundException('Egresado no encontrado');
     return egresado;
-  }
-
-  async updateByEstudiante(
-    idEstudiante: number,
-    dto: UpdateEgresadoDto,
-    archivos: Express.Multer.File[],
-  ) {
-    idEstudiante = Number(idEstudiante);
-
-    const existe = await this.prisma.egresado.findUnique({
-      where: { idEstudiante },
-    });
-
-    if (!existe) throw new NotFoundException('Egresado no encontrado');
-
-    const { planEstudios, ..._rest } = dto as any;
-
-    const fechaConvertida = (dto as any).fechaEgreso
-      ? this.parseFecha((dto as any).fechaEgreso.toString())
-      : undefined;
-
-    const dataUpdate: any = {
-      ...(fechaConvertida ? { fechaEgreso: fechaConvertida } : {}),
-
-      ...((dto as any).anioFinEstudios !== undefined
-        ? { anioFinEstudios: this.toIntOrNull((dto as any).anioFinEstudios) }
-        : {}),
-
-      ...(dto.situacionActual !== undefined
-        ? {
-            situacionActual: dto.situacionActual,
-            situacionActualOtro:
-              dto.situacionActual === 'Otro'
-                ? this.toStrOrNull((dto as any).situacionActualOtro)
-                : null,
-          }
-        : {}),
-
-      ...(dto.situacionActualOtro !== undefined && dto.situacionActual === undefined
-        ? { situacionActualOtro: this.toStrOrNull((dto as any).situacionActualOtro) }
-        : {}),
-
-      ...(dto.empresa !== undefined ? { empresa: this.toStrOrNull(dto.empresa) } : {}),
-      ...(dto.cargo !== undefined ? { cargo: this.toStrOrNull(dto.cargo) } : {}),
-      ...(dto.sueldo !== undefined
-        ? {
-            sueldo:
-              dto.sueldo !== null && dto.sueldo !== ('' as any) ? this.toIntOrNull(dto.sueldo) : null,
-          }
-        : {}),
-      ...((dto as any).nivelRentas !== undefined ? { nivelRentas: (dto as any).nivelRentas ?? null } : {}),
-
-      ...((dto as any).viaIngreso !== undefined ? { viaIngreso: this.toStrOrNull((dto as any).viaIngreso) } : {}),
-      ...((dto as any).viaIngresoOtro !== undefined || (dto as any).viaIngreso !== undefined
-        ? {
-            viaIngresoOtro:
-              (dto as any).viaIngreso === 'Otro'
-                ? this.toStrOrNull((dto as any).viaIngresoOtro)
-                : (dto as any).viaIngreso !== undefined
-                ? null
-                : undefined,
-          }
-        : {}),
-
-      ...((dto as any).anioIngresoCarrera !== undefined
-        ? { anioIngresoCarrera: this.toIntOrNull((dto as any).anioIngresoCarrera) }
-        : {}),
-
-      ...((dto as any).genero !== undefined ? { genero: this.toStrOrNull((dto as any).genero) } : {}),
-      ...((dto as any).tiempoBusquedaTrabajo !== undefined
-        ? { tiempoBusquedaTrabajo: this.toStrOrNull((dto as any).tiempoBusquedaTrabajo) }
-        : {}),
-
-      ...((dto as any).sectorLaboral !== undefined
-        ? { sectorLaboral: this.toStrOrNull((dto as any).sectorLaboral) }
-        : {}),
-      ...((dto as any).sectorLaboralOtro !== undefined || (dto as any).sectorLaboral !== undefined
-        ? {
-            sectorLaboralOtro:
-              (dto as any).sectorLaboral === 'Otro'
-                ? this.toStrOrNull((dto as any).sectorLaboralOtro)
-                : (dto as any).sectorLaboral !== undefined
-                ? null
-                : undefined,
-          }
-        : {}),
-
-      ...((dto as any).tipoEstablecimiento !== undefined
-        ? { tipoEstablecimiento: this.toStrOrNull((dto as any).tipoEstablecimiento) }
-        : {}),
-      ...((dto as any).tipoEstablecimientoOtro !== undefined || (dto as any).tipoEstablecimiento !== undefined
-        ? {
-            tipoEstablecimientoOtro:
-              (dto as any).tipoEstablecimiento === 'Otro'
-                ? this.toStrOrNull((dto as any).tipoEstablecimientoOtro)
-                : (dto as any).tipoEstablecimiento !== undefined
-                ? null
-                : undefined,
-          }
-        : {}),
-
-      ...(dto.anioIngresoLaboral !== undefined ? { anioIngresoLaboral: this.toIntOrNull(dto.anioIngresoLaboral) } : {}),
-      ...(dto.anioSeguimiento !== undefined ? { anioSeguimiento: this.toIntOrNull(dto.anioSeguimiento) } : {}),
-
-      ...(dto.telefono !== undefined ? { telefono: this.toStrOrNull(dto.telefono) } : {}),
-      ...(dto.emailContacto !== undefined ? { emailContacto: this.toStrOrNull(dto.emailContacto) } : {}),
-      ...(dto.direccion !== undefined ? { direccion: this.toStrOrNull(dto.direccion) } : {}),
-      ...(dto.linkedin !== undefined ? { linkedin: this.toStrOrNull(dto.linkedin) } : {}),
-      ...(dto.contactoAlternativo !== undefined ? { contactoAlternativo: this.toStrOrNull(dto.contactoAlternativo) } : {}),
-    };
-
-    Object.keys(dataUpdate).forEach((k) => dataUpdate[k] === undefined && delete dataUpdate[k]);
-
-    await this.prisma.egresado.update({
-      where: { idEstudiante },
-      data: dataUpdate,
-    });
-
-    if (archivos && archivos.length > 0) {
-      const docs = archivos.map((f) => ({
-        nombre: f.originalname,
-        url: `/documents/egresados/${f.filename}`,
-        idEgresado: existe.idEgresado,
-      }));
-
-      await this.prisma.documentoEgresado.createMany({ data: docs });
-    }
-
-    return this.findOne(idEstudiante);
   }
 
   async getDashboardCohortes() {
@@ -427,13 +339,11 @@ export class EgresadosService {
       where: { anioFinEstudios: { not: null } },
     });
 
-
     const porCohorteRentas = await this.prisma.egresado.groupBy({
       by: ['anioFinEstudios', 'nivelRentas'],
       _count: { _all: true },
       where: { anioFinEstudios: { not: null } },
     });
-
 
     const egresadosMin = await this.prisma.egresado.findMany({
       where: { anioFinEstudios: { not: null } },
@@ -453,7 +363,6 @@ export class EgresadosService {
       if (tiene) ref.conDocs += 1;
       else ref.sinDocs += 1;
     }
-
 
     const cohortes = porCohorte
       .filter((x) => x.anioFinEstudios !== null)
@@ -488,7 +397,6 @@ export class EgresadosService {
 
     return { cohortes };
   }
-
 
   async deleteDocumento(idDocumento: number) {
     idDocumento = Number(idDocumento);
@@ -547,7 +455,6 @@ export class EgresadosService {
 
     if (!doc) throw new NotFoundException('Documento no encontrado');
 
-
     const egresado = await this.prisma.egresado.findUnique({
       where: { idEstudiante },
       select: { idEgresado: true },
@@ -570,7 +477,6 @@ export class EgresadosService {
     await this.prisma.documentoEgresado.delete({
       where: { idDocumento },
     });
-
 
     return this.prisma.egresado.findUnique({
       where: { idEstudiante },
@@ -596,7 +502,6 @@ export class EgresadosService {
     });
   }
 
-
   async delete(idEgresado: number) {
     idEgresado = Number(idEgresado);
 
@@ -608,4 +513,268 @@ export class EgresadosService {
       where: { idEgresado },
     });
   }
+
+
+  async generarFichaPdfByEstudiante(idEstudiante: number): Promise<Buffer> {
+    const egresado = await this.findOne(Number(idEstudiante));
+    if (!egresado) throw new NotFoundException('Egresado no encontrado');
+
+    return this.pdfService.generarFichaEgresadoPdf({
+      egresado,
+      generadoEn: new Date(),
+    });
+  }
+
+ 
+  async getReporteCohortesAnalitico(from?: number, to?: number) {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    const hasFrom = Number.isFinite(Number(from));
+    const hasTo = Number.isFinite(Number(to));
+
+    // Si no se envía rango, el reporte incluye TODAS las cohortes con anioFinEstudios informado.
+    const anioFilter: any =
+      !hasFrom && !hasTo
+        ? { not: null }
+        : {
+            not: null,
+            ...(hasFrom ? { gte: Number(from) } : {}),
+            ...(hasTo ? { lte: Number(to) } : {}),
+            // si solo viene from, cerramos hasta el año actual
+            ...(!hasTo && hasFrom ? { lte: currentYear } : {}),
+            // si solo viene to, dejamos desde 0
+            ...(!hasFrom && hasTo ? { gte: 0 } : {}),
+          };
+
+    // Traemos los egresados del rango (o todos si no hay rango).
+    // NOTA: mantenemos sueldo por compatibilidad, pero la renta estimada se calcula desde nivelRentas.
+    const egresados = await this.prisma.egresado.findMany({
+      where: { anioFinEstudios: anioFilter },
+      select: {
+        anioFinEstudios: true,
+        situacionActual: true,
+        // compat
+        sueldo: true,
+        // proxy real
+        nivelRentas: true,
+        genero: true,
+        documentos: { select: { idDocumento: true } },
+        Estudiante: { select: { rut: true, nombreCompleto: true } },
+      },
+    });
+
+    // Buckets por mínimo estimado (sin 'k', números completos)
+    const bucketLabelFromMin = (v: number) => {
+      if (v < 500000) return '< $500.000';
+      if (v < 700000) return '$500.000 – $699.999';
+      if (v < 900000) return '$700.000 – $899.999';
+      if (v < 1200000) return '$900.000 – $1.199.999';
+      return '≥ $1.200.000';
+    };
+
+    const median = (arr: number[]) => {
+      if (!arr.length) return null;
+      const a = [...arr].sort((x, y) => x - y);
+      const mid = Math.floor(a.length / 2);
+      return a.length % 2 === 0 ? Math.round((a[mid - 1] + a[mid]) / 2) : a[mid];
+    };
+
+    const avg = (arr: number[]) => {
+      if (!arr.length) return null;
+      return Math.round(arr.reduce((s, x) => s + x, 0) / arr.length);
+    };
+
+    const cohortesMap = new Map<number, any>();
+
+    for (const e of egresados) {
+      const anio = Number(e.anioFinEstudios);
+      if (!Number.isFinite(anio)) continue;
+
+      if (!cohortesMap.has(anio)) {
+        cohortesMap.set(anio, {
+          anio,
+          total: 0,
+          situacion: { Trabajando: 0, Cesante: 0, Otro: 0 },
+          docs: { conDocs: 0, sinDocs: 0 },
+          sueldos: [] as number[], // aquí guardamos mínimos estimados
+          buckets: {
+            '< $500.000': 0,
+            '$500.000 – $699.999': 0,
+            '$700.000 – $899.999': 0,
+            '$900.000 – $1.199.999': 0,
+            '≥ $1.200.000': 0,
+          } as Record<string, number>,
+        });
+      }
+
+      const ref = cohortesMap.get(anio);
+      ref.total += 1;
+
+      const sit = (e.situacionActual ?? 'Otro') as 'Trabajando' | 'Cesante' | 'Otro';
+      if (ref.situacion[sit] !== undefined) ref.situacion[sit] += 1;
+      else ref.situacion.Otro += 1;
+
+      const tieneDocs = (e.documentos?.length ?? 0) > 0;
+      if (tieneDocs) ref.docs.conDocs += 1;
+      else ref.docs.sinDocs += 1;
+
+      // Renta estimada:
+      // - Primero intentamos desde nivelRentas (mínimo del rango declarado).
+      // - Si no existe, usamos sueldo (si tu esquema lo tiene) como fallback.
+      const estMin =
+        this.rentasToMinValue((e as any).nivelRentas) ??
+        (typeof (e as any).sueldo === 'number' && Number.isFinite((e as any).sueldo) && (e as any).sueldo > 0
+          ? (e as any).sueldo
+          : null);
+
+      if (typeof estMin === 'number' && Number.isFinite(estMin)) {
+        ref.sueldos.push(estMin);
+        ref.buckets[bucketLabelFromMin(estMin)] += 1;
+      }
+    }
+
+    const cohortes = Array.from(cohortesMap.values()).sort((a, b) => b.anio - a.anio);
+
+    for (const c of cohortes) {
+      c.empleabilidadPct = c.total ? Math.round((c.situacion.Trabajando / c.total) * 100) : 0;
+      c.docsPct = c.total ? Math.round((c.docs.conDocs / c.total) * 100) : 0;
+
+      c.sueldoStats = {
+        count: c.sueldos.length,
+        avg: avg(c.sueldos),
+        median: median(c.sueldos),
+        min: c.sueldos.length ? Math.min(...c.sueldos) : null,
+        max: c.sueldos.length ? Math.max(...c.sueldos) : null,
+        buckets: c.buckets,
+      };
+    }
+
+    const total = cohortes.reduce((s, c) => s + c.total, 0);
+    const totalTrabajando = cohortes.reduce((s, c) => s + c.situacion.Trabajando, 0);
+    const globalEmpleabilidad = total ? Math.round((totalTrabajando / total) * 100) : 0;
+
+    const totalConDocs = cohortes.reduce((s, c) => s + c.docs.conDocs, 0);
+    const globalDocs = total ? Math.round((totalConDocs / total) * 100) : 0;
+
+    // Rango reportado (si no viene, lo inferimos desde las cohortes retornadas)
+    const years = cohortes.map((c) => c.anio);
+    const reportFrom = hasFrom ? Number(from) : years.length ? Math.min(...years) : currentYear;
+    const reportTo = hasTo ? Number(to) : hasFrom ? currentYear : years.length ? Math.max(...years) : currentYear;
+
+    // =========================
+    // GRÁFICAS RESUMEN (GLOBAL)
+    // =========================
+    // Género (no depende de nivelRentas)
+    const generoCounts: Record<string, number> = {
+      Masculino: 0,
+      Femenino: 0,
+      'Otro/No informa': 0,
+    };
+
+    for (const e of egresados) {
+      const g = String((e as any).genero ?? '').trim().toLowerCase();
+      if (!g) generoCounts['Otro/No informa'] += 1;
+      else if (g.startsWith('m')) generoCounts.Masculino += 1;
+      else if (g.startsWith('f')) generoCounts.Femenino += 1;
+      else generoCounts['Otro/No informa'] += 1;
+    }
+
+    const generoArrRaw = Object.entries(generoCounts).map(([label, count]) => ({ label, count }));
+    const generoTotal = generoArrRaw.reduce((a, x) => a + x.count, 0) || 1;
+    const generoMax = Math.max(...generoArrRaw.map((x) => x.count), 1);
+
+    const generoArr = generoArrRaw.map((x) => ({
+      label: x.label,
+      count: x.count,
+      pct: Math.round((x.count / generoTotal) * 100),
+      barPctOfMax: Math.round((x.count / generoMax) * 100),
+    }));
+
+    // Cohortes (conteo por año)
+    const cohCounts = new Map<number, number>();
+    for (const c of cohortes) {
+      cohCounts.set(c.anio, c.total);
+    }
+    const cohItems = Array.from(cohCounts.entries())
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => b.year - a.year);
+
+    const cohTotal = cohItems.reduce((a, x) => a + x.count, 0) || 1;
+    const cohMax = Math.max(...cohItems.map((x) => x.count), 1);
+
+    const cohortesGraf = cohItems.map((x) => ({
+      label: String(x.year),
+      count: x.count,
+      pct: Math.round((x.count / cohTotal) * 100),
+      barPctOfMax: Math.round((x.count / cohMax) * 100),
+    }));
+
+    return {
+      from: reportFrom,
+      to: reportTo,
+      generadoEn: now,
+      resumen: {
+        totalEgresados: total,
+        totalTrabajando,
+        empleabilidadGlobalPct: globalEmpleabilidad,
+        docsGlobalPct: globalDocs,
+      },
+      cohortes,
+      graficas: {
+        genero: generoArr,
+        cohortes: cohortesGraf,
+      },
+    };
+  }
+
+  
+  async generarReporteCohortesPdf(from?: number, to?: number): Promise<Buffer> {
+    const data = await this.getReporteCohortesAnalitico(from, to);
+    return this.pdfService.generarReporteCohortesPdf(data);
+  }
+
+  private rentasToMinValue(nivel: string | null | undefined): number | null {
+  if (!nivel) return null;
+  const s = String(nivel);
+
+  // Captura números tipo 500.001, 1.000.000, 700000, etc.
+  const nums = s
+    .replace(/\./g, '')                 // 1.000.000 -> 1000000
+    .match(/\d{3,}/g)                   // números largos
+    ?.map(n => parseInt(n, 10))
+    .filter(n => Number.isFinite(n)) ?? [];
+
+  if (!nums.length) return null;
+
+  // Si es "Menos de $500.000" -> usa 0 como mínimo
+  if (/<\s*\$?/i.test(s) || /men(os|or)\s+de/i.test(s)) return 0;
+
+  // Si es "Más de $1.200.000" -> mínimo = ese valor
+  if (/m(a|á)s\s+de/i.test(s) || />=\s*\$?/i.test(s) || />\s*\$?/i.test(s)) return nums[0];
+
+  // Si es "Entre X y Y" -> mínimo = X
+  return nums[0];
+}
+
+private median(values: number[]): number | null {
+  if (!values.length) return null;
+  const arr = [...values].sort((a,b) => a-b);
+  const mid = Math.floor(arr.length / 2);
+  return arr.length % 2 ? arr[mid] : Math.round((arr[mid - 1] + arr[mid]) / 2);
+}
+
+private average(values: number[]): number | null {
+  if (!values.length) return null;
+  return Math.round(values.reduce((a,b) => a+b, 0) / values.length);
+}
+
+private bucketLabelFromMin(v: number): '< $500.000' | '$500.000 – $699.999' | '$700.000 – $899.999' | '$900.000 – $1.199.999' | '≥ $1.200.000' {
+  if (v < 500000) return '< $500.000';
+  if (v < 700000) return '$500.000 – $699.999';
+  if (v < 900000) return '$700.000 – $899.999';
+  if (v < 1200000) return '$900.000 – $1.199.999';
+  return '≥ $1.200.000';
+}
+
 }

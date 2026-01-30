@@ -2527,7 +2527,14 @@ private toIntOrNull(v: any): number | null {
   // PDF (Ficha / Reporte)
   // =========================
   descargarFichaPdf(idEstudiante: number) {
-    const url = this.apiUrl(`/egresados/estudiante/${idEstudiante}/pdf`);
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Generando PDF…',
+      detail: 'Generando ficha del egresado.',
+      life: 1500,
+    });
+const url = this.apiUrl(`/egresados/estudiante/${idEstudiante}/pdf`);
     this.getPdfBlob(url).subscribe({
       next: (blob) => this.abrirPdf(blob),
       error: (err) => {
@@ -2542,7 +2549,14 @@ private toIntOrNull(v: any): number | null {
   }
 
   descargarReporteCohortesPdf(from?: number, to?: number) {
-    const params =
+
+    this.messageService.add({
+      severity: 'info',
+      summary: 'Generando PDF…',
+      detail: 'Generando reporte de cohortes.',
+      life: 1500,
+    });
+const params =
       from != null && to != null ? `?from=${from}&to=${to}` : '';
     const url = this.apiUrl(`/egresados/report/cohortes/pdf${params}`);
     this.getPdfBlob(url).subscribe({
